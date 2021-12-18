@@ -4,7 +4,7 @@ Inspired by thermodynamic integration, MFI is a method for the calculation of ti
 
 In this repository we have two example applications of MFI to a double well in 1D and to a Alanine dipeptide. 
 
-IF you find this useful please cite: 
+If you find this useful please cite: 
 
 - Marinova, Veselina, and Matteo Salvalaglio. "Time-independent free energies from metadynamics via mean force integration." [The Journal of chemical physics 151.16 (2019)](164115.https://aip.scitation.org/doi/abs/10.1063/1.5123498),  [arXiv](https://arxiv.org/pdf/1907.08472.pdf)
 
