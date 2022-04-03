@@ -1,4 +1,0 @@
-#! FIELDS time p.x sigma_p.x height biasf
-#! SET multivariate false
-#! SET kerneltype gaussian
-                    0.5     -1.162832491406628                    0.1     0.1111111111111111                     10
