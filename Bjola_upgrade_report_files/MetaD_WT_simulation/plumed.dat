@@ -1,0 +1,18 @@
+#Define system as distance between two atoms
+p: DISTANCE ATOMS=1,2 COMPONENTS
+#Define Force field
+ff: MATHEVAL ARG=p.x PERIODIC=NO FUNC=(7*x^4-23*x^2)
+bb: BIASVALUE ARG=ff
+#Define Histroy dependet bias potentail (baisfactor very large so that height stays constant)
+# METAD ARG=p.x PACE=100 SIGMA=0.1 HEIGHT=0.1 TEMP=120 BIASFACTOR=10000
+METAD ARG=p.x PACE=100 SIGMA=0.1 HEIGHT=0.1 GRID_MIN=-3 GRID_MAX=3 GRID_BIN=200 BIASFACTOR=10 TEMP=120 CALC_RCT
+#Reweight Bias
+bias: REWEIGHT_METAD TEMP=120
+#Make Histogram
+hh: HISTOGRAM ARG=p.x GRID_MIN=-3 GRID_MAX=3 GRID_BIN=300 BANDWIDTH=0.01 LOGWEIGHTS=bias
+#Convert Histogram to FES
+fes: CONVERT_TO_FES GRID=hh TEMP=120
+#Save Histogram and FES at the end. Save position every 10 time-steps    
+DUMPGRID GRID=hh FILE=histo STRIDE=1000000
+DUMPGRID GRID=fes FILE=fes.dat STRIDE=1000000
+PRINT FILE=position ARG=p.x STRIDE=10
