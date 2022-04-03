@@ -10,6 +10,28 @@ from labellines import labelLine
 import scipy.io
 import matplotlib as mpl
 
+
+
+def run_langevin1D(length, sigma=0.1, height=0.1, biasfactor=10):
+    with open("plumed.dat","w") as f:
+        print("""p: DISTANCE ATOMS=1,2 COMPONENTS
+ff: MATHEVAL ARG=p.x PERIODIC=NO FUNC=(7*x^4-23*x^2)
+bb: BIASVALUE ARG=ff
+METAD ARG=p.x PACE=100 SIGMA={} HEIGHT={} GRID_MIN=-3 GRID_MAX=3 GRID_BIN=200 BIASFACTOR={} TEMP=120
+PRINT FILE=position ARG=p.x STRIDE=10""".format(sigma,height, biasfactor),file=f)
+
+    with open("input","w") as f:
+        print("""temperature 1
+tstep 0.005
+friction 1
+dimension 1
+nstep {}
+ipos -1.0
+periodic false""".format(length),file=f)
+    
+    #Start WT-Metadynamic simulation
+    !plumed pesmd < input
+
 #Load the HILLS data in 1D
 def load_HILLS_1D(hills_name = "HILLS"):
     """This function loads a HILLS
