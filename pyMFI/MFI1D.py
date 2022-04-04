@@ -38,10 +38,10 @@ def MFI_1D(HILLS = "HILLS", position = "position", bw = 1, kT = 1, min_grid=2, m
 
     for i in range(total_number_of_hills):
         # Build metadynamics potential
-        s = HILLS[i, 1]  # center position of gausian
-        sigma_meta2 = HILLS[i, 2] ** 2  # width of gausian
-        gamma = HILLS[i, 4]  # scaling factor of gausian
-        height_meta = HILLS[i, 3] * ((gamma - 1) / (gamma))  # Height of Gausian
+        s = HILLS[i, 1]  # center position of Gaussian
+        sigma_meta2 = HILLS[i, 2] ** 2  # width of Gaussian
+        gamma = HILLS[i, 4]  # scaling factor of Gaussian
+        height_meta = HILLS[i, 3] * ((gamma - 1) / (gamma))  # Height of Gaussian
         kernelmeta = np.exp(-0.5 * (((grid - s) ** 2) / (sigma_meta2)))
         Fbias = Fbias + height_meta * kernelmeta * ((grid - s) / (sigma_meta2))  # Bias force due to Metadynamics potentials
 
@@ -86,7 +86,7 @@ def intg_1D(x,F):
     return fes
 
 
-def plot_recap(X,FES, TOTAL_DENSITY, CONVMAP, CONV_history): 
+def plot_recap(X, FES, TOTAL_DENSITY, CONVMAP, CONV_history): 
     fig, axs = plt.subplots(2,2,figsize=(12,8))
     
     axs[0,0].plot(X,FES);
