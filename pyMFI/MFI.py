@@ -20,7 +20,6 @@ def MFI_2D(HILLS = "HILLS", position_x = "position_x", position_y = "position_y"
     grid_space = (max_grid - min_grid) / (nbins - 1)
     X, Y = np.meshgrid(grid, grid)
 
-
     stride = int(len(position_x) / len(HILLS[:,1]))     
     const = (1 / (bw*np.sqrt(2*np.pi)*stride))
     total_number_of_hills=len(HILLS[:,1])
@@ -117,4 +116,22 @@ def FFT_intg_2D(FX, FY, min_grid=-np.pi, max_grid=np.pi, nbins = 101):
     #Construct whole FES
     fes = fes_x + fes_y
     fes = fes - np.min(fes)
+    return [X, Y, fes]
+
+    
+def intg_2D(FX, FY, min_grid=-np.pi, max_grid=np.pi, nbins = 101): 
+    
+    grid = np.linspace(min_grid, max_grid, nbins)
+    X, Y = np.meshgrid(grid, grid)
+
+    FdSx = np.cumsum(FX, axis=1)*np.diff(grid)[0]
+    FdSy = np.cumsum(FY, axis=0)*np.diff(grid)[0]
+
+    fes = np.zeros(FdSx.shape)
+    for i in range(fes.shape[0]):
+        for j in range(fes.shape[1]):
+            fes[i,j] += np.sum([FdSy[i,0], -FdSy[0,0], FdSx[i,j], -FdSx[i,0]])
+
+    fes = fes - np.min(fes)
+
     return [X, Y, fes]
