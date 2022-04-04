@@ -94,7 +94,7 @@ def MFI_2D(HILLS = "HILLS", position_x = "position_x", position_y = "position_y"
         if (i+1) % (total_number_of_hills/log_pace) == 0: 
             print(str(i+1) + " / " + str(total_number_of_hills)+" Average Error: "+str(sum(sum(ofe)) / (nbins**2)))
             
-    return [Ftot_den, Ftot_x, Ftot_y, ofe, ofe_history]
+    return [X, Y, Ftot_den, Ftot_x, Ftot_y, ofe, ofe_history]
 
 ### Integrtion using Fast Fourier Transform (FFT integration) in 2D            
 def FFT_intg_2D(FX, FY, min_grid=-np.pi, max_grid=np.pi, nbins = 101):
@@ -153,5 +153,5 @@ def plot_recap_2D(X, Y, FES, TOTAL_DENSITY, CONVMAP, CONV_history):
     axs[1,0].set_ylabel('CV2')
     axs[1,0].set_xlabel('CV1')
     axs[1,1].plot(range(len(CONV_history)), CONV_history);
-    axs[1,1].set_ylabel('Average Mean Force')
+    axs[1,1].set_ylabel('Average Mean Force Error')
     axs[1,1].set_xlabel('Number of Error Evaluations')
