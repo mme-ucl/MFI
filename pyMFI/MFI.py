@@ -77,10 +77,36 @@ def find_FES_adj(X_old, Y_old, FES_old):
 
 ### Main Mean Force Integration
 
-def MFI_2D(HILLS = "HILLS", position_x = "position_x", position_y = "position_y", bw = 1, kT = 1, min_grid=-np.pi, max_grid=np.pi, nbins = 101, log_pace = 10, error_pace = 200, WellTempered=1,nhills=-1):    
-    grid = np.linspace(min_grid, max_grid, nbins)
-    X, Y = np.meshgrid(grid, grid)
+def MFI_2D(HILLS = "HILLS", position_x = "position_x", position_y = "position_y", bw = 1, kT = 1, min_grid=np.array((-np.pi, -np.pi)), max_grid=np.array((np.pi, np.pi)), nbins = np.array(101,101) log_pace = 10, error_pace = 200, WellTempered=1,nhills=-1):    
+    """Compute a time-independent estimate of the Mean Thermodynamic Force, i.e. the free energy gradient in 2D CV spaces. 
 
+    Args:
+        HILLS (str, optional): HILLS array. Defaults to "HILLS".
+        position_x (str, optional): CV1 array. Defaults to "position_x".
+        position_y (str, optional): CV2 array. Defaults to "position_y".
+        bw (int, optional): Scalar, bandwidth for the construction of the KDE estimate of the biased probability density. Defaults to 1.
+        kT (int, optional): Scalar, kT. Defaults to 1.
+        min_grid (_type_, optional): Lower bound of the simulation domain. Defaults to np.array((-np.pi, -np.pi)).
+        max_grid (_type_, optional): Upper bound of the simulation domain. Defaults to np.array((np.pi, np.pi)).
+        nbins (int, optional): number of bins in CV1,CV2. Defaults to np.array((101,101)).
+        log_pace (int, optional): Pace for outputting progress and convergence. Defaults to 10.
+        error_pace (int, optional): Pace for the calculation of the on-the-fly measure of global convergence. Defaults to 200.
+        WellTempered (int, optional): Is the simulation well tempered? . Defaults to 1.
+        nhills (int, optional): Number of HILLS to analyse, -1 for the entire HILLS array. Defaults to -1.
+
+    Returns:
+        X: array of size (nbins[0], nbins[1]) - CV1 grid positions
+        Y: array of size (nbins[0], nbins[1]) - CV2 grid positions
+        Ftot_den: array of size (nbins[0], nbins[1]) - Cumulative biased probability density, equivalent to an unbiased histogram of samples in CV space. 
+        Ftot_x:  array of size (nbins[0], nbins[1]) - CV1 component of the Mean Force. 
+        Ftot_y:  array of size (nbins[0], nbins[1]) - CV2 component of the Mean Force. 
+        ofe:  array of size (nbins[0], nbins[1]) - on the fly estimate of the local convergence
+        ofe_history: array of size (1, total_number_of_hills) - running estimate of the global convergence of the mean force.
+    """
+
+    gridx = np.linspace(min_grid[0], max_grid[0], nbins[0])
+    gridy = np.linspace(min_grid[1], max_grid[1], nbins[1])
+    X, Y = np.meshgrid(gridx, gridy)
     stride = int(len(position_x) / len(HILLS[:,1]))     
     const = (1 / (bw*np.sqrt(2*np.pi)*stride))
     
@@ -108,7 +134,6 @@ def MFI_2D(HILLS = "HILLS", position_x = "position_x", position_y = "position_y"
     else:
         gamma = HILLS[0, 6]
         Gamma_Factor=(gamma - 1)/(gamma)
-
       
         
     for i in range(total_number_of_hills):
