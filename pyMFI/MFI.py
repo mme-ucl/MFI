@@ -4,6 +4,14 @@ import numpy as np
 
 ### Load files ####
 def load_HILLS_2D(hills_name = "HILLS"):
+    """_summary_
+
+    Args:
+        hills_name (str, optional): _description_. Defaults to "HILLS".
+
+    Returns:
+        _type_: _description_
+    """
     for file in glob.glob(hills_name):
         hills = np.loadtxt(file)
         hills = np.concatenate(([hills[0]], hills[:-1]))
@@ -20,6 +28,18 @@ def load_position_2D(position_name = "position"):
 
 ### Periodic CVs utils
 def find_periodic_point(x_coord,y_coord,min_grid,max_grid,periodic):
+    """_summary_
+
+    Args:
+        x_coord (_type_): _description_
+        y_coord (_type_): _description_
+        min_grid (_type_): _description_
+        max_grid (_type_): _description_
+        periodic (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """
     
     #Use periodic extension for defining PBC
     periodic_extension = periodic * 1 / 2
@@ -51,34 +71,6 @@ def find_periodic_point(x_coord,y_coord,min_grid,max_grid,periodic):
         elif copy_record[1] == 1 and copy_record[3] == 1: coord_list.append([x_coord - 2 * np.pi, y_coord - 2 * np.pi])
 
     return coord_list
-
-def find_cutoff_matrix(input_FES):
-    len_x, len_y = np.shape(input_FES)
-    cutoff_matrix = np.ones((len_x, len_y))
-    for ii in range(len_x):
-        for jj in range(len_y):
-            if input_FES[ii][jj] >= Flim: cutoff_matrix[ii][jj] = 0
-    return cutoff_matrix
-
-def zero_to_nan(input_array):
-    len_x, len_y = np.shape(input_array)
-    for ii in range(len_x):
-        for jj in range(len_y):
-            if input_array[ii][jj] == 0: input_array[ii][jj] = float("Nan")
-    return input_array
-
-def find_FES_adj(X_old, Y_old, FES_old):
-    # r = np.stack(["x_old_grid_mesh".ravel(), "y_old_grid_mesh".ravel()]).T
-    r = np.stack([X_old.ravel(), Y_old.ravel()]).T
-    # Sx = interpolate.CloughTocher2DInterpolator(r, "Z_values".ravel())
-    Sx = interpolate.CloughTocher2DInterpolator(r, FES_old.ravel())
-    # ri = np.stack(["x_new_grid_mesh".ravel(), "y_new_grid_mesh".ravel()]).T
-    ri = np.stack([XREF.ravel(), YREF.ravel()]).T
-    FES_new = Sx(ri).reshape(XREF.shape)
-
-    return FES_new
-
-###
 
 ### Main Mean Force Integration
 
@@ -204,7 +196,7 @@ def MFI_2D( HILLS = "HILLS", position_x = "position_x", position_y = "position_y
             ofe_history.append(sum(sum(ofe)) / (nbins[0]*nbins[1]))
 
         if (i+1) % (total_number_of_hills/log_pace) == 0: 
-            print(str(i+1) + "/" + str(total_number_of_hills)+"| Average Mean Force Error: "+str(sum(sum(ofe)) / (nbins[0]*nbins[1])))
+            print("|"+ str(i+1) + "/" + str(total_number_of_hills)+"|==> Average Mean Force Error: "+str(sum(sum(ofe)) / (nbins[0]*nbins[1])),end="\r")
             
     return [X, Y, Ftot_den, Ftot_x, Ftot_y, ofe, ofe_history]
 
@@ -236,13 +228,26 @@ def FFT_intg_2D(FX, FY, min_grid=np.array((-np.pi, -np.pi)), max_grid=np.array((
     return [X, Y, fes]
 
 #Equivalent to integration MS in Alanine dipeptide notebook.     
-def intg_2D(FX, FY, min_grid=-np.pi, max_grid=np.pi, nbins = 101): 
-    
-    grid = np.linspace(min_grid, max_grid, nbins)
-    X, Y = np.meshgrid(grid, grid)
+def intg_2D(FX, FY, min_grid=np.array((-np.pi, -np.pi)), max_grid=np.array((np.pi, np.pi)), nbins = np.array((101,101))): 
+    """_summary_
 
-    FdSx = np.cumsum(FX, axis=1)*np.diff(grid)[0]
-    FdSy = np.cumsum(FY, axis=0)*np.diff(grid)[0]
+    Args:
+        FX (_type_): _description_
+        FY (_type_): _description_
+        min_grid (_type_, optional): _description_. Defaults to np.array((-np.pi, -np.pi)).
+        max_grid (_type_, optional): _description_. Defaults to np.array((np.pi, np.pi)).
+        nbins (_type_, optional): _description_. Defaults to np.array((101,101)).
+
+    Returns:
+        _type_: _description_
+    """
+    
+    gridx = np.linspace(min_grid[0], max_grid[0], nbins[0])
+    gridy = np.linspace(min_grid[1], max_grid[1], nbins[1])
+    X, Y = np.meshgrid(gridx, gridy)
+
+    FdSx = np.cumsum(FX, axis=1)*np.diff(gridx)[0]
+    FdSy = np.cumsum(FY, axis=0)*np.diff(gridy)[0]
 
     fes = np.zeros(FdSx.shape)
     for i in range(fes.shape[0]):
@@ -254,20 +259,41 @@ def intg_2D(FX, FY, min_grid=-np.pi, max_grid=np.pi, nbins = 101):
     return [X, Y, fes]
 
 
-def plot_recap_2D(X, Y, FES, TOTAL_DENSITY, CONVMAP, CONV_history): 
-    fig, axs = plt.subplots(2,2,figsize=(10,8))
-    cp=axs[0,0].contourf(X,Y,FES,levels=range(0,50,1),cmap='coolwarm',antialiased=False,alpha=0.8);
-    cbar = plt.colorbar(cp, ax=axs[0,0])
-    axs[0,0].set_ylabel('CV2')
-    axs[0,0].set_xlabel('CV1')
-    cp=axs[0,1].contourf(X,Y,CONVMAP,levels=range(0,20,1),cmap='coolwarm',antialiased=False,alpha=0.8);
-    cbar = plt.colorbar(cp, ax=axs[0,1])
-    axs[0,1].set_ylabel('CV2')
-    axs[0,1].set_xlabel('CV1')
-    cp=axs[1,0].contourf(X,Y,TOTAL_DENSITY,cmap='viridis',antialiased=False,alpha=0.8);
-    cbar = plt.colorbar(cp, ax=axs[1,0])
-    axs[1,0].set_ylabel('CV2')
-    axs[1,0].set_xlabel('CV1')
-    axs[1,1].plot(range(len(CONV_history)), CONV_history);
-    axs[1,1].set_ylabel('Average Mean Force Error')
-    axs[1,1].set_xlabel('Number of Error Evaluations')
+def plot_recap_2D(X, Y, FES, Fx, Fy, TOTAL_DENSITY, CONVMAP, CONV_history): 
+    """_summary_
+
+    Args:
+        X (_type_): _description_
+        Y (_type_): _description_
+        FES (_type_): _description_
+        TOTAL_DENSITY (_type_): _description_
+        CONVMAP (_type_): _description_
+        CONV_history (_type_): _description_
+    """
+    fig, axs = plt.subplots(1,4,figsize=(32,6))
+    cp=axs[0].contourf(X,Y,FES,levels=range(0,50,1),cmap='coolwarm',antialiased=False,alpha=0.8);
+    cbar = plt.colorbar(cp, ax=axs[0])
+    axs[0].set_ylabel('CV2',fontsize=20)
+    axs[0].set_xlabel('CV1',fontsize=20)
+    axs[0].set_title('Free Energy Surface',fontsize=20)
+    
+    cp=axs[1].contourf(X,Y,CONVMAP,levels=range(0,20,1),cmap='coolwarm',antialiased=False,alpha=0.8);
+    cbar = plt.colorbar(cp, ax=axs[1])
+    axs[1].set_ylabel('CV2',fontsize=20)
+    axs[1].set_xlabel('CV1',fontsize=20)
+    axs[1].set_title('Standard Error of the Mean Force',fontsize=20)
+
+    cp=axs[2].contourf(X,Y,TOTAL_DENSITY,cmap='gray_r',antialiased=False,alpha=0.8);
+    cbar = plt.colorbar(cp, ax=axs[2])
+    axs[2].set_ylabel('CV2',fontsize=20)
+    axs[2].set_xlabel('CV1',fontsize=20)
+    axs[2].set_title('Sampled Configurations',fontsize=20)
+
+    axs[3].plot(range(len(CONV_history)), CONV_history);
+    axs[3].set_ylabel('Average Mean Force Error',fontsize=20)
+    axs[3].set_xlabel('Number of Error Evaluations',fontsize=20)
+    axs[3].set_title('Global Convergence',fontsize=20)
+
+
+
+
