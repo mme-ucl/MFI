@@ -196,7 +196,7 @@ def MFI_2D( HILLS = "HILLS", position_x = "position_x", position_y = "position_y
             ofe_history.append(sum(sum(ofe)) / (nbins[0]*nbins[1]))
 
         if (i+1) % (total_number_of_hills/log_pace) == 0: 
-            print("|"+ str(i+1) + "/" + str(total_number_of_hills)+"|==> Average Mean Force Error: "+str(sum(sum(ofe)) / (nbins[0]*nbins[1])),end="\r")
+            print("|"+ str(i+1) + "/" + str(total_number_of_hills)+"|==> Average Mean Force Error: "+str(sum(sum(ofe)) / (nbins[0]*nbins[1])))
             
     return [X, Y, Ftot_den, Ftot_x, Ftot_y, ofe, ofe_history]
 
