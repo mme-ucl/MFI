@@ -2,6 +2,7 @@ import glob
 import matplotlib.pyplot as plt
 import numpy as np
 
+### Load files ####
 def load_HILLS_2D(hills_name = "HILLS"):
     for file in glob.glob(hills_name):
         hills = np.loadtxt(file)
@@ -15,8 +16,68 @@ def load_position_2D(position_name = "position"):
         position_x = colvar[:-1, 1]
         position_y = colvar[:-1, 2]
     return [position_x, position_y]
+#######
 
-def MFI_2D(HILLS = "HILLS", position_x = "position_x", position_y = "position_y", bw = 1, kT = 1, min_grid=-np.pi, max_grid=np.pi, nbins = 101, log_pace = 10, error_pace = 200):    
+### Periodic CVs utils
+def find_periodic_point(x_coord,y_coord):
+    coord_list = []
+    #There are potentially 4 points, 1 original and 3 periodic copies
+    coord_list.append([x_coord,y_coord])
+    copy_record = [0,0,0,0]
+    #check for x-copy
+    if x_coord < min_grid+grid_ext:
+        coord_list.append([x_coord + 2*np.pi,y_coord])
+        copy_record[0] = 1
+    elif x_coord > max_grid-grid_ext:
+        coord_list.append([x_coord - 2*np.pi,y_coord])
+        copy_record[1] = 1
+    #check for y-copy
+    if y_coord < min_grid+grid_ext:
+        coord_list.append([x_coord, y_coord + 2 * np.pi])
+        copy_record[2] = 1
+    elif y_coord > max_grid-grid_ext:
+        coord_list.append([x_coord, y_coord - 2 * np.pi])
+        copy_record[3] = 1
+    #check for xy-copy
+    if sum(copy_record) == 2:
+        if copy_record[0] == 1 and copy_record[2] == 1: coord_list.append([x_coord + 2 * np.pi, y_coord + 2 * np.pi])
+        elif copy_record[1] == 1 and copy_record[2] == 1: coord_list.append([x_coord - 2 * np.pi, y_coord + 2 * np.pi])
+        elif copy_record[0] == 1 and copy_record[3] == 1: coord_list.append([x_coord + 2 * np.pi, y_coord - 2 * np.pi])
+        elif copy_record[1] == 1 and copy_record[3] == 1: coord_list.append([x_coord - 2 * np.pi, y_coord - 2 * np.pi])
+
+    return coord_list
+
+def find_cutoff_matrix(input_FES):
+    len_x, len_y = np.shape(input_FES)
+    cutoff_matrix = np.ones((len_x, len_y))
+    for ii in range(len_x):
+        for jj in range(len_y):
+            if input_FES[ii][jj] >= Flim: cutoff_matrix[ii][jj] = 0
+    return cutoff_matrix
+
+def zero_to_nan(input_array):
+    len_x, len_y = np.shape(input_array)
+    for ii in range(len_x):
+        for jj in range(len_y):
+            if input_array[ii][jj] == 0: input_array[ii][jj] = float("Nan")
+    return input_array
+
+def find_FES_adj(X_old, Y_old, FES_old):
+    # r = np.stack(["x_old_grid_mesh".ravel(), "y_old_grid_mesh".ravel()]).T
+    r = np.stack([X_old.ravel(), Y_old.ravel()]).T
+    # Sx = interpolate.CloughTocher2DInterpolator(r, "Z_values".ravel())
+    Sx = interpolate.CloughTocher2DInterpolator(r, FES_old.ravel())
+    # ri = np.stack(["x_new_grid_mesh".ravel(), "y_new_grid_mesh".ravel()]).T
+    ri = np.stack([XREF.ravel(), YREF.ravel()]).T
+    FES_new = Sx(ri).reshape(XREF.shape)
+
+    return FES_new
+
+###
+
+### Main Mean Force Integration
+
+def MFI_2D(HILLS = "HILLS", position_x = "position_x", position_y = "position_y", bw = 1, kT = 1, min_grid=-np.pi, max_grid=np.pi, nbins = 101, log_pace = 10, error_pace = 200, WellTempered=1):    
     grid = np.linspace(min_grid, max_grid, nbins)
     grid_space = (max_grid - min_grid) / (nbins - 1)
     X, Y = np.meshgrid(grid, grid)
@@ -26,7 +87,6 @@ def MFI_2D(HILLS = "HILLS", position_x = "position_x", position_y = "position_y"
     total_number_of_hills=len(HILLS[:,1])
     bw2 = bw**2    
 
-    count = 0
     # Initialize force terms
     Fbias_x = np.zeros((nbins, nbins))
     Fbias_y = np.zeros((nbins, nbins))
@@ -38,14 +98,20 @@ def MFI_2D(HILLS = "HILLS", position_x = "position_x", position_y = "position_y"
     ofv_y = np.zeros((nbins,nbins))
     ofe_history = []
 
+    # Definition Gamma Factor, allows to switch between WT and regular MetaD
+    if WellTempered < 1: 
+        Gamma_Factor=1
+    else:
+        gamma = HILLS[0, 6]
+        Gamma_Factor=(gamma - 1)/(gamma)
+        
     for i in range(total_number_of_hills):
         # Build metadynamics potential
         s_x = HILLS[i, 1]  # center x-position of Gaussian
         s_y = HILLS[i, 2]  # center y-position of Gaussian
         sigma_meta2_x = HILLS[i, 3] ** 2  # width of Gaussian
         sigma_meta2_y = HILLS[i, 4] ** 2  # width of Gaussian
-        gamma = HILLS[i, 6]
-        height_meta = HILLS[i, 5] * ((gamma - 1) / (gamma))  # Height of Gaussian
+        height_meta = HILLS[i, 5] * Gamma_Factor  # Height of Gaussian
 
         kernelmeta = np.exp(-0.5 * (((X - s_x) ** 2) / sigma_meta2_x + ((Y - s_y) ** 2) / sigma_meta2_y)) 
         Fbias_x = Fbias_x + height_meta * kernelmeta * ((X - s_x) / sigma_meta2_x);  
@@ -78,9 +144,11 @@ def MFI_2D(HILLS = "HILLS", position_x = "position_x", position_y = "position_y"
 
         #calculate on the fly error components
         Ftot_den2 = Ftot_den2 + pb_t**2   
+        # on the fly variance of the mean force
         ofv_x += pb_t * dfds_x**2
         ofv_y += pb_t * dfds_y**2
 
+        # Compute Variance of the mean force every with 1/error_pace frequency
         if (i + 1) % int(total_number_of_hills / error_pace) == 0:       
             #calculate ofe (standard error)
             Ftot_den_ratio = np.divide(Ftot_den2, (Ftot_den**2 - Ftot_den2), out=np.zeros_like(Ftot_den), where=(Ftot_den**2 - Ftot_den2) != 0)
@@ -92,13 +160,13 @@ def MFI_2D(HILLS = "HILLS", position_x = "position_x", position_y = "position_y"
             ofe_history.append(sum(sum(ofe)) / (nbins**2))
 
         if (i+1) % (total_number_of_hills/log_pace) == 0: 
-            print(str(i+1) + " / " + str(total_number_of_hills)+" Average Error: "+str(sum(sum(ofe)) / (nbins**2)))
+            print(str(i+1) + "/" + str(total_number_of_hills)+"| Average Mean Force Error: "+str(sum(sum(ofe)) / (nbins**2)))
             
     return [X, Y, Ftot_den, Ftot_x, Ftot_y, ofe, ofe_history]
 
-### Integrtion using Fast Fourier Transform (FFT integration) in 2D            
-def FFT_intg_2D(FX, FY, min_grid=-np.pi, max_grid=np.pi, nbins = 101):
-    
+
+### Integration using Fast Fourier Transform (FFT integration) in 2D            
+def FFT_intg_2D(FX, FY, min_grid=-np.pi, max_grid=np.pi, nbins = 101):   
     grid = np.linspace(min_grid, max_grid, nbins)
     grid_space = (max_grid - min_grid) / (nbins - 1)
     X, Y = np.meshgrid(grid, grid)
@@ -119,7 +187,7 @@ def FFT_intg_2D(FX, FY, min_grid=-np.pi, max_grid=np.pi, nbins = 101):
     fes = fes - np.min(fes)
     return [X, Y, fes]
 
-    
+#Equivalent to integration MS in Alanine dipeptide notebook.     
 def intg_2D(FX, FY, min_grid=-np.pi, max_grid=np.pi, nbins = 101): 
     
     grid = np.linspace(min_grid, max_grid, nbins)
