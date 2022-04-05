@@ -170,11 +170,11 @@ def MFI_2D( HILLS = "HILLS", position_x = "position_x", position_y = "position_y
         # Calculate Mean Force
         Ftot_den = Ftot_den + pb_t;
         # Calculate x-component of Force
-        dfds_x = np.divide(Fpbt_x * kT, pb_t, out=np.zeros_like(Fpbt_x), where=pb_t != 0) + Fbias_x
+        dfds_x = np.divide(Fpbt_x, pb_t, out=np.zeros_like(Fpbt_x), where=pb_t != 0) + Fbias_x
         Ftot_num_x = Ftot_num_x + pb_t * dfds_x
         Ftot_x = np.divide(Ftot_num_x, Ftot_den, out=np.zeros_like(Fpbt_x), where=Ftot_den != 0)
         # Calculate y-component of Force
-        dfds_y = np.divide(Fpbt_y * kT, pb_t, out=np.zeros_like(Fpbt_y), where=pb_t != 0) + Fbias_y
+        dfds_y = np.divide(Fpbt_y, pb_t, out=np.zeros_like(Fpbt_y), where=pb_t != 0) + Fbias_y
         Ftot_num_y = Ftot_num_y + pb_t * dfds_y
         Ftot_y = np.divide(Ftot_num_y, Ftot_den, out=np.zeros_like(Fpbt_y), where=Ftot_den != 0)
 
@@ -259,7 +259,7 @@ def intg_2D(FX, FY, min_grid=np.array((-np.pi, -np.pi)), max_grid=np.array((np.p
     return [X, Y, fes]
 
 
-def plot_recap_2D(X, Y, FES, Fx, Fy, TOTAL_DENSITY, CONVMAP, CONV_history): 
+def plot_recap_2D(X, Y, FES, TOTAL_DENSITY, CONVMAP, CONV_history, levelFES=100, levelCONVMAP=40 ): 
     """_summary_
 
     Args:
@@ -271,13 +271,13 @@ def plot_recap_2D(X, Y, FES, Fx, Fy, TOTAL_DENSITY, CONVMAP, CONV_history):
         CONV_history (_type_): _description_
     """
     fig, axs = plt.subplots(1,4,figsize=(32,6))
-    cp=axs[0].contourf(X,Y,FES,levels=range(0,50,1),cmap='coolwarm',antialiased=False,alpha=0.8);
+    cp=axs[0].contourf(X,Y,FES,levels=range(0,levelFES,1),cmap='coolwarm',antialiased=False,alpha=0.8);
     cbar = plt.colorbar(cp, ax=axs[0])
     axs[0].set_ylabel('CV2',fontsize=20)
     axs[0].set_xlabel('CV1',fontsize=20)
     axs[0].set_title('Free Energy Surface',fontsize=20)
     
-    cp=axs[1].contourf(X,Y,CONVMAP,levels=range(0,20,1),cmap='coolwarm',antialiased=False,alpha=0.8);
+    cp=axs[1].contourf(X,Y,CONVMAP,levels=range(0,levelCONVMAP,1),cmap='coolwarm',antialiased=False,alpha=0.8);
     cbar = plt.colorbar(cp, ax=axs[1])
     axs[1].set_ylabel('CV2',fontsize=20)
     axs[1].set_xlabel('CV1',fontsize=20)
