@@ -77,14 +77,18 @@ def find_FES_adj(X_old, Y_old, FES_old):
 
 ### Main Mean Force Integration
 
-def MFI_2D(HILLS = "HILLS", position_x = "position_x", position_y = "position_y", bw = 1, kT = 1, min_grid=-np.pi, max_grid=np.pi, nbins = 101, log_pace = 10, error_pace = 200, WellTempered=1):    
+def MFI_2D(HILLS = "HILLS", position_x = "position_x", position_y = "position_y", bw = 1, kT = 1, min_grid=-np.pi, max_grid=np.pi, nbins = 101, log_pace = 10, error_pace = 200, WellTempered=1,nhills=-1):    
     grid = np.linspace(min_grid, max_grid, nbins)
-    grid_space = (max_grid - min_grid) / (nbins - 1)
     X, Y = np.meshgrid(grid, grid)
 
     stride = int(len(position_x) / len(HILLS[:,1]))     
     const = (1 / (bw*np.sqrt(2*np.pi)*stride))
-    total_number_of_hills=len(HILLS[:,1])
+    
+    # Optional - analyse only nhills, if nhills is set
+    if  nhills > 0: 
+        total_number_of_hills=nhills
+    else:
+        total_number_of_hills=len(HILLS[:,1])
     bw2 = bw**2    
 
     # Initialize force terms
@@ -104,6 +108,8 @@ def MFI_2D(HILLS = "HILLS", position_x = "position_x", position_y = "position_y"
     else:
         gamma = HILLS[0, 6]
         Gamma_Factor=(gamma - 1)/(gamma)
+
+      
         
     for i in range(total_number_of_hills):
         # Build metadynamics potential
