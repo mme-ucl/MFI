@@ -19,23 +19,28 @@ def load_position_2D(position_name = "position"):
 #######
 
 ### Periodic CVs utils
-def find_periodic_point(x_coord,y_coord):
+def find_periodic_point(x_coord,y_coord,min_grid,max_grid):
+    
+    #Use periodic extension for defining PBC
+    periodic_extension = 1 / 2
+    grid_ext = (1/2) * periodic_extension * (max_grid-min_grid)
+    
     coord_list = []
     #There are potentially 4 points, 1 original and 3 periodic copies
     coord_list.append([x_coord,y_coord])
     copy_record = [0,0,0,0]
     #check for x-copy
-    if x_coord < min_grid+grid_ext:
+    if x_coord < min_grid[0]+grid_ext[0]:
         coord_list.append([x_coord + 2*np.pi,y_coord])
         copy_record[0] = 1
-    elif x_coord > max_grid-grid_ext:
+    elif x_coord > max_grid[0]-grid_ext[0]:
         coord_list.append([x_coord - 2*np.pi,y_coord])
         copy_record[1] = 1
     #check for y-copy
-    if y_coord < min_grid+grid_ext:
+    if y_coord < min_grid[1]+grid_ext[1]:
         coord_list.append([x_coord, y_coord + 2 * np.pi])
         copy_record[2] = 1
-    elif y_coord > max_grid-grid_ext:
+    elif y_coord > max_grid[1]-grid_ext[1]:
         coord_list.append([x_coord, y_coord - 2 * np.pi])
         copy_record[3] = 1
     #check for xy-copy
@@ -77,7 +82,7 @@ def find_FES_adj(X_old, Y_old, FES_old):
 
 ### Main Mean Force Integration
 
-def MFI_2D(HILLS = "HILLS", position_x = "position_x", position_y = "position_y", bw = 1, kT = 1, min_grid=np.array((-np.pi, -np.pi)), max_grid=np.array((np.pi, np.pi)), nbins = np.array(101,101) log_pace = 10, error_pace = 200, WellTempered=1,nhills=-1):    
+def MFI_2D( HILLS = "HILLS", position_x = "position_x", position_y = "position_y", bw = 1, kT = 1, min_grid=np.array((-np.pi, -np.pi)), max_grid=np.array((np.pi, np.pi)), nbins = np.array((101,101)), log_pace = 10, error_pace = 200, WellTempered = 1, nhills = -1):    
     """Compute a time-independent estimate of the Mean Thermodynamic Force, i.e. the free energy gradient in 2D CV spaces. 
 
     Args:
@@ -92,7 +97,7 @@ def MFI_2D(HILLS = "HILLS", position_x = "position_x", position_y = "position_y"
         log_pace (int, optional): Pace for outputting progress and convergence. Defaults to 10.
         error_pace (int, optional): Pace for the calculation of the on-the-fly measure of global convergence. Defaults to 200.
         WellTempered (int, optional): Is the simulation well tempered? . Defaults to 1.
-        nhills (int, optional): Number of HILLS to analyse, -1 for the entire HILLS array. Defaults to -1.
+        nhills (int, optional): Number of HILLS to analyse, -1 for the entire HILLS array. Defaults to -1, i.e. the entire dataset.
 
     Returns:
         X: array of size (nbins[0], nbins[1]) - CV1 grid positions
@@ -118,15 +123,17 @@ def MFI_2D(HILLS = "HILLS", position_x = "position_x", position_y = "position_y"
     bw2 = bw**2    
 
     # Initialize force terms
-    Fbias_x = np.zeros((nbins, nbins))
-    Fbias_y = np.zeros((nbins, nbins))
-    Ftot_num_x = np.zeros((nbins, nbins))
-    Ftot_num_y = np.zeros((nbins, nbins))
-    Ftot_den = np.zeros((nbins, nbins))
-    Ftot_den2 = np.zeros((nbins, nbins))
-    ofv_x = np.zeros((nbins,nbins))
-    ofv_y = np.zeros((nbins,nbins))
+    Fbias_x = np.zeros(nbins)
+    Fbias_y = np.zeros(nbins)
+    Ftot_num_x = np.zeros(nbins)
+    Ftot_num_y = np.zeros(nbins)
+    Ftot_den = np.zeros(nbins)
+    Ftot_den2 = np.zeros(nbins)
+    ofv_x = np.zeros(nbins)
+    ofv_y = np.zeros(nbins)
     ofe_history = []
+
+    print("Total no. of Gaussians analysed: " + str(total_number_of_hills))
 
     # Definition Gamma Factor, allows to switch between WT and regular MetaD
     if WellTempered < 1: 
@@ -144,24 +151,29 @@ def MFI_2D(HILLS = "HILLS", position_x = "position_x", position_y = "position_y"
         sigma_meta2_y = HILLS[i, 4] ** 2  # width of Gaussian
         height_meta = HILLS[i, 5] * Gamma_Factor  # Height of Gaussian
 
-        kernelmeta = np.exp(-0.5 * (((X - s_x) ** 2) / sigma_meta2_x + ((Y - s_y) ** 2) / sigma_meta2_y)) 
-        Fbias_x = Fbias_x + height_meta * kernelmeta * ((X - s_x) / sigma_meta2_x);  
-        Fbias_y = Fbias_y + height_meta * kernelmeta * ((Y - s_y) / sigma_meta2_y);  
+        periodic_images = find_periodic_point(s_x,s_y,min_grid,max_grid)
+        for j in range(len(periodic_images)):
+            kernelmeta = np.exp(-0.5 * (((X - periodic_images[j][0]) ** 2) / sigma_meta2_x + ((Y - periodic_images[j][1]) ** 2) / sigma_meta2_y))  # potential erorr in calc. of s-s_t
+            Fbias_x = Fbias_x + height_meta * kernelmeta * ((X - periodic_images[j][0]) / sigma_meta2_x);  
+            Fbias_y = Fbias_y + height_meta * kernelmeta * ((Y - periodic_images[j][1]) / sigma_meta2_y);  
 
         # Biased probability density component of the force
         # Estimate the biased proabability density p_t ^ b(s)
-        pb_t = np.zeros((nbins, nbins))
-        Fpbt_x = np.zeros((nbins, nbins))
-        Fpbt_y = np.zeros((nbins, nbins))
+        pb_t = np.zeros(nbins)
+        Fpbt_x = np.zeros(nbins)
+        Fpbt_y = np.zeros(nbins)
 
         data_x = position_x[i * stride: (i + 1) * stride]
         data_y = position_y[i * stride: (i + 1) * stride]
-        for j in range(stride):
-            kernel = const * np.exp(- ((X - data_x[j]) ** 2 + (Y - data_y[j]) ** 2) / (2 * bw2) )
-            pb_t = pb_t + kernel;
-            Fpbt_x = Fpbt_x + kernel * (X - data_x[j]) / bw2
-            Fpbt_y = Fpbt_y + kernel * (Y - data_y[j]) / bw2
 
+        for j in range(stride):
+            periodic_images = find_periodic_point(data_x[j], data_y[j], min_grid, max_grid)
+            for k in range(len(periodic_images)):
+                kernel = const * np.exp(- (1 / (2 * bw2)) * ((X - periodic_images[k][0]) ** 2 + (Y - periodic_images[k][1]) ** 2)); 
+                pb_t = pb_t + kernel;
+                Fpbt_x = Fpbt_x + kernel * kT * (X - periodic_images[k][0]) / bw2
+                Fpbt_y = Fpbt_y + kernel * kT * (Y - periodic_images[k][1]) / bw2
+            
         # Calculate Mean Force
         Ftot_den = Ftot_den + pb_t;
         # Calculate x-component of Force
@@ -188,10 +200,10 @@ def MFI_2D(HILLS = "HILLS", position_x = "position_x", position_y = "position_y"
             ofe_x = ofe_x * Ftot_den_ratio
             ofe_y = ofe_y * Ftot_den_ratio
             ofe = np.sqrt(abs(ofe_x) + abs(ofe_y))                
-            ofe_history.append(sum(sum(ofe)) / (nbins**2))
+            ofe_history.append(sum(sum(ofe)) / (nbins[0]*nbins[1]))
 
         if (i+1) % (total_number_of_hills/log_pace) == 0: 
-            print(str(i+1) + "/" + str(total_number_of_hills)+"| Average Mean Force Error: "+str(sum(sum(ofe)) / (nbins**2)))
+            print(str(i+1) + "/" + str(total_number_of_hills)+"| Average Mean Force Error: "+str(sum(sum(ofe)) / (nbins[0]*nbins[1])))
             
     return [X, Y, Ftot_den, Ftot_x, Ftot_y, ofe, ofe_history]
 
