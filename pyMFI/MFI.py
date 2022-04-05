@@ -19,10 +19,10 @@ def load_position_2D(position_name = "position"):
 #######
 
 ### Periodic CVs utils
-def find_periodic_point(x_coord,y_coord,min_grid,max_grid):
+def find_periodic_point(x_coord,y_coord,min_grid,max_grid,periodic):
     
     #Use periodic extension for defining PBC
-    periodic_extension = 1 / 2
+    periodic_extension = periodic * 1 / 2
     grid_ext = (1/2) * periodic_extension * (max_grid-min_grid)
     
     coord_list = []
@@ -82,7 +82,7 @@ def find_FES_adj(X_old, Y_old, FES_old):
 
 ### Main Mean Force Integration
 
-def MFI_2D( HILLS = "HILLS", position_x = "position_x", position_y = "position_y", bw = 1, kT = 1, min_grid=np.array((-np.pi, -np.pi)), max_grid=np.array((np.pi, np.pi)), nbins = np.array((101,101)), log_pace = 10, error_pace = 200, WellTempered = 1, nhills = -1):    
+def MFI_2D( HILLS = "HILLS", position_x = "position_x", position_y = "position_y", bw = 1, kT = 1, min_grid=np.array((-np.pi, -np.pi)), max_grid=np.array((np.pi, np.pi)), nbins = np.array((101,101)), log_pace = 10, error_pace = 200, WellTempered = 1, nhills = -1, periodic=0):    
     """Compute a time-independent estimate of the Mean Thermodynamic Force, i.e. the free energy gradient in 2D CV spaces. 
 
     Args:
@@ -98,6 +98,7 @@ def MFI_2D( HILLS = "HILLS", position_x = "position_x", position_y = "position_y
         error_pace (int, optional): Pace for the calculation of the on-the-fly measure of global convergence. Defaults to 200.
         WellTempered (int, optional): Is the simulation well tempered? . Defaults to 1.
         nhills (int, optional): Number of HILLS to analyse, -1 for the entire HILLS array. Defaults to -1, i.e. the entire dataset.
+        periodic (int, optional): Is the CV space periodic? 1 for yes. Defaults to 0. 
 
     Returns:
         X: array of size (nbins[0], nbins[1]) - CV1 grid positions
@@ -151,7 +152,7 @@ def MFI_2D( HILLS = "HILLS", position_x = "position_x", position_y = "position_y
         sigma_meta2_y = HILLS[i, 4] ** 2  # width of Gaussian
         height_meta = HILLS[i, 5] * Gamma_Factor  # Height of Gaussian
 
-        periodic_images = find_periodic_point(s_x,s_y,min_grid,max_grid)
+        periodic_images = find_periodic_point(s_x,s_y,min_grid,max_grid,periodic)
         for j in range(len(periodic_images)):
             kernelmeta = np.exp(-0.5 * (((X - periodic_images[j][0]) ** 2) / sigma_meta2_x + ((Y - periodic_images[j][1]) ** 2) / sigma_meta2_y))  # potential erorr in calc. of s-s_t
             Fbias_x = Fbias_x + height_meta * kernelmeta * ((X - periodic_images[j][0]) / sigma_meta2_x);  
@@ -167,7 +168,7 @@ def MFI_2D( HILLS = "HILLS", position_x = "position_x", position_y = "position_y
         data_y = position_y[i * stride: (i + 1) * stride]
 
         for j in range(stride):
-            periodic_images = find_periodic_point(data_x[j], data_y[j], min_grid, max_grid)
+            periodic_images = find_periodic_point(data_x[j], data_y[j], min_grid, max_grid,periodic)
             for k in range(len(periodic_images)):
                 kernel = const * np.exp(- (1 / (2 * bw2)) * ((X - periodic_images[k][0]) ** 2 + (Y - periodic_images[k][1]) ** 2)); 
                 pb_t = pb_t + kernel;
@@ -250,7 +251,7 @@ def intg_2D(FX, FY, min_grid=-np.pi, max_grid=np.pi, nbins = 101):
 
 
 def plot_recap_2D(X, Y, FES, TOTAL_DENSITY, CONVMAP, CONV_history): 
-    fig, axs = plt.subplots(2,2,figsize=(12,8))
+    fig, axs = plt.subplots(2,2,figsize=(10,8))
     cp=axs[0,0].contourf(X,Y,FES,levels=range(0,50,1),cmap='coolwarm',antialiased=False,alpha=0.8);
     cbar = plt.colorbar(cp, ax=axs[0,0])
     axs[0,0].set_ylabel('CV2')
