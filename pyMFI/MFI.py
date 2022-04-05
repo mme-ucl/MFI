@@ -210,14 +210,18 @@ def MFI_2D( HILLS = "HILLS", position_x = "position_x", position_y = "position_y
 
 
 ### Integration using Fast Fourier Transform (FFT integration) in 2D            
-def FFT_intg_2D(FX, FY, min_grid=-np.pi, max_grid=np.pi, nbins = 101):   
-    grid = np.linspace(min_grid, max_grid, nbins)
-    grid_space = (max_grid - min_grid) / (nbins - 1)
-    X, Y = np.meshgrid(grid, grid)
+def FFT_intg_2D(FX, FY, min_grid=np.array((-np.pi, -np.pi)), max_grid=np.array((np.pi, np.pi)), nbins = np.array((101,101))):   
+    
+    gridx = np.linspace(min_grid[0], max_grid[0], nbins[0])
+    gridy = np.linspace(min_grid[1], max_grid[1], nbins[1])
+    grid_spacex = (max_grid[0] - min_grid[0]) / (nbins[0] - 1)
+    grid_spacey = (max_grid[1] - min_grid[1]) / (nbins[1] - 1)
+    X, Y = np.meshgrid(gridx, gridy)
 
     #Calculate frequency
-    freq_1d = np.fft.fftfreq(nbins, grid_space)
-    freq_x, freq_y = np.meshgrid(freq_1d, freq_1d)
+    freq_1dx = np.fft.fftfreq(nbins[0], grid_spacex)
+    freq_1dy = np.fft.fftfreq(nbins[1], grid_spacey)
+    freq_x, freq_y = np.meshgrid(freq_1dx, freq_1dy)
     freq_hypot = np.hypot(freq_x, freq_y)
     freq_sq = np.where(freq_hypot != 0, freq_hypot ** 2, 1E-10)
     #FFTransform and integration
