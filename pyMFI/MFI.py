@@ -184,7 +184,7 @@ def MFI_2D( HILLS = "HILLS", position_x = "position_x", position_y = "position_y
         ofv_x += pb_t * dfds_x**2
         ofv_y += pb_t * dfds_y**2
 
-        # Compute Variance of the mean force every with 1/error_pace frequency
+        # Compute Variance of the mean force every 1/error_pace frequency
         if (i + 1) % int(total_number_of_hills / error_pace) == 0:       
             #calculate ofe (standard error)
             Ftot_den_ratio = np.divide(Ftot_den2, (Ftot_den**2 - Ftot_den2), out=np.zeros_like(Ftot_den), where=(Ftot_den**2 - Ftot_den2) != 0)
@@ -270,30 +270,68 @@ def plot_recap_2D(X, Y, FES, TOTAL_DENSITY, CONVMAP, CONV_history):
         CONVMAP (_type_): _description_
         CONV_history (_type_): _description_
     """
-    fig, axs = plt.subplots(1,4,figsize=(32,6))
-    cp=axs[0].contourf(X,Y,FES,levels=range(0,65,1),cmap='coolwarm',antialiased=False,alpha=0.8);
+    fig, axs = plt.subplots(1,4,figsize=(18,3))
+    cp=axs[0].contourf(X,Y,FES,levels=range(0,50,1),cmap='coolwarm',antialiased=False,alpha=0.8);
     cbar = plt.colorbar(cp, ax=axs[0])
-    axs[0].set_ylabel('CV2',fontsize=20)
-    axs[0].set_xlabel('CV1',fontsize=20)
-    axs[0].set_title('Free Energy Surface',fontsize=20)
+    axs[0].set_ylabel('CV2',fontsize=11)
+    axs[0].set_xlabel('CV1',fontsize=11)
+    axs[0].set_title('Free Energy Surface',fontsize=11)
     
     cp=axs[1].contourf(X,Y,CONVMAP,levels=range(0,40,1),cmap='coolwarm',antialiased=False,alpha=0.8);
     cbar = plt.colorbar(cp, ax=axs[1])
-    axs[1].set_ylabel('CV2',fontsize=20)
-    axs[1].set_xlabel('CV1',fontsize=20)
-    axs[1].set_title('Standard Error of the Mean Force',fontsize=20)
+    axs[1].set_ylabel('CV2',fontsize=11)
+    axs[1].set_xlabel('CV1',fontsize=11)
+    axs[1].set_title('Variance of the Mean Force',fontsize=11)
 
     cp=axs[2].contourf(X,Y,TOTAL_DENSITY,cmap='gray_r',antialiased=False,alpha=0.8);
     cbar = plt.colorbar(cp, ax=axs[2])
-    axs[2].set_ylabel('CV2',fontsize=20)
-    axs[2].set_xlabel('CV1',fontsize=20)
-    axs[2].set_title('Sampled Configurations',fontsize=20)
+    axs[2].set_ylabel('CV2',fontsize=11)
+    axs[2].set_xlabel('CV1',fontsize=11)
+    axs[2].set_title('Total Biased Probability Density',fontsize=11)
 
     axs[3].plot(range(len(CONV_history)), CONV_history);
-    axs[3].set_ylabel('Average Mean Force Error',fontsize=20)
-    axs[3].set_xlabel('Number of Error Evaluations',fontsize=20)
-    axs[3].set_title('Global Convergence',fontsize=20)
+    axs[3].set_ylabel('Average Mean Force Error',fontsize=11)
+    axs[3].set_xlabel('Number of Error Evaluations',fontsize=11)
+    axs[3].set_title('Global Convergence',fontsize=11)
 
 
+# Patch independent simulations
+def patch_2D(master_array,nbins = np.array((101,101))):
 
+    FX = np.zeros(nbins)
+    FY = np.zeros(nbins)
+    FP = np.zeros(nbins)
 
+    for i in range(len(master_array)):
+        FX += master_array[i][0] * master_array[i][1]
+        FY += master_array[i][0] * master_array[i][2]
+        FP += master_array[i][0]
+
+    FX = np.divide(FX, FP, out=np.zeros_like(FX), where=FP != 0)
+    FY = np.divide(FY, FP, out=np.zeros_like(FY), where=FP != 0)
+    
+    return [FP, FX, FY]
+
+def plot_patch_2D(X, Y, FES, TOTAL_DENSITY): 
+    """_summary_
+
+    Args:
+        X (_type_): _description_
+        Y (_type_): _description_
+        FES (_type_): _description_
+        TOTAL_DENSITY (_type_): _description_
+        CONVMAP (_type_): _description_
+        CONV_history (_type_): _description_
+    """
+    fig, axs = plt.subplots(1,2,figsize=(9,3.5))
+    cp=axs[0].contourf(X,Y,FES,levels=range(0,50,1),cmap='coolwarm',antialiased=False,alpha=0.8);
+    cbar = plt.colorbar(cp, ax=axs[0])
+    axs[0].set_ylabel('CV2',fontsize=11)
+    axs[0].set_xlabel('CV1',fontsize=11)
+    axs[0].set_title('Free Energy Surface',fontsize=11)
+
+    cp=axs[1].contourf(X,Y,TOTAL_DENSITY,cmap='gray_r',antialiased=False,alpha=0.8);
+    cbar = plt.colorbar(cp, ax=axs[1])
+    axs[1].set_ylabel('CV2',fontsize=11)
+    axs[1].set_xlabel('CV1',fontsize=11)
+    axs[1].set_title('Total Biased Probability Density',fontsize=11)
