@@ -74,7 +74,7 @@ def find_periodic_point(x_coord,y_coord,min_grid,max_grid,periodic):
 
 ### Main Mean Force Integration
 
-def MFI_2D( HILLS = "HILLS", position_x = "position_x", position_y = "position_y", bw = 1, kT = 1, min_grid=np.array((-np.pi, -np.pi)), max_grid=np.array((np.pi, np.pi)), nbins = np.array((101,101)), log_pace = 10, error_pace = 200, WellTempered = 1, nhills = -1, periodic=0):    
+def MFI_2D( HILLS = "HILLS", position_x = "position_x", position_y = "position_y", bw = 1, kT = 1, min_grid=np.array((-np.pi, -np.pi)), max_grid=np.array((np.pi, np.pi)), nbins = np.array((200,200)), log_pace = 10, error_pace = 200, WellTempered = 1, nhills = -1, periodic=0):    
     """Compute a time-independent estimate of the Mean Thermodynamic Force, i.e. the free energy gradient in 2D CV spaces. 
 
     Args:
@@ -85,7 +85,7 @@ def MFI_2D( HILLS = "HILLS", position_x = "position_x", position_y = "position_y
         kT (int, optional): Scalar, kT. Defaults to 1.
         min_grid (_type_, optional): Lower bound of the simulation domain. Defaults to np.array((-np.pi, -np.pi)).
         max_grid (_type_, optional): Upper bound of the simulation domain. Defaults to np.array((np.pi, np.pi)).
-        nbins (int, optional): number of bins in CV1,CV2. Defaults to np.array((101,101)).
+        nbins (int, optional): number of bins in CV1,CV2. Defaults to np.array((200,200)).
         log_pace (int, optional): Pace for outputting progress and convergence. Defaults to 10.
         error_pace (int, optional): Pace for the calculation of the on-the-fly measure of global convergence. Defaults to 200.
         WellTempered (int, optional): Is the simulation well tempered? . Defaults to 1.
@@ -202,7 +202,7 @@ def MFI_2D( HILLS = "HILLS", position_x = "position_x", position_y = "position_y
 
 
 ### Integration using Fast Fourier Transform (FFT integration) in 2D            
-def FFT_intg_2D(FX, FY, min_grid=np.array((-np.pi, -np.pi)), max_grid=np.array((np.pi, np.pi)), nbins = np.array((101,101))):   
+def FFT_intg_2D(FX, FY, min_grid=np.array((-np.pi, -np.pi)), max_grid=np.array((np.pi, np.pi)), nbins = np.array((200,200))):   
     
     gridx = np.linspace(min_grid[0], max_grid[0], nbins[0])
     gridy = np.linspace(min_grid[1], max_grid[1], nbins[1])
@@ -228,7 +228,7 @@ def FFT_intg_2D(FX, FY, min_grid=np.array((-np.pi, -np.pi)), max_grid=np.array((
     return [X, Y, fes]
 
 #Equivalent to integration MS in Alanine dipeptide notebook.     
-def intg_2D(FX, FY, min_grid=np.array((-np.pi, -np.pi)), max_grid=np.array((np.pi, np.pi)), nbins = np.array((101,101))): 
+def intg_2D(FX, FY, min_grid=np.array((-np.pi, -np.pi)), max_grid=np.array((np.pi, np.pi)), nbins = np.array((200,200))): 
     """_summary_
 
     Args:
@@ -236,7 +236,7 @@ def intg_2D(FX, FY, min_grid=np.array((-np.pi, -np.pi)), max_grid=np.array((np.p
         FY (_type_): _description_
         min_grid (_type_, optional): _description_. Defaults to np.array((-np.pi, -np.pi)).
         max_grid (_type_, optional): _description_. Defaults to np.array((np.pi, np.pi)).
-        nbins (_type_, optional): _description_. Defaults to np.array((101,101)).
+        nbins (_type_, optional): _description_. Defaults to np.array((200,200)).
 
     Returns:
         _type_: _description_
@@ -259,7 +259,7 @@ def intg_2D(FX, FY, min_grid=np.array((-np.pi, -np.pi)), max_grid=np.array((np.p
     return [X, Y, fes]
 
 
-def plot_recap_2D(X, Y, FES, TOTAL_DENSITY, CONVMAP, CONV_history): 
+def plot_recap_2D(X, Y, FES, TOTAL_DENSITY, CONVMAP, CONV_history,FES_lim=50,ofe_map_lim=40): 
     """_summary_
 
     Args:
@@ -271,13 +271,13 @@ def plot_recap_2D(X, Y, FES, TOTAL_DENSITY, CONVMAP, CONV_history):
         CONV_history (_type_): _description_
     """
     fig, axs = plt.subplots(1,4,figsize=(18,3))
-    cp=axs[0].contourf(X,Y,FES,levels=range(0,50,1),cmap='YlGnBu_r',antialiased=False,alpha=0.8);
+    cp=axs[0].contourf(X,Y,FES,levels=range(0,FES_lim,1),cmap='YlGnBu_r',antialiased=False,alpha=0.8);
     cbar = plt.colorbar(cp, ax=axs[0])
     axs[0].set_ylabel('CV2',fontsize=11)
     axs[0].set_xlabel('CV1',fontsize=11)
     axs[0].set_title('Free Energy Surface',fontsize=11)
     
-    cp=axs[1].contourf(X,Y,CONVMAP,levels=range(0,40,1),cmap='YlGnBu_r',antialiased=False,alpha=0.8);
+    cp=axs[1].contourf(X,Y,CONVMAP,levels=range(0,ofe_map_lim,1),cmap='YlGnBu_r',antialiased=False,alpha=0.8);
     cbar = plt.colorbar(cp, ax=axs[1])
     axs[1].set_ylabel('CV2',fontsize=11)
     axs[1].set_xlabel('CV1',fontsize=11)
@@ -296,7 +296,7 @@ def plot_recap_2D(X, Y, FES, TOTAL_DENSITY, CONVMAP, CONV_history):
 
 
 # Patch independent simulations
-def patch_2D(master_array,nbins = np.array((101,101))):
+def patch_2D(master_array,nbins = np.array((200,200))):
 
     FX = np.zeros(nbins)
     FY = np.zeros(nbins)
@@ -312,7 +312,7 @@ def patch_2D(master_array,nbins = np.array((101,101))):
     
     return [FP, FX, FY]
 
-def plot_patch_2D(X, Y, FES, TOTAL_DENSITY): 
+def plot_patch_2D(X, Y, FES, TOTAL_DENSITY,lim=50): 
     """_summary_
 
     Args:
@@ -324,7 +324,7 @@ def plot_patch_2D(X, Y, FES, TOTAL_DENSITY):
         CONV_history (_type_): _description_
     """
     fig, axs = plt.subplots(1,2,figsize=(9,3.5))
-    cp=axs[0].contourf(X,Y,FES,levels=range(0,10,1),cmap='YlGnBu_r',antialiased=False,alpha=0.8);
+    cp=axs[0].contourf(X,Y,FES,levels=range(0,lim,1),cmap='YlGnBu_r',antialiased=False,alpha=0.8);
     cbar = plt.colorbar(cp, ax=axs[0])
     axs[0].set_ylabel('CV2',fontsize=11)
     axs[0].set_xlabel('CV1',fontsize=11)

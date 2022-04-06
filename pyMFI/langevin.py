@@ -1,4 +1,3 @@
-
 import numpy as np
 
 def run_2D(pace=100, nsteps=100000, sigma=0.1, height=0.5, biasfactor=10, ipos=np.array([-1,-1]),tag=1):
@@ -18,7 +17,6 @@ nstep {}
 ipos {},{}
 periodic false""".format(nsteps,ipos[0],ipos[1]),file=f)
     
-
 
 def run_2D_Invernizzi(pace=200, nsteps=100000, sigma=0.1, height=0.5, biasfactor=10, ipos=np.array([-1,-1]),tag=1):
     with open("plumed.dat","w") as f:
