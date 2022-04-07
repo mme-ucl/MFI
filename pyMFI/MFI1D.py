@@ -20,7 +20,7 @@ def load_position(position_name = "position"):
 
 ### Algorithm to run 1D MFI
 #Run MFI algorithm with on the fly error calculation
-def MFI_1D(HILLS = "HILLS", position = "position", bw = 1, kT = 1, min_grid=2, max_grid=2, nbins = 101, log_pace = 10, error_pace = 200):    
+def MFI_1D(HILLS = "HILLS", position = "position", bw = 1, kT = 1, min_grid=2, max_grid=2, nbins = 101, log_pace = 10, error_pace = 200, WellTempered=0):    
     
     grid = np.linspace(min_grid, max_grid, nbins)
     stride = int(len(position) / len(HILLS[:,1]))     
@@ -36,12 +36,21 @@ def MFI_1D(HILLS = "HILLS", position = "position", bw = 1, kT = 1, min_grid=2, m
     ofv = np.zeros(len(grid))
     ofe_history = []
 
+    # Definition Gamma Factor, allows to switch between WT and regular MetaD
+    if WellTempered < 1: 
+        Gamma_Factor=1
+    else:
+        gamma = HILLS[0, 4]
+        Gamma_Factor=(gamma - 1)/(gamma)
+
+
     for i in range(total_number_of_hills):
         # Build metadynamics potential
         s = HILLS[i, 1]  # center position of Gaussian
         sigma_meta2 = HILLS[i, 2] ** 2  # width of Gaussian
         gamma = HILLS[i, 4]  # scaling factor of Gaussian
-        height_meta = HILLS[i, 3] * ((gamma - 1) / (gamma))  # Height of Gaussian
+        height_meta = HILLS[i, 3] * Gamma_Factor  # Height of Gaussian
+
         kernelmeta = np.exp(-0.5 * (((grid - s) ** 2) / (sigma_meta2)))
         Fbias = Fbias + height_meta * kernelmeta * ((grid - s) / (sigma_meta2))  # Bias force due to Metadynamics potentials
 
@@ -86,10 +95,11 @@ def intg_1D(x,F):
     return fes
 
 
-def plot_recap(X, FES, TOTAL_DENSITY, CONVMAP, CONV_history): 
+def plot_recap(X, FES, TOTAL_DENSITY, CONVMAP, CONV_history,lim=40): 
     fig, axs = plt.subplots(2,2,figsize=(12,8))
     
     axs[0,0].plot(X,FES);
+    axs[0,0].set_ylim([0,lim])
     axs[0,0].set_ylabel('F(CV1)')
     axs[0,0].set_xlabel('CV1')
     
