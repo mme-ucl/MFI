@@ -74,7 +74,7 @@ def find_periodic_point(x_coord,y_coord,min_grid,max_grid,periodic):
 
 ### Main Mean Force Integration
 
-def MFI_2D( HILLS = "HILLS", position_x = "position_x", position_y = "position_y", bw = 1, kT = 1, min_grid=np.array((-np.pi, -np.pi)), max_grid=np.array((np.pi, np.pi)), nbins = np.array((200,200)), log_pace = 10, error_pace = 200, WellTempered = 1, nhills = -1, periodic=0, wallx='false',wally='false',wallx_par=(1,1),wally_par=(1,1)):    
+def MFI_2D( HILLS = "HILLS", position_x = "position_x", position_y = "position_y", bw = 1, kT = 1, min_grid=np.array((-np.pi, -np.pi)), max_grid=np.array((np.pi, np.pi)), nbins = np.array((200,200)), log_pace = 10, error_pace = 200, WellTempered = 1, nhills = -1, periodic=0):    
     """Compute a time-independent estimate of the Mean Thermodynamic Force, i.e. the free energy gradient in 2D CV spaces. 
 
     Args:
@@ -170,11 +170,11 @@ def MFI_2D( HILLS = "HILLS", position_x = "position_x", position_y = "position_y
         # Calculate Mean Force
         Ftot_den = Ftot_den + pb_t;
         # Calculate x-component of Force
-        dfds_x = np.divide(Fpbt_x, pb_t, out=np.zeros_like(Fpbt_x), where=pb_t != 0) + Fbias_x + F_wall_x
+        dfds_x = np.divide(Fpbt_x, pb_t, out=np.zeros_like(Fpbt_x), where=pb_t != 0) + Fbias_x 
         Ftot_num_x = Ftot_num_x + pb_t * dfds_x
         Ftot_x = np.divide(Ftot_num_x, Ftot_den, out=np.zeros_like(Fpbt_x), where=Ftot_den != 0)
         # Calculate y-component of Force
-        dfds_y = np.divide(Fpbt_y, pb_t, out=np.zeros_like(Fpbt_y), where=pb_t != 0) + Fbias_y + F_wall_y
+        dfds_y = np.divide(Fpbt_y, pb_t, out=np.zeros_like(Fpbt_y), where=pb_t != 0) + Fbias_y 
         Ftot_num_y = Ftot_num_y + pb_t * dfds_y
         Ftot_y = np.divide(Ftot_num_y, Ftot_den, out=np.zeros_like(Fpbt_y), where=Ftot_den != 0)
 
