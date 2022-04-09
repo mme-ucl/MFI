@@ -74,7 +74,13 @@ def find_periodic_point(x_coord,y_coord,min_grid,max_grid,periodic):
 
 ### Main Mean Force Integration
 
-def MFI_2D( HILLS = "HILLS", position_x = "position_x", position_y = "position_y", bw = 1, kT = 1, min_grid=np.array((-np.pi, -np.pi)), max_grid=np.array((np.pi, np.pi)), nbins = np.array((200,200)), log_pace = 10, error_pace = 200, WellTempered = 1, nhills = -1, periodic=0):    
+def MFI_2D( HILLS = "HILLS",\
+     position_x = "position_x", position_y = "position_y",\
+     bw = 1, kT = 1, min_grid=np.array((-np.pi, -np.pi)),\
+     max_grid=np.array((np.pi, np.pi)),\
+     nbins = np.array((200,200)),\
+     log_pace = 10, error_pace = 200,\
+     WellTempered = 1, nhills = -1, periodic=0): 
     """Compute a time-independent estimate of the Mean Thermodynamic Force, i.e. the free energy gradient in 2D CV spaces. 
 
     Args:
@@ -107,6 +113,9 @@ def MFI_2D( HILLS = "HILLS", position_x = "position_x", position_y = "position_y
     X, Y = np.meshgrid(gridx, gridy)
     stride = int(len(position_x) / len(HILLS[:,1]))     
     const = (1 / (bw*np.sqrt(2*np.pi)*stride))
+
+    if log_pace >= error_pace:
+        log_pace=error_pace 
     
     # Optional - analyse only nhills, if nhills is set
     if  nhills > 0: 
@@ -187,18 +196,29 @@ def MFI_2D( HILLS = "HILLS", position_x = "position_x", position_y = "position_y
         # Compute Variance of the mean force every 1/error_pace frequency
         if (i + 1) % int(total_number_of_hills / error_pace) == 0:       
             #calculate ofe (standard error)
-            Ftot_den_ratio = np.divide(Ftot_den2, (Ftot_den**2 - Ftot_den2), out=np.zeros_like(Ftot_den), where=(Ftot_den**2 - Ftot_den2) != 0)
-            ofe_x = np.divide(ofv_x, Ftot_den, out=np.zeros_like(ofv_x), where=Ftot_den != 0) - Ftot_x**2
-            ofe_y = np.divide(ofv_y, Ftot_den, out=np.zeros_like(ofv_y), where=Ftot_den != 0) - Ftot_y**2       
-            ofe_x = ofe_x * Ftot_den_ratio
-            ofe_y = ofe_y * Ftot_den_ratio
-            ofe = np.sqrt(abs(ofe_x) + abs(ofe_y))                
+            [ofe] = mean_force_variance(Ftot_den,Ftot_den2,Ftot_x,Ftot_y,ofv_x,ofv_y)
+                   
             ofe_history.append(sum(sum(ofe)) / (nbins[0]*nbins[1]))
 
         if (i+1) % (total_number_of_hills/log_pace) == 0: 
             print("|"+ str(i+1) + "/" + str(total_number_of_hills)+"|==> Average Mean Force Error: "+str(sum(sum(ofe)) / (nbins[0]*nbins[1])))
             
     return [X, Y, Ftot_den, Ftot_x, Ftot_y, ofe, ofe_history]
+
+
+
+def mean_force_variance(Ftot_den,Ftot_den2,Ftot_x,Ftot_y,ofv_x,ofv_y): 
+   #calculate ofe (standard error)
+    Ftot_den_ratio = np.divide(Ftot_den2, (Ftot_den**2 - Ftot_den2), out=np.zeros_like(Ftot_den), where=(Ftot_den**2 - Ftot_den2) != 0)
+    ofe_x = np.divide(ofv_x, Ftot_den, out=np.zeros_like(ofv_x), where=Ftot_den != 0) - Ftot_x**2
+    ofe_y = np.divide(ofv_y, Ftot_den, out=np.zeros_like(ofv_y), where=Ftot_den != 0) - Ftot_y**2       
+    ofe_x = ofe_x * Ftot_den_ratio
+    ofe_y = ofe_y * Ftot_den_ratio
+    ofe = np.sqrt(abs(ofe_x) + abs(ofe_y))                
+    return [ofe]
+  
+
+
 
 
 ### Integration using Fast Fourier Transform (FFT integration) in 2D            
