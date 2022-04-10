@@ -1,5 +1,7 @@
 import glob
 import matplotlib.pyplot as plt
+#from numba import jit 
+#from numba import njit
 import numpy as np
 
 ### Load files ####
@@ -27,6 +29,7 @@ def load_position_2D(position_name = "position"):
 #######
 
 ### Periodic CVs utils
+#@jit
 def find_periodic_point(x_coord,y_coord,min_grid,max_grid,periodic):
     """_summary_
 
@@ -73,7 +76,7 @@ def find_periodic_point(x_coord,y_coord,min_grid,max_grid,periodic):
     return coord_list
 
 ### Main Mean Force Integration
-
+#@jit
 def MFI_2D( HILLS = "HILLS",\
      position_x = "position_x", position_y = "position_y",\
      bw = 1, kT = 1, min_grid=np.array((-np.pi, -np.pi)),\
@@ -203,10 +206,10 @@ def MFI_2D( HILLS = "HILLS",\
         if (i+1) % (total_number_of_hills/log_pace) == 0: 
             print("|"+ str(i+1) + "/" + str(total_number_of_hills)+"|==> Average Mean Force Error: "+str(sum(sum(ofe)) / (nbins[0]*nbins[1])))
             
-    return [X, Y, Ftot_den, Ftot_x, Ftot_y, ofe, ofe_history]
+    return [X, Y, Ftot_den, Ftot_x, Ftot_y, ofe, ofe_history, Ftot_den2, ofv_x, ofv_y]
 
 
-
+#@jit
 def mean_force_variance(Ftot_den,Ftot_den2,Ftot_x,Ftot_y,ofv_x,ofv_y): 
    #calculate ofe (standard error)
     Ftot_den_ratio = np.divide(Ftot_den2, (Ftot_den**2 - Ftot_den2), out=np.zeros_like(Ftot_den), where=(Ftot_den**2 - Ftot_den2) != 0)
@@ -316,6 +319,7 @@ def plot_recap_2D(X, Y, FES, TOTAL_DENSITY, CONVMAP, CONV_history,FES_lim=50,ofe
 
 
 # Patch independent simulations
+#@jit
 def patch_2D(master_array,nbins = np.array((200,200))):
 
     FX = np.zeros(nbins)
@@ -355,3 +359,47 @@ def plot_patch_2D(X, Y, FES, TOTAL_DENSITY,lim=50):
     axs[1].set_ylabel('CV2',fontsize=11)
     axs[1].set_xlabel('CV1',fontsize=11)
     axs[1].set_title('Total Biased Probability Density',fontsize=11)
+
+
+#@jit
+def patch_2D_error(master,nbins = np.array((200,200))):
+
+       
+    Ftot_x = np.zeros(nbins)
+    Ftot_y = np.zeros(nbins)
+    Ftot_den = np.zeros(nbins)
+    Ftot_den2 = np.zeros(nbins)
+    ofv_x = np.zeros(nbins)
+    ofv_y = np.zeros(nbins)
+    error_x = np.zeros(nbins)
+    error_y = np.zeros(nbins)
+    
+    for i in np.arange(0,len(master)):
+        Ftot_x += master[i][0] * master[i][2]
+        Ftot_y += master[i][0] * master[i][3]
+        Ftot_den += master[i][0]
+        Ftot_den2 += master[i][1]
+        ofv_x += master[i][4]
+        ofv_y += master[i][5]
+        error_x += master[i][0] * (master[i][2]**2)
+        error_y += master[i][0] * (master[i][3]**2)
+
+    Ftot_x = np.divide(Ftot_x, Ftot_den, out=np.zeros_like(Ftot_x), where=Ftot_den != 0)
+    Ftot_y = np.divide(Ftot_y, Ftot_den, out=np.zeros_like(Ftot_y), where=Ftot_den != 0)
+        
+              
+    error_x = np.divide(error_x, Ftot_den, out=np.zeros_like(error_x), where=Ftot_den != 0) - (Ftot_x**2)
+    error_y = np.divide(error_y, Ftot_den, out=np.zeros_like(error_y), where=Ftot_den != 0) - (Ftot_y**2)
+       
+    ratio = np.divide(Ftot_den2, (Ftot_den**2 - Ftot_den2), out=np.zeros_like(error_x), where=(Ftot_den**2 - Ftot_den2) != 0)
+    error_x = error_x * ratio
+    error_y = error_y * ratio
+        
+    error = np.sqrt(np.sqrt(error_x**2 + error_y**2))
+
+    return [Ftot_x,Ftot_y,Ftot_den,error]
+
+        
+        
+
+        
