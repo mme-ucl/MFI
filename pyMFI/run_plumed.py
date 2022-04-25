@@ -1,11 +1,11 @@
 import os
 
 def run_langevin1D(simulation_steps,
-                   analytical_function = "7*x^4-23*x^2", periodic_f = "NO",
+                   analytical_function = "7*x^4-23*x^2", periodic_boundaries= "NO",
                    initial_position=0.0, temperature=1, time_step=0.005,
                    grid_min=-3.0, grid_max=3.0, grid_bin=200,
                    gaus_width=0.1, gaus_height=1, biasfactor=10, gaus_pace=100,
-                   hp_center=0.0, hp_kappa=100,
+                   hp_center=0.0, hp_kappa=0,
                    lw_center=0.0, lw_kappa=0,
                    uw_center=0.0, uw_kappa=0,
                    position_pace=0):
@@ -16,16 +16,22 @@ tstep {}
 friction 1
 dimension 1
 nstep {}
-ipos {}
-periodic false""".format(temperature, time_step, simulation_steps,  initial_position) ,file=f)
+ipos {}""".format(temperature, time_step, simulation_steps,  initial_position) ,file=f)
+
+        if periodic_boundaries == "NO":
+            f.write("periodic false")
+        else:
+            f.write("periodic on\n")
+            f.write("min {}\n".format(periodic_boundaries.split(",")[0]))
+            f.write("max {}".format(periodic_boundaries.split(",")[1]))
 
 
     with open("plumed.dat" ,"w") as f:
         print("""p: DISTANCE ATOMS=1,2 COMPONENTS
-ff: MATHEVAL ARG=p.x PERIODIC={} FUNC=({})
-bb: BIASVALUE ARG=ff""".format(periodic_f, analytical_function) ,file=f)
+ff: MATHEVAL ARG=p.x FUNC=({}) PERIODIC={}
+bb: BIASVALUE ARG=ff""".format(analytical_function, periodic_boundaries) ,file=f)
 
-    with open("plumed_test.dat" ,"a") as f:
+    with open("plumed.dat" ,"a") as f:
         # Metadynamics bias. To activate, the height of the bias needs to be a positive number.
         if gaus_height > 0:
             f.write("METAD ARG=p.x SIGMA={} HEIGHT={} BIASFACTOR={} GRID_MIN={} GRID_MAX={} GRID_BIN={} PACE={} \
