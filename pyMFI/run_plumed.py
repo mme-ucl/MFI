@@ -86,7 +86,7 @@ bb: BIASVALUE ARG=ff""".format(periodic_f, analytical_function), file=f)
         if gaus_height > 0:
             f.write("METAD ARG=p.x,p.y SIGMA={},{} HEIGHT={} BIASFACTOR={} GRID_MIN={},{} GRID_MAX={},{} GRID_BIN={},{} PACE={} \
 TEMP={} \n".format(gaus_width_x, gaus_width_y, gaus_height, biasfactor, grid_min_x, grid_min_y, grid_max_x,
-               grid_max_y, grid_bin_x, grid_bin_x, gaus_pace, temperature * 120))
+               grid_max_y, grid_bin_x, grid_bin_y, gaus_pace, temperature * 120))
 
         # Harmonic potential bias. To activate, the force constant (kappa) needs to be a positive number
         if hp_kappa_x > 0 or hp_kappa_y > 0:
