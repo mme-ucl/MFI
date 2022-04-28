@@ -93,10 +93,10 @@ def find_hp_force(hp_centre_x, hp_centre_y, hp_kappa_x, hp_kappa_y, X , Y, min_g
         grid_length = max_grid[0] - min_grid[0]
         grid_centre = min_grid[0] + grid_length/2
         if hp_centre_x < grid_centre:
-            index_period = index(hp_centre_x + grid_length/2, min_grid, grid_space)
+            index_period = index(hp_centre_x + grid_length/2, min_grid[0], grid_space)
             F_harmonic_x[:, index_period:] = hp_kappa_x * (X[:, index_period:] - hp_centre_x - grid_length)
         elif hp_centre_x > grid_centre:
-            index_period = index(hp_centre_x - grid_length/2, min_grid, grid_space)
+            index_period = index(hp_centre_x - grid_length/2, min_grid[0], grid_space)
             F_harmonic_x[:, :index_period] = hp_kappa_x * (X[:, :index_period] - hp_centre_x + grid_length)
     #Calculate y-force
     F_harmonic_y = hp_kappa_y * (Y - hp_centre_y)
@@ -104,32 +104,11 @@ def find_hp_force(hp_centre_x, hp_centre_y, hp_kappa_x, hp_kappa_y, X , Y, min_g
         grid_length = max_grid[0] - min_grid[0]
         grid_centre = min_grid[0] + grid_length / 2
         if hp_centre_y < grid_centre:
-            index_period = index(hp_centre_y + grid_length/2, min_grid, grid_space)
+            index_period = index(hp_centre_y + grid_length/2, min_grid[1], grid_space)
             F_harmonic_y[index_period:, :] = hp_kappa_y * (Y[index_period:, :] - hp_centre_y - grid_length)
         elif hp_centre_y > grid_centre:
-            index_period = index(hp_centre_y - grid_length/2, min_grid, grid_space)
+            index_period = index(hp_centre_y - grid_length/2, min_grid[1], grid_space)
             F_harmonic_y[:index_period, :] = hp_kappa_y * (Y[:index_period, :] - hp_centre_y + grid_length)
-
-    ##### OLD # TEST NEW BEFORE DELEATING ####
-    # if abs(grid[IPOSX]) < grid_space: F_harmonic_x = kappa[simulation] * (X - grid[IPOSX])
-    # elif grid[IPOSX] < 0:
-    #     SEPR = round((grid[IPOSX] + 2*np.pi) / grid_space)
-    #     F_harmonic_x[:, :SEPR] += kappa[simulation] * (X[:, :SEPR] - grid[IPOSX])
-    #     F_harmonic_x[:, SEPR:] += kappa[simulation] * (X[:, SEPR:] - grid[IPOSX] - (np.max(grid) - np.min(grid)))
-    # elif grid[IPOSX] > 0:
-    #     SEPR = round((grid[IPOSX]) / grid_space)
-    #     F_harmonic_x[:, :SEPR] += kappa[simulation] * (X[:, :SEPR] - grid[IPOSX] + (np.max(grid) - np.min(grid)))
-        # F_harmonic_x[:, SEPR:] += kappa[simulation] * (X[:, SEPR:] - grid[IPOSX])
-    #Calculate y-force
-    # if abs(grid[IPOSY]) < grid_space: F_harmonic_y = kappa[simulation] * (Y - grid[IPOSY])
-    # elif grid[IPOSY] < 0:
-    #     SEPR = round((grid[IPOSY] + 2*np.pi) / grid_space)
-    #     F_harmonic_y[:SEPR, :] += kappa[simulation] * (Y[:SEPR, :] - grid[IPOSY])
-    #     F_harmonic_y[SEPR:, :] += kappa[simulation] * (Y[SEPR:, :] - grid[IPOSY] - (np.max(grid) - np.min(grid)))
-    # elif grid[IPOSY] > 0:
-    #     SEPR = round((grid[IPOSY]) / grid_space)
-    #     F_harmonic_y[:SEPR, :] += kappa[simulation] * (Y[:SEPR, :] - grid[IPOSY] + (np.max(grid) - np.min(grid)))
-    #     F_harmonic_y[SEPR:, :] += kappa[simulation] * (Y[SEPR:, :] - grid[IPOSY])
 
     return [F_harmonic_x, F_harmonic_y]
 
@@ -215,18 +194,17 @@ def MFI_2D(HILLS="HILLS", position_x="position_x", position_y="position_y", bw=1
     F_static_x = np.zeros(nbins)
     F_static_y = np.zeros(nbins)
     if hp_kappa_x > 0 or hp_kappa_y > 0:
-        temp = find_hp_force(hp_centre_x, hp_centre_y, hp_kappa_x, hp_kappa_y, X , Y, min_grid, max_grid, grid_space, periodic)
-        F_static_x += temp[0]
-        F_static_y += temp[1]
+        [Force_x, Force_y] = find_hp_force(hp_centre_x, hp_centre_y, hp_kappa_x, hp_kappa_y, X , Y, min_grid, max_grid, grid_space, periodic)
+        F_static_x += Force_x
+        F_static_y += Force_y
     if lw_kappa_x > 0 or lw_kappa_y > 0:
-        temp += find_lw_force(lw_centre_x, lw_centre_y, lw_kappa_x, lw_kappa_y, X , Y, periodic)
-        F_static_x += temp[0]
-        F_static_y += temp[1]
+        [Force_x, Force_y] = find_lw_force(lw_centre_x, lw_centre_y, lw_kappa_x, lw_kappa_y, X , Y, periodic)
+        F_static_x += Force_x
+        F_static_y += Force_y
     if uw_kappa_x > 0 or uw_kappa_y > 0:
-        temp = find_uw_force(uw_centre_x, uw_centre_y, uw_kappa_x, uw_kappa_y, X , Y, periodic)
-        F_static_x += temp[0]
-        F_static_y += temp[1]
-    #Calculate static force for y-gradient
+        [Force_x, Force_y] = find_uw_force(uw_centre_x, uw_centre_y, uw_kappa_x, uw_kappa_y, X , Y, periodic)
+        F_static_x += Force_x
+        F_static_y += Force_y
 
     print("Total no. of Gaussians analysed: " + str(total_number_of_hills))
 
