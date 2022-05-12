@@ -6,10 +6,8 @@ import numpy as np
 ### Load files ####
 def load_HILLS_2D(hills_name="HILLS"):
     """_summary_
-
     Args:
         hills_name (str, optional): _description_. Defaults to "HILLS".
-
     Returns:
         _type_: _description_
     """
@@ -33,14 +31,12 @@ def load_position_2D(position_name="position"):
 ### Periodic CVs utils
 def find_periodic_point(x_coord, y_coord, min_grid, max_grid, periodic):
     """_summary_
-
     Args:
         x_coord (_type_): _description_
         y_coord (_type_): _description_
         min_grid (_type_): _description_
         max_grid (_type_): _description_
         periodic (_type_): _description_
-
     Returns:
         _type_: _description_
     """
@@ -134,12 +130,11 @@ def find_uw_force(uw_centre_x, uw_centre_y, uw_kappa_x, uw_kappa_y, X , Y, perio
 
 def MFI_2D(HILLS="HILLS", position_x="position_x", position_y="position_y", bw=1, kT=1,
            min_grid=np.array((-np.pi, -np.pi)), max_grid=np.array((np.pi, np.pi)), nbins=np.array((200, 200)),
-           log_pace=10, error_pace=200, WellTempered=1, nhills=-1, periodic=0,
+           log_pace=10, error_pace=200, base_terms = 0, WellTempered=1, nhills=-1, periodic=0,
            hp_centre_x=0.0, hp_centre_y=0.0, hp_kappa_x=0, hp_kappa_y=0,
            lw_centre_x=0.0, lw_centre_y=0.0, lw_kappa_x=0, lw_kappa_y=0,
            uw_centre_x=0.0, uw_centre_y=0.0, uw_kappa_x=0, uw_kappa_y=0):
     """Compute a time-independent estimate of the Mean Thermodynamic Force, i.e. the free energy gradient in 2D CV spaces.
-
     Args:
         HILLS (str, optional): HILLS array. Defaults to "HILLS".
         position_x (str, optional): CV1 array. Defaults to "position_x".
@@ -154,7 +149,6 @@ def MFI_2D(HILLS="HILLS", position_x="position_x", position_y="position_y", bw=1
         WellTempered (int, optional): Is the simulation well tempered? . Defaults to 1.
         nhills (int, optional): Number of HILLS to analyse, -1 for the entire HILLS array. Defaults to -1, i.e. the entire dataset.
         periodic (int, optional): Is the CV space periodic? 1 for yes. Defaults to 0.
-
     Returns:
         X: array of size (nbins[0], nbins[1]) - CV1 grid positions
         Y: array of size (nbins[0], nbins[1]) - CV2 grid positions
@@ -169,14 +163,14 @@ def MFI_2D(HILLS="HILLS", position_x="position_x", position_y="position_y", bw=1
     gridy = np.linspace(min_grid[1], max_grid[1], nbins[1])
     grid_space = np.array(((max_grid[0] - min_grid[0]) / (nbins[0]-1), (max_grid[1] - min_grid[1]) / (nbins[1]-1)))
     X, Y = np.meshgrid(gridx, gridy)
-    stride = int(len(position_x) / len(HILLS[:, 1]))
+    stride = int(len(position_x) / len(HILLS))
     const = (1 / (bw * np.sqrt(2 * np.pi) * stride))
 
     # Optional - analyse only nhills, if nhills is set
     if nhills > 0:
         total_number_of_hills = nhills
     else:
-        total_number_of_hills = len(HILLS[:, 1])
+        total_number_of_hills = len(HILLS)
     bw2 = bw ** 2
 
     # Initialize force terms
@@ -268,20 +262,65 @@ def MFI_2D(HILLS="HILLS", position_x="position_x", position_y="position_y", bw=1
         # Compute Variance of the mean force every 1/error_pace frequency
         if (i + 1) % int(total_number_of_hills / error_pace) == 0:
             # calculate ofe (standard error)
-            Ftot_den_ratio = np.divide(Ftot_den2, (Ftot_den ** 2 - Ftot_den2), out=np.zeros_like(Ftot_den),
-                                       where=(Ftot_den ** 2 - Ftot_den2) != 0)
-            ofe_x = np.divide(ofv_x, Ftot_den, out=np.zeros_like(ofv_x), where=Ftot_den != 0) - Ftot_x ** 2
-            ofe_y = np.divide(ofv_y, Ftot_den, out=np.zeros_like(ofv_y), where=Ftot_den != 0) - Ftot_y ** 2
-            ofe_x = ofe_x * Ftot_den_ratio
-            ofe_y = ofe_y * Ftot_den_ratio
-            ofe = np.sqrt(abs(ofe_x) + abs(ofe_y))
+            if base_terms == 0:
+                [ofe] = mean_force_variance(Ftot_den, Ftot_den2, Ftot_x, Ftot_y, ofv_x, ofv_y)
+            elif len(base_terms) == 6:
+                [ofe] = patch_to_base_variance(base_terms, [Ftot_den, Ftot_den2, Ftot_x, Ftot_y, ofv_x, ofv_y])
+            else:
+                print("Either define base_terms=0 if you only wish to find the convergence of one simulation, or base_terms=[Ftot_den, Ftot_den2, Ftot_x, Ftot_y, ofv_x, ofv_y] using the terms of another simulation, to find the convergence of both simulations. Continiue with baseterm=0")
+                base_terms = 0
+                [ofe] = mean_force_variance(Ftot_den, Ftot_den2, Ftot_x, Ftot_y, ofv_x, ofv_y)
+
+
             ofe_history.append(sum(sum(ofe)) / (nbins[0] * nbins[1]))
 
         if (i + 1) % (total_number_of_hills / log_pace) == 0:
             print("|" + str(i + 1) + "/" + str(total_number_of_hills) + "|==> Average Mean Force Error: " + str(
                 sum(sum(ofe)) / (nbins[0] * nbins[1])))
 
-    return [X, Y, Ftot_den, Ftot_x, Ftot_y, ofe, ofe_history]
+    return [X, Y, Ftot_den, Ftot_x, Ftot_y, ofe, ofe_history, Ftot_den2, ofv_x, ofv_y]
+
+
+# @jit
+def mean_force_variance(Ftot_den, Ftot_den2, Ftot_x, Ftot_y, ofv_x, ofv_y):
+    # calculate ofe (standard error)
+    Ftot_den_ratio = np.divide(Ftot_den2, (Ftot_den ** 2 - Ftot_den2), out=np.zeros_like(Ftot_den), where=(Ftot_den ** 2 - Ftot_den2) != 0)
+    ofe_x = np.divide(ofv_x, Ftot_den, out=np.zeros_like(ofv_x), where=Ftot_den != 0) - Ftot_x ** 2
+    ofe_y = np.divide(ofv_y, Ftot_den, out=np.zeros_like(ofv_y), where=Ftot_den != 0) - Ftot_y ** 2
+    ofe_x = ofe_x * Ftot_den_ratio
+    ofe_y = ofe_y * Ftot_den_ratio
+    ofe = np.sqrt(abs(ofe_x) + abs(ofe_y))
+    return [ofe]
+
+
+def patch_to_base_variance(master0, master):
+
+    #Define names
+    [PD0, PD20, FX0, FY0, OFV_X0, OFV_Y0] = master0
+    [PD, PD2, FX, FY, OFV_X, OFV_Y] = master
+
+    #Patch base_terms with current_terms
+    PD_patch = PD0 + PD
+    PD2_patch = PD20 + PD2
+    FX_patch = PD0 * FX0 + PD * FX
+    FY_patch = PD0 * FY0 + PD * FY
+    OFV_X_patch = OFV_X0 + OFV_X
+    OFV_Y_patch = OFV_Y0 + OFV_Y
+
+    FX_patch = np.divide(FX_patch, PD_patch, out=np.zeros_like(FX_patch), where=PD_patch > 1E-100)
+    FY_patch = np.divide(FY_patch, PD_patch, out=np.zeros_like(FY_patch), where=PD_patch > 1E-100)
+    #Ftot_patch.append([PD_patch, PD2_patch, FX_patch, FY_patch, OFV_X_patch, OFV_Y_patch])
+
+    #Calculate variance of mean force
+    PD_ratio = np.divide(PD2_patch, (PD_patch ** 2 - PD2_patch), out=np.zeros_like(PD_patch), where=(PD_patch ** 2 - PD2_patch) != 0)
+    OFE_X = np.divide(OFV_X_patch, PD_patch, out=np.zeros_like(OFV_X_patch), where=PD_patch > 1E-100) - FX_patch ** 2
+    OFE_Y = np.divide(OFV_Y_patch, PD_patch, out=np.zeros_like(OFV_Y_patch), where=PD_patch > 1E-100) - FY_patch ** 2
+    OFE_X = OFE_X * PD_ratio
+    OFE_Y = OFE_Y * PD_ratio
+    OFE = np.sqrt( abs(OFE_X) + abs(OFE_Y))
+
+    return [OFE]
+
 
 
 ### Integration using Fast Fourier Transform (FFT integration) in 2D
@@ -314,14 +353,12 @@ def FFT_intg_2D(FX, FY, min_grid=np.array((-np.pi, -np.pi)), max_grid=np.array((
 # Equivalent to integration MS in Alanine dipeptide notebook.
 def intg_2D(FX, FY, min_grid=np.array((-np.pi, -np.pi)), max_grid=np.array((np.pi, np.pi)), nbins=np.array((200, 200))):
     """_summary_
-
     Args:
         FX (_type_): _description_
         FY (_type_): _description_
         min_grid (_type_, optional): _description_. Defaults to np.array((-np.pi, -np.pi)).
         max_grid (_type_, optional): _description_. Defaults to np.array((np.pi, np.pi)).
         nbins (_type_, optional): _description_. Defaults to np.array((200,200)).
-
     Returns:
         _type_: _description_
     """
@@ -345,7 +382,6 @@ def intg_2D(FX, FY, min_grid=np.array((-np.pi, -np.pi)), max_grid=np.array((np.p
 
 def plot_recap_2D(X, Y, FES, TOTAL_DENSITY, CONVMAP, CONV_history, FES_lim=50, ofe_map_lim=40):
     """_summary_
-
     Args:
         X (_type_): _description_
         Y (_type_): _description_
@@ -381,24 +417,38 @@ def plot_recap_2D(X, Y, FES, TOTAL_DENSITY, CONVMAP, CONV_history, FES_lim=50, o
 
 # Patch independent simulations
 def patch_2D(master_array, nbins=np.array((200, 200))):
+    FP = np.zeros(nbins)
+    FP2 = np.zeros(nbins)
     FX = np.zeros(nbins)
     FY = np.zeros(nbins)
-    FP = np.zeros(nbins)
+    OFV_X = np.zeros(nbins)
+    OFV_Y = np.zeros(nbins)
 
     for i in range(len(master_array)):
-        FX += master_array[i][0] * master_array[i][1]
-        FY += master_array[i][0] * master_array[i][2]
         FP += master_array[i][0]
+        FP += master_array[i][1]
+        FX += master_array[i][0] * master_array[i][2]
+        FY += master_array[i][0] * master_array[i][3]
+        OFV_X += master_array[i][4]
+        OFV_Y += master_array[i][5]
 
     FX = np.divide(FX, FP, out=np.zeros_like(FX), where=FP != 0)
     FY = np.divide(FY, FP, out=np.zeros_like(FY), where=FP != 0)
 
-    return [FP, FX, FY]
+    # #Calculate variance of mean force
+    # PD_ratio = np.divide(PD2, (PD ** 2 - PD2), out=np.zeros_like(PD), where=(PD ** 2 - PD2) != 0)
+    # OFE_X = np.divide(OFV_X, PD, out=np.zeros_like(OFV_X), where=PD > 1E-100) - FX ** 2
+    # OFE_Y = np.divide(OFV_Y, PD, out=np.zeros_like(OFV_Y), where=PD > 1E-100) - FY ** 2
+    # OFE_X = OFE_X * PD_ratio
+    # OFE_Y = OFE_Y * PD_ratio
+    # OFE = np.sqrt( abs(OFE_X) + abs(OFE_Y))
+
+
+    return [FP, FP2, FX, FY, OFV_X, OFV_Y]
 
 
 def plot_patch_2D(X, Y, FES, TOTAL_DENSITY, lim=50):
     """_summary_
-
     Args:
         X (_type_): _description_
         Y (_type_): _description_
@@ -419,3 +469,40 @@ def plot_patch_2D(X, Y, FES, TOTAL_DENSITY, lim=50):
     axs[1].set_ylabel('CV2', fontsize=11)
     axs[1].set_xlabel('CV1', fontsize=11)
     axs[1].set_title('Total Biased Probability Density', fontsize=11)
+
+
+# @jit
+def patch_2D_error(master, nbins=np.array((200, 200))):
+    Ftot_x = np.zeros(nbins)
+    Ftot_y = np.zeros(nbins)
+    Ftot_den = np.zeros(nbins)
+    Ftot_den2 = np.zeros(nbins)
+    ofv_x = np.zeros(nbins)
+    ofv_y = np.zeros(nbins)
+    error_x = np.zeros(nbins)
+    error_y = np.zeros(nbins)
+
+    for i in np.arange(0, len(master)):
+        Ftot_x += master[i][0] * master[i][2]
+        Ftot_y += master[i][0] * master[i][3]
+        Ftot_den += master[i][0]
+        Ftot_den2 += master[i][1]
+        ofv_x += master[i][4]
+        ofv_y += master[i][5]
+        error_x += master[i][0] * (master[i][2] ** 2)
+        error_y += master[i][0] * (master[i][3] ** 2)
+
+    Ftot_x = np.divide(Ftot_x, Ftot_den, out=np.zeros_like(Ftot_x), where=Ftot_den != 0)
+    Ftot_y = np.divide(Ftot_y, Ftot_den, out=np.zeros_like(Ftot_y), where=Ftot_den != 0)
+
+    error_x = np.divide(error_x, Ftot_den, out=np.zeros_like(error_x), where=Ftot_den != 0) - (Ftot_x ** 2)
+    error_y = np.divide(error_y, Ftot_den, out=np.zeros_like(error_y), where=Ftot_den != 0) - (Ftot_y ** 2)
+
+    ratio = np.divide(Ftot_den2, (Ftot_den ** 2 - Ftot_den2), out=np.zeros_like(error_x),
+                      where=(Ftot_den ** 2 - Ftot_den2) != 0)
+    error_x = error_x * ratio
+    error_y = error_y * ratio
+
+    error = np.sqrt(np.sqrt(error_x ** 2 + error_y ** 2))
+
+    return [Ftot_x, Ftot_y, Ftot_den, error]
