@@ -391,13 +391,13 @@ def plot_recap_2D(X, Y, FES, TOTAL_DENSITY, CONVMAP, CONV_history, FES_lim=50, o
         CONV_history (_type_): _description_
     """
     fig, axs = plt.subplots(1, 4, figsize=(18, 3))
-    cp = axs[0].contourf(X, Y, FES, levels=range(0, FES_lim, 1), cmap='YlGnBu_r', antialiased=False, alpha=0.8);
+    cp = axs[0].contourf(X, Y, FES, levels=range(0, FES_lim, 1), cmap='coolwarm', antialiased=False, alpha=0.8);
     cbar = plt.colorbar(cp, ax=axs[0])
     axs[0].set_ylabel('CV2', fontsize=11)
     axs[0].set_xlabel('CV1', fontsize=11)
     axs[0].set_title('Free Energy Surface', fontsize=11)
 
-    cp = axs[1].contourf(X, Y, CONVMAP, levels=range(0, ofe_map_lim, 1), cmap='YlGnBu_r', antialiased=False, alpha=0.8);
+    cp = axs[1].contourf(X, Y, CONVMAP, levels=range(0, ofe_map_lim, 1), cmap='coolwarm', antialiased=False, alpha=0.8);
     cbar = plt.colorbar(cp, ax=axs[1])
     axs[1].set_ylabel('CV2', fontsize=11)
     axs[1].set_xlabel('CV1', fontsize=11)
@@ -458,7 +458,7 @@ def plot_patch_2D(X, Y, FES, TOTAL_DENSITY, lim=50):
         CONV_history (_type_): _description_
     """
     fig, axs = plt.subplots(1, 2, figsize=(9, 3.5))
-    cp = axs[0].contourf(X, Y, FES, levels=range(0, lim, 1), cmap='YlGnBu_r', antialiased=False, alpha=0.8);
+    cp = axs[0].contourf(X, Y, FES, levels=range(0, lim, 1), cmap='coolwarm', antialiased=False, alpha=0.8);
     cbar = plt.colorbar(cp, ax=axs[0])
     axs[0].set_ylabel('CV2', fontsize=11)
     axs[0].set_xlabel('CV1', fontsize=11)
