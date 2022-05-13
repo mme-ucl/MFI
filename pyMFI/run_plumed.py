@@ -1,5 +1,7 @@
 import os
 import subprocess
+from random import randint
+
 
 def run_langevin1D(simulation_steps,
                    analytical_function = "7*x^4-23*x^2", periodic_boundaries= "NO",
@@ -149,7 +151,7 @@ def find_alanine_dipeptide_input(initial_position_x=0.0, initial_position_y=0.0,
 def run_alanine_dipeptide(simulation_steps, temperature=1,
                    grid_min_x="-pi", grid_max_x="pi", grid_min_y="-pi", grid_max_y="pi", grid_bin_x=201, grid_bin_y=201,
                    gaus_width_x=0.1, gaus_width_y=0.1, gaus_height=1, biasfactor=10, gaus_pace=100, position_pace=0, 
-                   hp_center_x=0.0, hp_center_y=0.0, hp_kappa_x=100, hp_kappa_y=100,
+                   hp_center_x=0.0, hp_center_y=0.0, hp_kappa_x=0, hp_kappa_y=0,
                    lw_center_x=0.0, lw_center_y=0.0, lw_kappa_x=0, lw_kappa_y=0,
                    uw_center_x=0.0, uw_center_y=0.0, uw_kappa_x=0, uw_kappa_y=0,
                    print_bias = 0, file_extension=""):
