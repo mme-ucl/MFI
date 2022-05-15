@@ -109,19 +109,53 @@ def find_hp_force(hp_centre_x, hp_centre_y, hp_kappa_x, hp_kappa_y, X , Y, min_g
     return [F_harmonic_x, F_harmonic_y]
 
 
-def find_lw_force(lw_centre_x, lw_centre_y, lw_kappa_x, lw_kappa_y, X , Y, periodic):
-    F_wall_x = np.where(X < lw_centre_x, lw_kappa_x * (X - lw_centre_x), 0)
-    F_wall_y = np.where(Y < lw_centre_y, lw_kappa_y * (Y - lw_centre_y), 0)
+def find_lw_force(lw_centre_x, lw_centre_y, lw_kappa_x, lw_kappa_y, X , Y, min_grid, max_grid, grid_space, periodic):
+    #Calculate x-force
+    F_wall_x = np.where(X < lw_centre_x, 2 * lw_kappa_x * (X - lw_centre_x), 0)
     if periodic == 1:
-        print("\n\n***ATTENTION, UPPER WALL FORCE DOESN'T CONTAIN PERIODIC FEATURES***\n\n")
+        grid_length = max_grid[0] - min_grid[0]
+        grid_centre = min_grid[0] + grid_length/2
+        if lw_centre_x < grid_centre:
+            index_period = index(lw_centre_x + grid_length/2, min_grid[0], grid_space)
+            F_wall_x[:, index_period:] =  2 * lw_kappa_x * (X[:, index_period:] - lw_centre_x - grid_length)        
+        elif lw_centre_x > grid_centre:
+            index_period = index(lw_centre_x - grid_length/2, min_grid[0], grid_space)
+            F_wall_x[:, :index_period] = 0
+
+    #Calculate y-force
+    F_wall_y = np.where(Y < lw_centre_y, 2 * lw_kappa_y * (Y - lw_centre_y), 0)
+    if periodic == 1:
+        if lw_centre_y < grid_centre:
+            index_period = index(lw_centre_y + grid_length/2, min_grid[1], grid_space)
+            F_wall_y[index_period:, :] = 2 * lw_kappa_y * (Y[index_period:, :] - lw_centre_y - grid_length)
+        elif lw_centre_y > grid_centre:
+            index_period = index(lw_centre_y - grid_length/2, min_grid[1], grid_space)
+            F_wall_y[:index_period, :] = 0
     return [F_wall_x, F_wall_y]
 
 
-def find_uw_force(uw_centre_x, uw_centre_y, uw_kappa_x, uw_kappa_y, X , Y, periodic):
-    F_wall_x = np.where(X > uw_centre_x, uw_kappa_x * (X - uw_centre_x), 0)
-    F_wall_y = np.where(Y > uw_centre_y, uw_kappa_y * (Y - uw_centre_y), 0)
+
+def find_uw_force(uw_centre_x, uw_centre_y, uw_kappa_x, uw_kappa_y, X , Y, min_grid, max_grid, grid_space, periodic):
+    #Calculate x-force
+    F_wall_x = np.where(X > uw_centre_x, 2 * uw_kappa_x * (X - uw_centre_x), 0)
     if periodic == 1:
-        print("\n\n***ATTENTION, LOWER WALL FORCE DOESN'T CONTAIN PERIODIC FEATURES***\n\n")
+        grid_length = max_grid[0] - min_grid[0]
+        grid_centre = min_grid[0] + grid_length/2
+        if uw_centre_x < grid_centre:
+            index_period = index(uw_centre_x + grid_length/2, min_grid[0], grid_space)
+            F_wall_x[:, index_period:] = 0       
+        elif uw_centre_x > grid_centre:
+            index_period = index(uw_centre_x - grid_length/2, min_grid[0], grid_space)
+            F_wall_x[:, :index_period] = 2 * uw_kappa_x * (X[:, :index_period] - uw_centre_x + grid_length)   
+    #Calculate y-force
+    F_wall_y = np.where(Y > uw_centre_y, 2 * uw_kappa_y * (Y - uw_centre_y), 0)
+    if periodic == 1:
+        if uw_centre_y < grid_centre:
+            index_period = index(uw_centre_y + grid_length/2, min_grid[1], grid_space)
+            F_wall_y[index_period:, :] = 0
+        elif uw_centre_y > grid_centre:
+            index_period = index(uw_centre_y - grid_length/2, min_grid[1], grid_space)
+            F_wall_y[:index_period, :] = 2 * uw_kappa_y * (Y[:index_period, :] - uw_centre_y + grid_length)
     return [F_wall_x, F_wall_y]
 
 
