@@ -26,9 +26,7 @@ def load_position_2D(position_name="position"):
     return [position_x, position_y]
 
 
-#######
 
-### Periodic CVs utils
 def find_periodic_point(x_coord, y_coord, min_grid, max_grid, periodic):
     """_summary_
     Args:
@@ -80,7 +78,8 @@ def find_periodic_point(x_coord, y_coord, min_grid, max_grid, periodic):
 def index(position, min_grid, grid_space):
     return int((position-min_grid)//grid_space) + 1
 
-
+def reduce_to_window(input_array, min_grid, grid_space, x_min=-0.5, x_max=0.5, y_min=-1.5, y_max=1.5):
+    return input_array[index(y_min, min_grid[1], grid_space[1]): index(y_max, min_grid[1], grid_space[1]), index(x_min, min_grid[0], grid_space[0]): index(x_max, min_grid[0], grid_space[0])]
 
 def find_hp_force(hp_centre_x, hp_centre_y, hp_kappa_x, hp_kappa_y, X , Y, min_grid, max_grid, grid_space, periodic):
     #Calculate x-force
@@ -89,10 +88,10 @@ def find_hp_force(hp_centre_x, hp_centre_y, hp_kappa_x, hp_kappa_y, X , Y, min_g
         grid_length = max_grid[0] - min_grid[0]
         grid_centre = min_grid[0] + grid_length/2
         if hp_centre_x < grid_centre:
-            index_period = index(hp_centre_x + grid_length/2, min_grid[0], grid_space)
+            index_period = index(hp_centre_x + grid_length/2, min_grid[0], grid_space[0])
             F_harmonic_x[:, index_period:] = hp_kappa_x * (X[:, index_period:] - hp_centre_x - grid_length)
         elif hp_centre_x > grid_centre:
-            index_period = index(hp_centre_x - grid_length/2, min_grid[0], grid_space)
+            index_period = index(hp_centre_x - grid_length/2, min_grid[0], grid_space[0])
             F_harmonic_x[:, :index_period] = hp_kappa_x * (X[:, :index_period] - hp_centre_x + grid_length)
     #Calculate y-force
     F_harmonic_y = hp_kappa_y * (Y - hp_centre_y)
@@ -100,10 +99,10 @@ def find_hp_force(hp_centre_x, hp_centre_y, hp_kappa_x, hp_kappa_y, X , Y, min_g
         grid_length = max_grid[0] - min_grid[0]
         grid_centre = min_grid[0] + grid_length / 2
         if hp_centre_y < grid_centre:
-            index_period = index(hp_centre_y + grid_length/2, min_grid[1], grid_space)
+            index_period = index(hp_centre_y + grid_length/2, min_grid[1], grid_space[1])
             F_harmonic_y[index_period:, :] = hp_kappa_y * (Y[index_period:, :] - hp_centre_y - grid_length)
         elif hp_centre_y > grid_centre:
-            index_period = index(hp_centre_y - grid_length/2, min_grid[1], grid_space)
+            index_period = index(hp_centre_y - grid_length/2, min_grid[1], grid_space[1])
             F_harmonic_y[:index_period, :] = hp_kappa_y * (Y[:index_period, :] - hp_centre_y + grid_length)
 
     return [F_harmonic_x, F_harmonic_y]
@@ -164,7 +163,7 @@ def find_uw_force(uw_centre_x, uw_centre_y, uw_kappa_x, uw_kappa_y, X , Y, min_g
 
 def MFI_2D(HILLS="HILLS", position_x="position_x", position_y="position_y", bw=1, kT=1,
            min_grid=np.array((-np.pi, -np.pi)), max_grid=np.array((np.pi, np.pi)), nbins=np.array((200, 200)),
-           log_pace=10, error_pace=200, base_terms = 0, WellTempered=1, nhills=-1, periodic=0,
+           log_pace=10, error_pace=200, base_terms = 0, window_corners=0, WellTempered=1, nhills=-1, periodic=0,
            hp_centre_x=0.0, hp_centre_y=0.0, hp_kappa_x=0, hp_kappa_y=0,
            lw_centre_x=0.0, lw_centre_y=0.0, lw_kappa_x=0, lw_kappa_y=0,
            uw_centre_x=0.0, uw_centre_y=0.0, uw_kappa_x=0, uw_kappa_y=0):
@@ -217,6 +216,10 @@ def MFI_2D(HILLS="HILLS", position_x="position_x", position_y="position_y", bw=1
     ofv_x = np.zeros(nbins)
     ofv_y = np.zeros(nbins)
     ofe_history = []
+    ofe_history_time = []
+    
+    if len(window_corners) == 4:
+        ofe_history_window = []
 
     #Calculate static force
     F_static_x = np.zeros(nbins)
@@ -304,15 +307,21 @@ def MFI_2D(HILLS="HILLS", position_x="position_x", position_y="position_y", bw=1
                 print("Either define base_terms=0 if you only wish to find the convergence of one simulation, or base_terms=[Ftot_den, Ftot_den2, Ftot_x, Ftot_y, ofv_x, ofv_y] using the terms of another simulation, to find the convergence of both simulations. Continiue with baseterm=0")
                 base_terms = 0
                 [ofe] = mean_force_variance(Ftot_den, Ftot_den2, Ftot_x, Ftot_y, ofv_x, ofv_y)
-
+                
+            if len(window_corners) == 4:
+                ofe_window = reduce_to_window(ofe, min_grid, grid_space, x_min=window_corners[0], x_max=window_corners[1], y_min=window_corners[2], y_max=window_corners[3]) 
+                ofe_history_window.append(sum(sum(ofe_window)) / (np.shape(ofe_window)[0] * np.shape(ofe_window)[1]))
 
             ofe_history.append(sum(sum(ofe)) / (nbins[0] * nbins[1]))
+            ofe_history_time.append(HILLS[i,0])
 
         if (i + 1) % (total_number_of_hills / log_pace) == 0:
-            print("|" + str(i + 1) + "/" + str(total_number_of_hills) + "|==> Average Mean Force Error: " + str(
-                sum(sum(ofe)) / (nbins[0] * nbins[1])))
+            print("|" + str(i + 1) + "/" + str(total_number_of_hills) + "|==> Average Mean Force Error: " + str(sum(sum(ofe)) / (nbins[0] * nbins[1])))
+            if len(window_corners) == 4: 
+                print("ofe_window", sum(sum(ofe_window)) / (np.shape(ofe_window)[0] * np.shape(ofe_window)[1]))
 
-    return [X, Y, Ftot_den, Ftot_x, Ftot_y, ofe, ofe_history, Ftot_den2, ofv_x, ofv_y]
+    if len(window_corners) == 4: return [X, Y, Ftot_den, Ftot_x, Ftot_y, ofe, ofe_history, ofe_history_window, ofe_history_time, Ftot_den2, ofv_x, ofv_y]
+    else: return [X, Y, Ftot_den, Ftot_x, Ftot_y, ofe, ofe_history, ofe_history_time, Ftot_den2, ofv_x, ofv_y]
 
 
 # @jit
@@ -341,14 +350,14 @@ def patch_to_base_variance(master0, master):
     OFV_X_patch = OFV_X0 + OFV_X
     OFV_Y_patch = OFV_Y0 + OFV_Y
 
-    FX_patch = np.divide(FX_patch, PD_patch, out=np.zeros_like(FX_patch), where=PD_patch > 1E-100)
-    FY_patch = np.divide(FY_patch, PD_patch, out=np.zeros_like(FY_patch), where=PD_patch > 1E-100)
+    FX_patch = np.divide(FX_patch, PD_patch, out=np.zeros_like(FX_patch), where=PD_patch != 0)
+    FY_patch = np.divide(FY_patch, PD_patch, out=np.zeros_like(FY_patch), where=PD_patch != 0)
     #Ftot_patch.append([PD_patch, PD2_patch, FX_patch, FY_patch, OFV_X_patch, OFV_Y_patch])
 
     #Calculate variance of mean force
     PD_ratio = np.divide(PD2_patch, (PD_patch ** 2 - PD2_patch), out=np.zeros_like(PD_patch), where=(PD_patch ** 2 - PD2_patch) != 0)
-    OFE_X = np.divide(OFV_X_patch, PD_patch, out=np.zeros_like(OFV_X_patch), where=PD_patch > 1E-100) - FX_patch ** 2
-    OFE_Y = np.divide(OFV_Y_patch, PD_patch, out=np.zeros_like(OFV_Y_patch), where=PD_patch > 1E-100) - FY_patch ** 2
+    OFE_X = np.divide(OFV_X_patch, PD_patch, out=np.zeros_like(OFV_X_patch), where=PD_patch != 0) - FX_patch ** 2
+    OFE_Y = np.divide(OFV_Y_patch, PD_patch, out=np.zeros_like(OFV_Y_patch), where=PD_patch != 0) - FY_patch ** 2
     OFE_X = OFE_X * PD_ratio
     OFE_Y = OFE_Y * PD_ratio
     OFE = np.sqrt( abs(OFE_X) + abs(OFE_Y))
@@ -414,7 +423,7 @@ def intg_2D(FX, FY, min_grid=np.array((-np.pi, -np.pi)), max_grid=np.array((np.p
     return [X, Y, fes]
 
 
-def plot_recap_2D(X, Y, FES, TOTAL_DENSITY, CONVMAP, CONV_history, FES_lim=50, ofe_map_lim=40):
+def plot_recap_2D(X, Y, FES, TOTAL_DENSITY, CONVMAP, CONV_history, CONV_history_time, FES_lim=50, ofe_map_lim=40):
     """_summary_
     Args:
         X (_type_): _description_
@@ -443,9 +452,9 @@ def plot_recap_2D(X, Y, FES, TOTAL_DENSITY, CONVMAP, CONV_history, FES_lim=50, o
     axs[2].set_xlabel('CV1', fontsize=11)
     axs[2].set_title('Total Biased Probability Density', fontsize=11)
 
-    axs[3].plot(range(len(CONV_history)), CONV_history);
+    axs[3].plot( CONV_history_time, CONV_history);
     axs[3].set_ylabel('Average Mean Force Error', fontsize=11)
-    axs[3].set_xlabel('Number of Error Evaluations', fontsize=11)
+    axs[3].set_xlabel('Simulation time [ps]', fontsize=11)
     axs[3].set_title('Global Convergence', fontsize=11)
 
 
@@ -460,7 +469,7 @@ def patch_2D(master_array, nbins=np.array((200, 200))):
 
     for i in range(len(master_array)):
         FP += master_array[i][0]
-        FP += master_array[i][1]
+        FP2 += master_array[i][1]
         FX += master_array[i][0] * master_array[i][2]
         FY += master_array[i][0] * master_array[i][3]
         OFV_X += master_array[i][4]

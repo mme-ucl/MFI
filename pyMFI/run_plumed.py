@@ -1,5 +1,6 @@
 import os
 import subprocess
+from subprocess import PIPE
 from random import randint
 
 
@@ -64,10 +65,10 @@ def run_langevin2D(simulation_steps,
                    grid_min_x=-3.0, grid_max_x=3.0, grid_min_y=-3.0, grid_max_y=3.0, grid_bin_x=200,
                    grid_bin_y=200,
                    gaus_width_x=0.1, gaus_width_y=0.1, gaus_height=1, biasfactor=10, gaus_pace=100,
-                   hp_center_x=0.0, hp_center_y=0.0, hp_kappa_x=100, hp_kappa_y=100,
+                   hp_center_x=0.0, hp_center_y=0.0, hp_kappa_x=0, hp_kappa_y=0,
                    lw_center_x=0.0, lw_center_y=0.0, lw_kappa_x=0, lw_kappa_y=0,
                    uw_center_x=0.0, uw_center_y=0.0, uw_kappa_x=0, uw_kappa_y=0,
-                   position_pace=0):
+                   position_pace=0, file_extension=""):
 
     with open("input", "w") as f:
         print("""temperature {}
@@ -87,8 +88,8 @@ bb: BIASVALUE ARG=ff""".format(periodic_f, analytical_function), file=f)
         # Metadynamics bias. To activate, the height of the bias needs to be a positive number.
         if gaus_height > 0:
             f.write("METAD ARG=p.x,p.y SIGMA={},{} HEIGHT={} BIASFACTOR={} GRID_MIN={},{} GRID_MAX={},{} GRID_BIN={},{} PACE={} \
-TEMP={} \n".format(gaus_width_x, gaus_width_y, gaus_height, biasfactor, grid_min_x, grid_min_y, grid_max_x,
-               grid_max_y, grid_bin_x, grid_bin_y, gaus_pace, temperature * 120))
+TEMP={} FILE=HILLS{}\n".format(gaus_width_x, gaus_width_y, gaus_height, biasfactor, grid_min_x, grid_min_y, grid_max_x,
+               grid_max_y, grid_bin_x, grid_bin_y, gaus_pace, temperature * 120, file_extension))
 
         # Harmonic potential bias. To activate, the force constant (kappa) needs to be a positive number
         if hp_kappa_x > 0 or hp_kappa_y > 0:
@@ -105,9 +106,20 @@ TEMP={} \n".format(gaus_width_x, gaus_width_y, gaus_height, biasfactor, grid_min
 
         # Print position of system. If position_pace = 0, it will be position_pace = gaus_pace/10
         if position_pace == 0: position_pace = int(gaus_pace / 10)
-        f.write("PRINT FILE=position ARG=p.x,p.y STRIDE={}".format(position_pace))
-
+        f.write("PRINT FILE=position{} ARG=p.x,p.y STRIDE={}".format(file_extension , position_pace))
+     
     os.system("plumed pesmd < input")
+
+    # print("starting simulation...")
+    # process_run_simulation = subprocess.Popen(["plumed", "pesmd", "<", "input"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    # process_run_simulation.wait()
+    # output_process_run_simulation, errors_process_run_simulation = process_run_simulation.communicate()
+
+    # if "Error" in errors_process_run_simulation:
+    #     print("There is an error message")
+    #     print(errors_process_run_simulation)
+
+
 
 
 # #Exaple execution (run simulation in folder: test with location <path>:
@@ -138,12 +150,12 @@ def find_alanine_dipeptide_input(initial_position_x=0.0, initial_position_y=0.0,
     os.system("sed -i -e '1," + str(del_structure_lines) + "d' structure" + str(file_extension) + ".gro")
 
     #Prepare new input file<- input structure.gro, topolvac.top, gromppvac.mdp -> input(n).tpr
-    find_input_structure = subprocess.Popen(["gmx", "grompp", "-f", "gromppvac.mdp", "-c", "structure" + str(file_extension)+".gro", "-p", "topology.top", "-o", "input" + str(file_extension)+ ".tpr"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    find_input_structure = subprocess.Popen(["gmx", "grompp", "-f", "gromppvac.mdp", "-c", "structure" + str(file_extension)+".gro", "-p", "topology.top", "-o", "input" + str(file_extension)+ ".tpr"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)#, text=True)
     find_input_structure.wait()
     output_find_input_structure, errors_find_input_structure = find_input_structure.communicate()
-    if "Error" in errors_find_input_structure:
-        print("*****There is an error message:*****\n\n")
-        print(errors_find_input_structure)
+    # if "Error" in errors_find_input_structure:
+    #     print("*****There is an error message:*****\n\n")
+    #     print(errors_find_input_structure)
     #####<<<Prepare new input file input(n).tpr<<<##############################
 
 
@@ -164,8 +176,8 @@ psi: TORSION ATOMS=@psi-2""", file=f)
         # Metadynamics bias. To activate, the height of the bias needs to be a positive number.
         if gaus_height > 0:
             f.write("METAD ARG=phi,psi SIGMA={},{} HEIGHT={} BIASFACTOR={} GRID_MIN={},{} GRID_MAX={},{} GRID_BIN={},{} PACE={} \
-TEMP={} \n".format(gaus_width_x, gaus_width_y, gaus_height, biasfactor, grid_min_x, grid_min_y, grid_max_x,
-               grid_max_y, grid_bin_x, grid_bin_y, gaus_pace, temperature * 120))
+TEMP={} FILE=HILLS{}\n".format(gaus_width_x, gaus_width_y, gaus_height, biasfactor, grid_min_x, grid_min_y, grid_max_x,
+               grid_max_y, grid_bin_x, grid_bin_y, gaus_pace, temperature * 120, file_extension))
 
         # Harmonic potential bias. To activate, the force constant (kappa) needs to be a positive number
         if hp_kappa_x > 0 or hp_kappa_y > 0:
@@ -184,7 +196,7 @@ TEMP={} \n".format(gaus_width_x, gaus_width_y, gaus_height, biasfactor, grid_min
 
         # Print position of system. If position_pace = 0, it will be position_pace = gaus_pace/10
         if position_pace == 0: position_pace = int(gaus_pace / 10)
-        f.write("PRINT FILE=position ARG=phi,psi STRIDE={}".format(position_pace))
+        f.write("PRINT FILE=position{} ARG=phi,psi STRIDE={}".format(file_extension, position_pace))
 
         if print_bias == 1:
             f.write("PRINT FILE=restraint ARG=phi,psi,restraint.bias,restraint.force2 STRIDE=100")
@@ -196,12 +208,17 @@ TEMP={} \n".format(gaus_width_x, gaus_width_y, gaus_height, biasfactor, grid_min
     print("Running Alanine Dipeptide simulation")
     # os.system("gmx mdrun -s input" + str(simulation_count) + ".tpr -nsteps " + str(int(nsteps)) + " -plumed plumed_restr.dat -v") # > /dev/null
     find_input_file = subprocess.Popen(["gmx", "mdrun", "-s", "input" + str(file_extension) + ".tpr", "-nsteps", str(int(simulation_steps)), "-plumed",
-         "plumed.dat"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+         "plumed.dat"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)#, text=True)
     find_input_file.wait()
     output_find_input_file, errors_find_input_file = find_input_file.communicate()
 
-    if "Error" in errors_find_input_file:
-        print("There is an error message")
-        print(errors_find_input_file)
+    # if "Error" in errors_find_input_file:
+    #     print("There is an error message")
+    #     print(errors_find_input_file)
 
     print("... Simulation finished.\n")
+
+
+
+
+
