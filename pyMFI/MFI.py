@@ -549,3 +549,22 @@ def patch_2D_error(master, nbins=np.array((200, 200))):
     error = np.sqrt(np.sqrt(error_x ** 2 + error_y ** 2))
 
     return [Ftot_x, Ftot_y, Ftot_den, error]
+
+
+def save_npy(object, file_name):
+    with open(file_name, "wb") as fw:
+        np.save(fw, object)
+
+
+def load_npy(name):
+    with open(name, "rb") as fr:
+        return np.load(fr)
+
+def save_pkl(object, file_name):
+    with open(file_name, "wb") as fw:
+        pickle.dump(object, fw)
+
+
+def load_pkl(name):
+    with open(name, "rb") as fr:
+        return pickle.load(fr)
