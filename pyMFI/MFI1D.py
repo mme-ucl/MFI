@@ -2,6 +2,8 @@ import glob
 import matplotlib.pyplot as plt
 import scipy.integrate as integrate
 import numpy as np
+import pickle
+import random
 
 
 def load_HILLS(hills_name="HILLS"):
@@ -173,3 +175,149 @@ def plot_recap(X, FES, TOTAL_DENSITY, CONVMAP, CONV_history, lim=40):
     axs[1, 1].plot(range(len(CONV_history)), CONV_history);
     axs[1, 1].set_ylabel('Average Mean Force Error')
     axs[1, 1].set_xlabel('Number of Error Evaluations')
+
+
+
+# def patch_to_base_error(master0, master, return_terms=False):
+#     [PD0, PD20, F0, OFV0] = master0
+#     [PD, PD2, F, OFV] = master
+
+#     # Patch master terms together
+#     PD_patch = PD0 + PD
+#     PD2_patch = PD20 + PD2
+#     OFV_patch = OFV0 + OFV
+#     F_patch = PD0 * F0 + PD * F
+#     F_patch = np.divide(F_patch, PD_patch, out=np.zeros_like(F_patch), where=PD_patch > 0.001)
+
+#     # calculate error
+#     PD_ratio = np.divide(PD2_patch, (PD_patch ** 2 - PD2_patch), out=np.zeros_like(PD_patch), where=PD_patch > 1)
+#     OFE = np.divide(OFV_patch, PD_patch, out=np.zeros_like(OFV_patch), where=PD_patch > 1) - F_patch ** 2
+#     OFE = OFE * PD_ratio
+#     OFE = np.sqrt(OFE)
+
+#     # save terms
+#     ofe_history.append(sum(OFE) / (np.count_nonzero(OFE)))
+
+#     if return_terms == True:
+#         return [PD_patch, PD2_patch, F_patch, OFV_patch, OFE]
+#     else:
+#         print(" ofe is: " + str(ofe_history[-1]))
+#         return OFE
+
+def patch_forces(force_vector):
+    PD_patch = np.zeros(np.shape(force_vector[0][0]))
+    F_patch = np.zeros(np.shape(force_vector[0][0]))
+    for i in range(len(force_vector)):
+        PD_patch += force_vector[i][0]
+        F_patch += force_vector[i][0] * force_vector[i][1]
+    F_patch = np.divide(F_patch, PD_patch, out=np.zeros_like(F_patch), where=PD_patch > 0.000001)
+
+    return [PD_patch, F_patch]
+
+
+
+def bootstrap_forw_back(grid, forward_force, backward_force, n_bootstrap):
+   
+    #Define terms that will be updated itteratively
+    Ftot_inter = np.zeros(len(grid))
+    Ftot_sum = np.zeros(len(grid))
+    Ftot_den_sum = np.zeros(len(grid))
+    Ftot_den2_sum = np.zeros(len(grid))
+    FES_sum = np.zeros(len(grid))
+    FES2_sum = np.zeros(len(grid))
+
+    #store var and sd progression here
+    variance_prog = []
+    stdev_prog = []
+    var_fes_prog  = []
+    sd_fes_prog = []
+
+    #Save patch force terms and FES
+    force_patch_collection = []
+    FES_collection = []
+
+    #Patch forces
+    [Ftot_den, Ftot] = patch_forces(np.concatenate((forward_force, backward_force)))
+
+    #save non-random probability density
+    Ftot_den_base = np.array(Ftot_den)
+
+
+    for itteration in range(n_bootstrap):
+
+        #Randomly choose 49 forward forces and backward forces
+        force = []    
+        for i in range(len(forward_force)):
+            force.append(forward_force[random.randint(0,len(forward_force)-1)])
+            force.append(backward_force[random.randint(0,len(forward_force)-1)])
+
+                
+                
+        #patch forces to find average Ftot_den, Ftot and FES
+        [Ftot_den, Ftot] = patch_forces(force)
+        FES = intg_1D(grid,Ftot)
+        FES = FES - FES[0]
+
+        #Save terms
+        force_patch_collection.append([Ftot_den, Ftot])
+        FES_collection.append(FES)
+
+        #calculate sums for variance
+        Ftot_inter += Ftot_den * Ftot**2
+        Ftot_sum += Ftot
+        Ftot_den_sum += Ftot_den
+        Ftot_den2_sum += Ftot_den**2
+        
+        FES_sum += FES
+        FES2_sum += FES**2
+
+        if itteration > 0:
+            
+            #calculate force variance
+            Ftot_avr = Ftot_sum / (itteration+1)
+            Ftot2_weighted = np.divide(Ftot_inter, Ftot_den_sum, out=np.zeros_like(Ftot_inter), where=Ftot_den_base>10)
+            Ftot_den_ratio = np.divide(Ftot_den_sum ** 2, (Ftot_den_sum ** 2 - Ftot_den2_sum), out=np.zeros_like(Ftot_den_sum), where=Ftot_den_base > 10)
+            variance = (Ftot2_weighted - Ftot_avr**2) * Ftot_den_ratio
+            n_eff = np.divide(Ftot_den_sum ** 2, Ftot_den2_sum, out=np.zeros_like(Ftot_den), where=Ftot_den_base>10)
+            stdev = np.where(Ftot_den_base > 10,  np.sqrt(variance / n_eff ), 0)
+        
+            #calculate FES variance
+            FES_avr = FES_sum/ (itteration+1)
+            var_fes = np.zeros(len(grid))
+            for i in range(len(FES_collection)): 
+                var_fes += (FES_collection[i] - FES_avr)**2
+            var_fes = 1/(len(FES_collection)-1) * var_fes
+            sd_fes = np.sqrt(var_fes)
+            
+            #save variance
+            variance_prog.append(sum(variance)/len(grid))
+            stdev_prog.append(sum(stdev)/len(grid))
+            var_fes_prog.append(sum(var_fes)/len(grid))
+            sd_fes_prog.append(sum(sd_fes)/len(grid))
+        
+        
+        #print progress
+        if (itteration+1) % 50 == 0:
+            print(itteration+1, ": var:", round(variance_prog[-1],5), "     sd:", round(stdev_prog[-1],5), "      FES: var:", round(var_fes_prog[-1],3), "     sd:", round(sd_fes_prog[-1],3) )
+            
+    return [FES_avr, sd_fes, variance_prog, stdev_prog, var_fes_prog, sd_fes_prog ]
+
+
+
+def save_npy(object, file_name):
+    with open(file_name, "wb") as fw:
+        np.save(fw, object)
+
+
+def load_npy(name):
+    with open(name, "rb") as fr:
+        return np.load(fr)
+
+def save_pkl(object, file_name):
+    with open(file_name, "wb") as fw:
+        pickle.dump(object, fw)
+
+
+def load_pkl(name):
+    with open(name, "rb") as fr:
+        return pickle.load(fr)

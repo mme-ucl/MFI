@@ -108,9 +108,9 @@ TEMP={} FILE=HILLS{}\n".format(gaus_width_x, gaus_width_y, gaus_height, biasfact
         if position_pace == 0: position_pace = int(gaus_pace / 10)
         f.write("PRINT FILE=position{} ARG=p.x,p.y STRIDE={}".format(file_extension , position_pace))
      
+    print("starting simulation...")
     os.system("plumed pesmd < input")
 
-    # print("starting simulation...")
     # process_run_simulation = subprocess.Popen(["plumed", "pesmd", "<", "input"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     # process_run_simulation.wait()
     # output_process_run_simulation, errors_process_run_simulation = process_run_simulation.communicate()
