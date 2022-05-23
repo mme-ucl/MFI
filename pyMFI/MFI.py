@@ -1,6 +1,7 @@
 import glob
 import matplotlib.pyplot as plt
 import numpy as np
+import pickle
 
 
 ### Load files ####
@@ -489,6 +490,23 @@ def patch_2D(master_array, nbins=np.array((200, 200))):
 
     return [FP, FP2, FX, FY, OFV_X, OFV_Y]
 
+# Patch independent simulations
+def patch_2D_simple(master_array, nbins=np.array((200, 200))):
+    FP = np.zeros(nbins)
+    FX = np.zeros(nbins)
+    FY = np.zeros(nbins)
+
+
+    for i in range(len(master_array)):
+        FP += master_array[i][2]
+        FX += master_array[i][2] * master_array[i][3]
+        FY += master_array[i][2] * master_array[i][4]
+
+    FX = np.divide(FX, FP, out=np.zeros_like(FX), where=FP != 0)
+    FY = np.divide(FY, FP, out=np.zeros_like(FY), where=FP != 0)
+
+    return [FP, FX, FY]
+
 
 def plot_patch_2D(X, Y, FES, TOTAL_DENSITY, lim=50):
     """_summary_
@@ -549,6 +567,126 @@ def patch_2D_error(master, nbins=np.array((200, 200))):
     error = np.sqrt(np.sqrt(error_x ** 2 + error_y ** 2))
 
     return [Ftot_x, Ftot_y, Ftot_den, error]
+
+
+def bootstrap_2D(X, Y, forces_all, n_bootstrap):
+   
+    #Define terms that will be updated itteratively
+    Ftot_x_inter = np.zeros(np.shape(X))
+    Ftot_y_inter = np.zeros(np.shape(X))
+    Ftot_x_sum = np.zeros(np.shape(X))
+    Ftot_y_sum = np.zeros(np.shape(X))
+    Ftot_den_sum = np.zeros(np.shape(X))
+    Ftot_den2_sum = np.zeros(np.shape(X))
+    FES_sum = np.zeros(np.shape(X))
+    FES2_sum = np.zeros(np.shape(X))
+
+    #store var and sd progression here
+    variance_prog = []
+    stdev_prog = []
+    var_fes_prog  = []
+    sd_fes_prog = []
+
+    #Save patch force terms and FES
+    force_patch_collection = []
+    FES_collection = []
+
+    #Patch forces
+    [Ftot_den, Ftot_x, Ftot_y] = MFI.patch_2D_simple(forces_all)
+
+    #save non-random probability density
+    Ftot_den_base = np.array(Ftot_den)
+
+
+    for itteration in range(n_bootstrap):
+
+        #Randomly choose forces
+        force_rand_select = []    
+        for i in range(len(forces_all)):
+            force_rand_select.append(forces_all[random.randint(0,len(forces_all)-1)])
+
+                
+                
+        #patch forces to find average Ftot_den, Ftot and FES
+        [Ftot_den, Ftot_x, Ftot_y] = MFI.patch_2D_simple(force_rand_select)
+        [X, Y, FES] = MFI.intg_2D(Ftot_x, Ftot_y)
+        FES = FES - np.min(FES)
+
+        #Save terms
+        force_patch_collection.append([Ftot_den, Ftot_x, Ftot_y])
+        FES_collection.append(FES)
+
+        #calculate sums for variance
+        Ftot_x_inter += Ftot_den * Ftot_x**2
+        Ftot_y_inter += Ftot_den * Ftot_y**2
+        Ftot_x_sum += Ftot_x
+        Ftot_y_sum += Ftot_y
+        Ftot_den_sum += Ftot_den
+        Ftot_den2_sum += Ftot_den**2
+        
+        FES_sum += FES
+        FES2_sum += FES**2
+
+        if itteration > 0:
+            
+            #calculate force variance
+            Ftot_x_avr = Ftot_x_sum / (itteration+1)
+            Ftot_y_avr = Ftot_y_sum / (itteration+1)
+            Ftot2_x_weighted = np.divide(Ftot_x_inter, Ftot_den_sum, out=np.zeros_like(Ftot_x_inter), where=Ftot_den_base>10)
+            Ftot2_y_weighted = np.divide(Ftot_y_inter, Ftot_den_sum, out=np.zeros_like(Ftot_y_inter), where=Ftot_den_base>10)
+            Ftot_den_ratio = np.divide(Ftot_den_sum ** 2, (Ftot_den_sum ** 2 - Ftot_den2_sum), out=np.zeros_like(Ftot_den_sum), where=Ftot_den_base > 10)
+            variance_x = (Ftot2_x_weighted - Ftot_x_avr**2) * Ftot_den_ratio
+            variance_y = (Ftot2_y_weighted - Ftot_y_avr**2) * Ftot_den_ratio
+            n_eff = np.divide(Ftot_den_sum ** 2, Ftot_den2_sum, out=np.zeros_like(Ftot_den), where=Ftot_den_base>10)
+            stdev_x = np.where(Ftot_den_base > 10,  np.sqrt(variance_x / n_eff ), 0)
+            stdev_y = np.where(Ftot_den_base > 10,  np.sqrt(variance_y / n_eff ), 0)
+            variance = (variance_x**2 + variance_y**2)**(1/2)
+            stdev = (stdev_x**2 + stdev_y**2)**(1/2)
+        
+            #calculate FES variance
+            FES_avr = FES_sum/ (itteration+1)
+            var_fes = np.zeros(np.shape(X))
+            for i in range(len(FES_collection)): 
+                var_fes += (FES_collection[i] - FES_avr)**2
+            var_fes = 1/(len(FES_collection)-1) * var_fes
+            sd_fes = np.sqrt(var_fes)
+                        
+            #save variance
+            variance_prog.append(sum(sum(variance))/(len(X)*len(X[0])))
+            stdev_prog.append(sum(sum(stdev))/(len(X)*len(X[0])))
+            var_fes_prog.append(sum(sum(var_fes))/(len(X)*len(X[0])))   
+            sd_fes_prog.append(sum(sum(sd_fes))/(len(X)*len(X[0])))    
+        
+        
+        #print progress
+        if (itteration+1) % 10 == 0:
+            print(itteration+1, ": var:", round(variance_prog[-1],5), "     sd:", round(stdev_prog[-1],5), "      FES: var:", round(var_fes_prog[-1],3), "     sd:", round(sd_fes_prog[-1],3) )
+            
+    return [FES_avr, sd_fes, variance_prog, stdev_prog, var_fes_prog, sd_fes_prog ]
+
+def plot_bootstrap(X, Y, FES, sd_fes, sd_fes_prog, FES_lim=11, ofe_map_lim=11):
+    
+    fig, axs = plt.subplots(1, 3, figsize=(15, 4))
+    cp = axs[0].contourf(X, Y, FES, levels=range(0, FES_lim, 1), cmap='coolwarm', antialiased=False, alpha=0.8);
+    cbar = plt.colorbar(cp, ax=axs[0])
+    axs[0].set_ylabel('CV2', fontsize=11)
+    axs[0].set_xlabel('CV1', fontsize=11)
+    axs[0].set_title('Free Energy Surface', fontsize=11)
+
+    cp = axs[1].contourf(X, Y, sd_fes, levels=range(0, ofe_map_lim, 1), cmap='coolwarm', antialiased=False, alpha=0.8);
+    cbar = plt.colorbar(cp, ax=axs[1])
+    axs[1].set_ylabel('CV2', fontsize=11)
+    axs[1].set_xlabel('CV1', fontsize=11)
+    axs[1].set_title('Bootstrap Error of FES', fontsize=11)
+
+
+    axs[2].plot( range(len(sd_fes_prog)), sd_fes_prog);
+    axs[2].set_ylabel('Average FES Error [kJ/mol]', fontsize=11)
+    axs[2].set_xlabel('Bootstrap itterations', fontsize=11)
+    axs[2].set_title('Global Convergence of Bootstrap Error', fontsize=11)
+
+    plt.rcParams["figure.figsize"] = (5,4)
+
 
 
 def save_npy(object, file_name):
