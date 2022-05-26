@@ -2,6 +2,7 @@ import glob
 import matplotlib.pyplot as plt
 import numpy as np
 import pickle
+import random
 
 
 ### Load files ####
@@ -125,6 +126,8 @@ def find_lw_force(lw_centre_x, lw_centre_y, lw_kappa_x, lw_kappa_y, X , Y, min_g
     #Calculate y-force
     F_wall_y = np.where(Y < lw_centre_y, 2 * lw_kappa_y * (Y - lw_centre_y), 0)
     if periodic == 1:
+        grid_length = max_grid[1] - min_grid[1]
+        grid_centre = min_grid[1] + grid_length/2
         if lw_centre_y < grid_centre:
             index_period = index(lw_centre_y + grid_length/2, min_grid[1], grid_space)
             F_wall_y[index_period:, :] = 2 * lw_kappa_y * (Y[index_period:, :] - lw_centre_y - grid_length)
@@ -592,7 +595,7 @@ def bootstrap_2D(X, Y, forces_all, n_bootstrap):
     FES_collection = []
 
     #Patch forces
-    [Ftot_den, Ftot_x, Ftot_y] = MFI.patch_2D_simple(forces_all)
+    [Ftot_den, Ftot_x, Ftot_y] = patch_2D_simple(forces_all)
 
     #save non-random probability density
     Ftot_den_base = np.array(Ftot_den)
@@ -608,8 +611,8 @@ def bootstrap_2D(X, Y, forces_all, n_bootstrap):
                 
                 
         #patch forces to find average Ftot_den, Ftot and FES
-        [Ftot_den, Ftot_x, Ftot_y] = MFI.patch_2D_simple(force_rand_select)
-        [X, Y, FES] = MFI.intg_2D(Ftot_x, Ftot_y)
+        [Ftot_den, Ftot_x, Ftot_y] = patch_2D_simple(force_rand_select)
+        [X, Y, FES] = intg_2D(Ftot_x, Ftot_y)
         FES = FES - np.min(FES)
 
         #Save terms

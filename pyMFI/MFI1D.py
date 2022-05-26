@@ -46,25 +46,43 @@ def find_periodic_point(x_coord, min_grid, max_grid, periodic):
 def find_hp_force(hp_center, hp_kappa, grid, min_grid, max_grid, grid_space, periodic):
     F_harmonic = hp_kappa * (grid - hp_center)
     if periodic == 1:
-        if hp_center < 0:
-            index_period = index(hp_center + (max_grid - min_grid) / 2, min_grid, grid_space)
-            F_harmonic[index_period:] = hp_kappa * (grid[index_period:] - (hp_center + (max_grid - min_grid)))
-        elif hp_center > 0:
-            index_period = index(hp_center - (max_grid - min_grid) / 2, min_grid, grid_space)
-            F_harmonic[:index_period] = hp_kappa * (grid[:index_period] - (hp_center - (max_grid - min_grid)))
+        grid_length = max_grid - min_grid
+        grid_centre = min_grid + grid_length/2
+        if hp_center < grid_centre:
+            index_period = index(hp_center + grid_length / 2, min_grid, grid_space)
+            F_harmonic[index_period:] = hp_kappa * (grid[index_period:] - hp_center - grid_length)
+        elif hp_center > grid_centre:
+            index_period = index(hp_center - grid_length / 2, min_grid, grid_space)
+            F_harmonic[:index_period] = hp_kappa * (grid[:index_period] - hp_center + grid_length)
 
     return F_harmonic
 
-def find_lw_force(lw_center, lw_kappa, grid, periodic):
-    F_harmonic = np.where(grid < lw_center, lw_kappa * (grid - lw_center), 0)
+def find_lw_force(lw_center, lw_kappa, grid, min_grid, max_grid, grid_space, periodic):
+    F_harmonic = np.where(grid < lw_center, 2 * lw_kappa * (grid - lw_center), 0)
     if periodic == 1:
-        print("\n\n***ATTENTION, UPPER WALL FORCE DOESN'T CONTAIN PERIODIC FEATURES***\n\n")
+        grid_length = max_grid - min_grid
+        grid_centre = min_grid + grid_length/2
+        if lw_center < grid_centre:
+            index_period = index(lw_center + grid_length / 2, min_grid, grid_space)
+            F_harmonic[index_period:] = 2 * lw_kappa * (grid[index_period:] - lw_center - grid_length)
+        elif lw_center > grid_centre:
+            index_period = index(lw_center - grid_length / 2, min_grid, grid_space)
+            F_harmonic[:index_period] = 0
+
     return F_harmonic
 
-def find_uw_force(uw_center, uw_kappa, grid, periodic):
+def find_uw_force(uw_center, uw_kappa, grid, min_grid, max_grid, grid_space, periodic):
     F_harmonic = np.where(grid > uw_center, uw_kappa * (grid - uw_center), 0)
     if periodic == 1:
-        print("\n\n***ATTENTION, UPPER WALL FORCE DOESN'T CONTAIN PERIODIC FEATURES***\n\n")
+        grid_length = max_grid - min_grid
+        grid_centre = min_grid + grid_length/2
+        if uw_center < grid_centre:
+            index_period = index(uw_center + grid_length / 2, min_grid, grid_space)
+            F_harmonic[index_period:] = 0
+        elif uw_center > grid_centre:
+            index_period = index(uw_center - grid_length / 2, min_grid, grid_space)
+            F_harmonic[:index_period] = 2 * uw_kappa * (grid[:index_period] - uw_center + grid_length)
+    
     return F_harmonic
 
 
