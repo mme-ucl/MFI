@@ -329,15 +329,16 @@ def MFI_2D(HILLS="HILLS", position_x="position_x", position_y="position_y", bw=1
 
 
 # @jit
-def mean_force_variance(Ftot_den, Ftot_den2, Ftot_x, Ftot_y, ofv_x, ofv_y):
+def mean_force_variance(Ftot_den, Ftot_den2, Ftot_x, Ftot_y, var_x, var_y):
     # calculate ofe (standard error)
     Ftot_den_ratio = np.divide(Ftot_den2, (Ftot_den ** 2 - Ftot_den2), out=np.zeros_like(Ftot_den), where=(Ftot_den ** 2 - Ftot_den2) != 0)
-    ofe_x = np.divide(ofv_x, Ftot_den, out=np.zeros_like(ofv_x), where=Ftot_den != 0) - Ftot_x ** 2
-    ofe_y = np.divide(ofv_y, Ftot_den, out=np.zeros_like(ofv_y), where=Ftot_den != 0) - Ftot_y ** 2
-    ofe_x = ofe_x * Ftot_den_ratio
-    ofe_y = ofe_y * Ftot_den_ratio
-    ofe = np.sqrt(abs(ofe_x) + abs(ofe_y))
-    return [ofe]
+    var_x = np.divide(var_x, Ftot_den, out=np.zeros_like(var_x), where=Ftot_den != 0) - Ftot_x ** 2
+    var_y = np.divide(var_y, Ftot_den, out=np.zeros_like(var_y), where=Ftot_den != 0) - Ftot_y ** 2
+    var_x = var_x * Ftot_den_ratio
+    var_y = var_y * Ftot_den_ratio
+    # var = np.sqrt(abs(var_x) + abs(var_y))
+    var = np.sqrt(var_x**2 + var_y**2)
+    return [var]
 
 
 def patch_to_base_variance(master0, master):
@@ -360,14 +361,14 @@ def patch_to_base_variance(master0, master):
 
     #Calculate variance of mean force
     PD_ratio = np.divide(PD2_patch, (PD_patch ** 2 - PD2_patch), out=np.zeros_like(PD_patch), where=(PD_patch ** 2 - PD2_patch) != 0)
-    OFE_X = np.divide(OFV_X_patch, PD_patch, out=np.zeros_like(OFV_X_patch), where=PD_patch != 0) - FX_patch ** 2
-    OFE_Y = np.divide(OFV_Y_patch, PD_patch, out=np.zeros_like(OFV_Y_patch), where=PD_patch != 0) - FY_patch ** 2
-    OFE_X = OFE_X * PD_ratio
-    OFE_Y = OFE_Y * PD_ratio
-    OFE = np.sqrt( abs(OFE_X) + abs(OFE_Y))
+    OFV_X = np.divide(OFV_X_patch, PD_patch, out=np.zeros_like(OFV_X_patch), where=PD_patch != 0) - FX_patch ** 2
+    OFV_Y = np.divide(OFV_Y_patch, PD_patch, out=np.zeros_like(OFV_Y_patch), where=PD_patch != 0) - FY_patch ** 2
+    OFV_X = OFV_X * PD_ratio
+    OFV_Y = OFV_Y * PD_ratio
+    # OFV = np.sqrt( abs(OFV_X) + abs(OFV_Y))
+    OFV = np.sqrt( OFV_X**2 + OFV_Y**2)
 
-    return [OFE]
-
+    return [OFV]
 
 
 ### Integration using Fast Fourier Transform (FFT integration) in 2D
@@ -536,40 +537,39 @@ def plot_patch_2D(X, Y, FES, TOTAL_DENSITY, lim=50):
 
 
 # @jit
-def patch_2D_error(master, nbins=np.array((200, 200))):
-    Ftot_x = np.zeros(nbins)
-    Ftot_y = np.zeros(nbins)
-    Ftot_den = np.zeros(nbins)
-    Ftot_den2 = np.zeros(nbins)
-    ofv_x = np.zeros(nbins)
-    ofv_y = np.zeros(nbins)
-    error_x = np.zeros(nbins)
-    error_y = np.zeros(nbins)
+# def patch_2D_error(master, nbins=np.array((200, 200))):
+#     Ftot_x = np.zeros(nbins)
+#     Ftot_y = np.zeros(nbins)
+#     Ftot_den = np.zeros(nbins)
+#     Ftot_den2 = np.zeros(nbins)
+#     ofv_x = np.zeros(nbins)
+#     ofv_y = np.zeros(nbins)
+#     var_x = np.zeros(nbins)
+#     var_y = np.zeros(nbins)
 
-    for i in np.arange(0, len(master)):
-        Ftot_x += master[i][0] * master[i][2]
-        Ftot_y += master[i][0] * master[i][3]
-        Ftot_den += master[i][0]
-        Ftot_den2 += master[i][1]
-        ofv_x += master[i][4]
-        ofv_y += master[i][5]
-        error_x += master[i][0] * (master[i][2] ** 2)
-        error_y += master[i][0] * (master[i][3] ** 2)
+#     for i in np.arange(0, len(master)):
+#         Ftot_x += master[i][0] * master[i][2]
+#         Ftot_y += master[i][0] * master[i][3]
+#         Ftot_den += master[i][0]
+#         Ftot_den2 += master[i][1]
+#         ofv_x += master[i][4]
+#         ofv_y += master[i][5]
+#         var_x += master[i][0] * (master[i][2] ** 2)
+#         var_y += master[i][0] * (master[i][3] ** 2)
 
-    Ftot_x = np.divide(Ftot_x, Ftot_den, out=np.zeros_like(Ftot_x), where=Ftot_den != 0)
-    Ftot_y = np.divide(Ftot_y, Ftot_den, out=np.zeros_like(Ftot_y), where=Ftot_den != 0)
+#     Ftot_x = np.divide(Ftot_x, Ftot_den, out=np.zeros_like(Ftot_x), where=Ftot_den != 0)
+#     Ftot_y = np.divide(Ftot_y, Ftot_den, out=np.zeros_like(Ftot_y), where=Ftot_den != 0)
 
-    error_x = np.divide(error_x, Ftot_den, out=np.zeros_like(error_x), where=Ftot_den != 0) - (Ftot_x ** 2)
-    error_y = np.divide(error_y, Ftot_den, out=np.zeros_like(error_y), where=Ftot_den != 0) - (Ftot_y ** 2)
+#     var_x = np.divide(var_x, Ftot_den, out=np.zeros_like(var_x), where=Ftot_den != 0) - (Ftot_x ** 2)
+#     var_y = np.divide(var_y, Ftot_den, out=np.zeros_like(var_y), where=Ftot_den != 0) - (Ftot_y ** 2)
 
-    ratio = np.divide(Ftot_den2, (Ftot_den ** 2 - Ftot_den2), out=np.zeros_like(error_x),
-                      where=(Ftot_den ** 2 - Ftot_den2) != 0)
-    error_x = error_x * ratio
-    error_y = error_y * ratio
+#     ratio = np.divide(Ftot_den2, (Ftot_den ** 2 - Ftot_den2), out=np.zeros_like(var_x), where=(Ftot_den ** 2 - Ftot_den2) != 0)
+#     var_x = var_x * ratio
+#     var_y = var_y * ratio
 
-    error = np.sqrt(np.sqrt(error_x ** 2 + error_y ** 2))
+#     var = np.sqrt(var_x ** 2 + var_y ** 2)
 
-    return [Ftot_x, Ftot_y, Ftot_den, error]
+#     return [Ftot_x, Ftot_y, Ftot_den, var]
 
 
 def bootstrap_2D(X, Y, forces_all, n_bootstrap):
@@ -591,7 +591,6 @@ def bootstrap_2D(X, Y, forces_all, n_bootstrap):
     sd_fes_prog = []
 
     #Save patch force terms and FES
-    force_patch_collection = []
     FES_collection = []
 
     #Patch forces
@@ -606,9 +605,7 @@ def bootstrap_2D(X, Y, forces_all, n_bootstrap):
         #Randomly choose forces
         force_rand_select = []    
         for i in range(len(forces_all)):
-            force_rand_select.append(forces_all[random.randint(0,len(forces_all)-1)])
-
-                
+            force_rand_select.append(forces_all[random.randint(0,len(forces_all)-1)])  
                 
         #patch forces to find average Ftot_den, Ftot and FES
         [Ftot_den, Ftot_x, Ftot_y] = patch_2D_simple(force_rand_select)
@@ -616,7 +613,6 @@ def bootstrap_2D(X, Y, forces_all, n_bootstrap):
         FES = FES - np.min(FES)
 
         #Save terms
-        force_patch_collection.append([Ftot_den, Ftot_x, Ftot_y])
         FES_collection.append(FES)
 
         #calculate sums for variance
@@ -665,28 +661,29 @@ def bootstrap_2D(X, Y, forces_all, n_bootstrap):
         if (itteration+1) % 10 == 0:
             print(itteration+1, ": var:", round(variance_prog[-1],5), "     sd:", round(stdev_prog[-1],5), "      FES: var:", round(var_fes_prog[-1],3), "     sd:", round(sd_fes_prog[-1],3) )
             
-    return [FES_avr, sd_fes, variance_prog, stdev_prog, var_fes_prog, sd_fes_prog ]
+    return [FES_avr, var_fes, sd_fes, variance_prog, stdev_prog, var_fes_prog, sd_fes_prog ]
 
-def plot_bootstrap(X, Y, FES, sd_fes, sd_fes_prog, FES_lim=11, ofe_map_lim=11):
+def plot_bootstrap(X, Y, FES, var_fes, var_fes_prog, FES_lim=11, ofe_map_lim=11):
     
     fig, axs = plt.subplots(1, 3, figsize=(15, 4))
     cp = axs[0].contourf(X, Y, FES, levels=range(0, FES_lim, 1), cmap='coolwarm', antialiased=False, alpha=0.8);
     cbar = plt.colorbar(cp, ax=axs[0])
     axs[0].set_ylabel('CV2', fontsize=11)
     axs[0].set_xlabel('CV1', fontsize=11)
-    axs[0].set_title('Free Energy Surface', fontsize=11)
+    axs[0].set_title('Average FES', fontsize=11)
 
-    cp = axs[1].contourf(X, Y, sd_fes, levels=range(0, ofe_map_lim, 1), cmap='coolwarm', antialiased=False, alpha=0.8);
+    cp = axs[1].contourf(X, Y, var_fes, levels=range(0, ofe_map_lim, 1), cmap='coolwarm', antialiased=False, alpha=0.8);
     cbar = plt.colorbar(cp, ax=axs[1])
+    cbar.axs[1].set_ylabel("Variance of Average FES [kJ/mol]$^2$", rotation=270)
     axs[1].set_ylabel('CV2', fontsize=11)
     axs[1].set_xlabel('CV1', fontsize=11)
-    axs[1].set_title('Bootstrap Error of FES', fontsize=11)
+    axs[1].set_title('Bootstrap Variance of FES', fontsize=11)
 
 
-    axs[2].plot( range(len(sd_fes_prog)), sd_fes_prog);
-    axs[2].set_ylabel('Average FES Error [kJ/mol]', fontsize=11)
+    axs[2].plot( range(len(var_fes_prog)), var_fes_prog);
+    axs[2].set_ylabel('Average Variance of Average FES [kJ/mol]$^2$', fontsize=11)
     axs[2].set_xlabel('Bootstrap itterations', fontsize=11)
-    axs[2].set_title('Global Convergence of Bootstrap Error', fontsize=11)
+    axs[2].set_title('Global Convergence of Bootstrap Variance', fontsize=11)
 
     plt.rcParams["figure.figsize"] = (5,4)
 
