@@ -7,6 +7,14 @@ import random
 
 
 def load_HILLS(hills_name="HILLS"):
+    """Load 1-dimensional hills data (includes time, position_x, position_y, hills_parameters 
+
+    Args:
+        hills_name (str, optional): Name of hills file. Defaults to "HILLS".
+
+    Returns:
+        np.array: Array with hills data
+    """
     for file in glob.glob(hills_name):
         hills = np.loadtxt(file)
         hills = hills[:-1]
@@ -18,16 +26,46 @@ def load_HILLS(hills_name="HILLS"):
 
 # Load the trajectory (position) data
 def load_position(position_name="position"):
+    """Load 1-dimensional position/trajectory data.
+
+    Args:
+        position_name (str, optional): Name of position file. Defaults to "position".
+
+    Returns:
+        position (list):  np.array with position data
+    """
     for file1 in glob.glob(position_name):
         colvar = np.loadtxt(file1)
     return colvar[:-1, 1]
 
 #define indexing
 def index(position, min_grid, grid_space):
+    """Finds (approximate) index of a position in a grid. Independent of CV-type.
+
+    Args:
+        position (float): position of interest
+        min_grid (float): minimum value of grid
+        grid_space (float): grid spacing
+
+    Returns:
+        int: index of position
+    """
     return int((position-min_grid)//grid_space) + 1
 
 
 def find_periodic_point(x_coord, min_grid, max_grid, periodic):
+    """Finds periodic copies of input coordinate. 
+
+    Args:
+        x_coord (float): CV-coordinate
+        min_grid (float): minimum value of grid
+        max_grid (float): maximum value of grid
+        periodic (binary): information if system is periodic. value of 0 corresponds to non-periodic system; function will only return input coordinates. Value of 1 corresponds to periodic system; function will return input coordinates with periodic copies.
+
+
+    Returns:
+        list: list of input coord and possibly periodic copies
+    """
     if periodic == 1:
         coord_list = []
         #There are potentially 2 points, 1 original and 1 periodic copy.
@@ -44,6 +82,20 @@ def find_periodic_point(x_coord, min_grid, max_grid, periodic):
 
 
 def find_hp_force(hp_center, hp_kappa, grid, min_grid, max_grid, grid_space, periodic):
+    """Find 1D harmonic potential force. 
+
+    Args:
+        hp_center (float): position of harmonic potential
+        hp_kappa (float): force_constant of harmonic potential
+        grid (array): CV grid positions
+        min_grid (float): minimum value of grid
+        max_grid (float): maximum value of grid
+        grid_space (float): space between two consecutive grid values
+        periodic (binary): information if system is periodic. value of 0 corresponds to non-periodic system. Value of 1 corresponds to periodic system.
+
+    Returns:
+        array: harmonic force array
+    """
     F_harmonic = hp_kappa * (grid - hp_center)
     if periodic == 1:
         grid_length = max_grid - min_grid
@@ -58,6 +110,20 @@ def find_hp_force(hp_center, hp_kappa, grid, min_grid, max_grid, grid_space, per
     return F_harmonic
 
 def find_lw_force(lw_center, lw_kappa, grid, min_grid, max_grid, grid_space, periodic):
+    """_summary_
+
+    Args:
+        lw_center (float): position of lower wall potential
+        lw_kappa (float): force_constant of lower wall potential
+        grid (array): CV grid positions
+        min_grid (float): minimum value of grid
+        max_grid (float): maximum value of grid
+        grid_space (float): space between two consecutive grid values
+        periodic (binary): information if system is periodic. value of 0 corresponds to non-periodic system. Value of 1 corresponds to periodic system.
+
+    Returns:
+       array: lower wall force array
+    """
     F_harmonic = np.where(grid < lw_center, 2 * lw_kappa * (grid - lw_center), 0)
     if periodic == 1:
         grid_length = max_grid - min_grid
@@ -72,6 +138,20 @@ def find_lw_force(lw_center, lw_kappa, grid, min_grid, max_grid, grid_space, per
     return F_harmonic
 
 def find_uw_force(uw_center, uw_kappa, grid, min_grid, max_grid, grid_space, periodic):
+    """_summary_
+
+    Args:
+        uw_center (float): position of upper wall potential
+        uw_kappa (float): force_constant of upper wall potential
+        grid (_type_): CV grid positions
+        min_grid (float): minimum value of grid
+        max_grid (float): maximum value of grid
+        grid_space (float): space between two consecutive grid values
+        periodic (binary): information if system is periodic. value of 0 corresponds to non-periodic system. Value of 1 corresponds to periodic system.
+
+    Returns:
+        array: upper wall force array
+    """
     F_harmonic = np.where(grid > uw_center, uw_kappa * (grid - uw_center), 0)
     if periodic == 1:
         grid_length = max_grid - min_grid
@@ -88,9 +168,37 @@ def find_uw_force(uw_center, uw_kappa, grid, min_grid, max_grid, grid_space, per
 
 ### Algorithm to run 1D MFI
 # Run MFI algorithm with on the fly error calculation
-def MFI_1D(HILLS="HILLS", position="position", bw=1, kT=1, min_grid=2, max_grid=2, nbins=101, log_pace=10,
+def MFI_1D(HILLS="HILLS", position="position", bw=1, kT=1, min_grid=-2, max_grid=2, nbins=101, log_pace=10,
            error_pace=200, WellTempered=0, periodic=0, hp_center=0.0, hp_kappa=0, lw_center=0.0, lw_kappa=0,
            uw_center=0.0, uw_kappa=0):
+    """Compute a time-independent estimate of the Mean Thermodynamic Force, i.e. the free energy gradient in 1D CV spaces.
+
+    Args:
+        HILLS (str): HILLS array. Defaults to "HILLS".
+        position (str): CV/position array. Defaults to "position".
+        bw (float, optional): bandwidth for the construction of the KDE estimate of the biased probability density. Defaults to 1.
+        kT (float, optional): kT. Defaults to 1.
+        min_grid (int, optional): Lower bound of the force domain. Defaults to -2.
+        max_grid (int, optional): Upper bound of the force domain. Defaults to 2.
+        nbins (int, optional): number of bins in grid. Defaults to 101.
+        log_pace (int, optional): Pace for outputting progress and convergence. Defaults to 10.
+        error_pace (int, optional): Pace for the calculation of the on-the-fly measure of global convergence. Defaults to 200.
+        WellTempered (binary, optional): Is the simulation well tempered?. Defaults to 0.
+        periodic (int, optional): Is the CV space periodic? 1 for yes. Defaults to 0.
+        hp_center (float, optional): position of harmonic potential. Defaults to 0.0.
+        hp_kappa (int, optional): force_constant of harmonic potential. Defaults to 0.
+        lw_center (float, optional): position of lower wall potential. Defaults to 0.0.
+        lw_kappa (int, optional): force_constant of lower wall potential. Defaults to 0.
+        uw_center (float, optional): position of upper wall potential. Defaults to 0.0.
+        uw_kappa (int, optional): force_constant of upper wall potential. Defaults to 0.
+
+    Returns:
+        grid (array of size (1, nbins)): CV-array
+        Ftot_den (array of size (1, nbins)): Cumulative biased probability density
+        Ftot (array of size (1, nbins)): Mean Force
+        ofe (array of size (1, nbins)): on the fly estimate of the variance of the mean force
+        ofe_history (list of size (1, error_pace)): running estimate of the global on the fly variance of the mean force
+    """
     grid = np.linspace(min_grid, max_grid, nbins)
     grid_space = (max_grid - min_grid) / (nbins-1)
     stride = int(len(position) / len(HILLS[:, 1]))
@@ -168,6 +276,15 @@ def MFI_1D(HILLS="HILLS", position="position", bw=1, kT=1, min_grid=2, max_grid=
 
 # Integrate Ftot, obtain FES
 def intg_1D(x, F):
+    """Integration of 1D gradient using finite difference method (simpson's method).
+
+    Args:
+        x (array): grid
+        F (array): Mean force
+
+    Returns:
+        FES (array): Free energy surface
+    """
     fes = []
     for j in range(len(x)): fes.append(integrate.simps(F[:j + 1], x[:j + 1]))
     fes = fes - min(fes)
@@ -175,6 +292,16 @@ def intg_1D(x, F):
 
 
 def plot_recap(X, FES, TOTAL_DENSITY, CONVMAP, CONV_history, lim=40):
+    """Plot result of 1D MFI algorithm. 1. FES, 2. varinace_map, 3. Cumulative biased probability density, 4. Convergece of variance.
+
+    Args:
+        X (array): gird
+        FES (array): Free energy surface
+        TOTAL_DENSITY (array): _description_
+        CONVMAP (array): Cumulative biased probability density
+        CONV_history (list): on the fly estimate of the local convergence
+        lim (int, optional): Upper energy value in FES plot. Defaults to 40.
+    """
     fig, axs = plt.subplots(2, 2, figsize=(12, 8))
 
     axs[0, 0].plot(X, FES);
@@ -223,6 +350,13 @@ def plot_recap(X, FES, TOTAL_DENSITY, CONVMAP, CONV_history, lim=40):
 #         return OFE
 
 def patch_forces(force_vector):
+    """Takes in a collection of force and probability density and patches them.
+    Args:
+        force_vector (list): collection of force terms (n * [Ftot_den, Ftot])
+
+    Returns:
+        Patched probability density and mean forces (list) -> ([Ftot_den, Ftot])
+    """
     PD_patch = np.zeros(np.shape(force_vector[0][0]))
     F_patch = np.zeros(np.shape(force_vector[0][0]))
     for i in range(len(force_vector)):
@@ -235,6 +369,17 @@ def patch_forces(force_vector):
 
 
 def bootstrap_forw_back(grid, forward_force, backward_force, n_bootstrap):
+    """Algorithm to determine bootstrap error
+
+    Args:
+        grid (array): CV grid positions
+        forward_force (list): collection of force terms (n * [Ftot_den, Ftot]) from forward transition
+        backward_force (list): collection of force terms (n * [Ftot_den, Ftot]) from backward transition
+        n_bootstrap (int): bootstrap itterations
+
+    Returns:
+        [FES_avr, sd_fes, variance_prog, stdev_prog, var_fes_prog, sd_fes_prog ]
+    """
    
     #Define terms that will be updated itteratively
     Ftot_inter = np.zeros(len(grid))
@@ -323,19 +468,47 @@ def bootstrap_forw_back(grid, forward_force, backward_force, n_bootstrap):
 
 
 def save_npy(object, file_name):
+    """Saves np.array in a file with .npy format
+
+    Args:
+        object (np.array): object to be saved. Must be a numpy array.
+        file_name (string): Name of file
+    """
     with open(file_name, "wb") as fw:
         np.save(fw, object)
 
 
 def load_npy(name):
+    """Loads np.array of a file with .npy format
+
+    Args:
+        name (string): Name of file
+
+    Returns:
+        np.array: object to be loaded. Must be a numpy array.
+    """
     with open(name, "rb") as fr:
         return np.load(fr)
 
 def save_pkl(object, file_name):
+    """Saves a list/array in a file with .pkl format
+
+    Args:
+        object (any): object to be saved
+        file_name (string): Name of file
+    """
     with open(file_name, "wb") as fw:
         pickle.dump(object, fw)
 
 
 def load_pkl(name):
+    """Loads list/array of a file with .pkl format
+
+    Args:
+        name (string): Name of file
+
+    Returns:
+        any: object to be loaded
+    """
     with open(name, "rb") as fr:
         return pickle.load(fr)

@@ -9,11 +9,12 @@ import random
 
 ### Load files ####
 def load_HILLS_2D(hills_name="HILLS"):
-    """_summary_
+    """Load 2-dimensional hills data (includes time, position_x, position_y, hills_parameters ).
+    
     Args:
-        hills_name (str, optional): _description_. Defaults to "HILLS".
+        hills_name (str, optional): Name of hills file. Defaults to "HILLS".
     Returns:
-        _type_: _description_
+        np.array: Array with hills data
     """
     for file in glob.glob(hills_name):
         hills = np.loadtxt(file)
@@ -23,6 +24,14 @@ def load_HILLS_2D(hills_name="HILLS"):
 
 
 def load_position_2D(position_name="position"):
+    """Load 2-dimensional position/trajectory data.
+
+    Args:
+        position_name (str, optional): Name of position file. Defaults to "position".
+
+    Returns:
+        list: 2 * np.array with position data of each dimension ([position_x, position_y])
+    """
     for file1 in glob.glob(position_name):
         colvar = np.loadtxt(file1)
         position_x = colvar[:-1, 1]
@@ -32,15 +41,16 @@ def load_position_2D(position_name="position"):
 
 
 def find_periodic_point(x_coord, y_coord, min_grid, max_grid, periodic):
-    """_summary_
+    """Finds periodic copies of input coordinates. 
+    
     Args:
-        x_coord (_type_): _description_
-        y_coord (_type_): _description_
-        min_grid (_type_): _description_
-        max_grid (_type_): _description_
-        periodic (_type_): _description_
+        x_coord (float): CV1-coordinate
+        y_coord (float): CV2-coordinate
+        min_grid (list): list of CV1-minimum value of grid and CV2-minimum value of grid
+        max_grid (list): list of CV1-maximum value of grid and CV2-maximum value of grid
+        periodic (binary): information if system is periodic. value of 0 corresponds to non-periodic system; function will only return input coordinates. Value of 1 corresponds to periodic system; function will return input coordinates with periodic copies.
     Returns:
-        _type_: _description_
+        list: list of [x-coord, y-coord] pairs
     """
 
     # Use periodic extension for defining PBC
@@ -80,12 +90,53 @@ def find_periodic_point(x_coord, y_coord, min_grid, max_grid, periodic):
 
 
 def index(position, min_grid, grid_space):
+    """Finds (approximate) index of a position in a grid. Independent of CV-type.
+
+    Args:
+        position (float): position of interest
+        min_grid (float): minimum value of grid
+        grid_space (float): grid spacing
+
+    Returns:
+        int: index of position
+    """
     return int((position-min_grid)//grid_space) + 1
 
 def reduce_to_window(input_array, min_grid, grid_space, x_min=-0.5, x_max=0.5, y_min=-1.5, y_max=1.5):
+    """Reduces an 2D input array to a specified range.
+
+    Args:
+        input_array (array): 2D array to be reduced
+        min_grid (list): list of CV1-minimum value of grid and CV2-minimum value of grid
+        grid_space (list): list of CV1-grid spacing and CV2-grid spacing
+        x_min (float, optional): lower CV1-value of output array. Defaults to -0.5.
+        x_max (float, optional): upper CV1-value of output array. Defaults to 0.5.
+        y_min (float, optional): lower CV2-value of output array. Defaults to -1.5.
+        y_max (float, optional): upper CV2-value of output array. Defaults to 1.5.
+
+    Returns:
+        array: reduced array
+    """
     return input_array[index(y_min, min_grid[1], grid_space[1]): index(y_max, min_grid[1], grid_space[1]), index(x_min, min_grid[0], grid_space[0]): index(x_max, min_grid[0], grid_space[0])]
 
 def find_hp_force(hp_centre_x, hp_centre_y, hp_kappa_x, hp_kappa_y, X , Y, min_grid, max_grid, grid_space, periodic):
+    """Find 2D harmonic potential force. 
+
+    Args:
+        hp_centre_x (float): CV1-position of harmonic potential
+        hp_centre_y (float): CV2-position of harmonic potential
+        hp_kappa_x (float): CV1-force_constant of harmonic potential
+        hp_kappa_y (float): CV2-force_constant of harmonic potential
+        X (array): 2D array of CV1 grid positions
+        Y (array): 2D array of CV2 grid positions
+        min_grid (list): list of CV1-minimum value of grid and CV2-minimum value of grid
+        max_grid (list): list of CV1-maximum value of grid and CV2-maximum value of grid
+        grid_space (list): list of CV1-grid spacing and CV2-grid spacing
+        periodic (binary): information if system is periodic. value of 0 corresponds to non-periodic system. Value of 1 corresponds to periodic system.
+
+    Returns:
+        list: CV1 harmonic force array and CV2 harmonic force array.
+    """
     #Calculate x-force
     F_harmonic_x = hp_kappa_x * (X - hp_centre_x)
     if periodic == 1:
@@ -113,6 +164,23 @@ def find_hp_force(hp_centre_x, hp_centre_y, hp_kappa_x, hp_kappa_y, X , Y, min_g
 
 
 def find_lw_force(lw_centre_x, lw_centre_y, lw_kappa_x, lw_kappa_y, X , Y, min_grid, max_grid, grid_space, periodic):
+    """Find 2D lower wall force.
+
+    Args:
+        lw_centre_x (float): CV1-position of lower wall potential
+        lw_centre_y (float): CV2-position of lower wall potential
+        lw_kappa_x (float): CV1-force_constant of lower wall potential
+        lw_kappa_y (float): CV2-force_constant of lower wall potential
+        X (array): 2D array of CV1 grid positions
+        Y (array): 2D array of CV2 grid positions
+        min_grid (list): list of CV1-minimum value of grid and CV2-minimum value of grid
+        max_grid (list): list of CV1-maximum value of grid and CV2-maximum value of grid
+        grid_space (list): list of CV1-grid spacing and CV2-grid spacing
+        periodic (binary): information if system is periodic. value of 0 corresponds to non-periodic system. Value of 1 corresponds to periodic system.
+
+    Returns:
+        list: CV1 lower wall force array and CV2 lower wall force array
+    """
     #Calculate x-force
     F_wall_x = np.where(X < lw_centre_x, 2 * lw_kappa_x * (X - lw_centre_x), 0)
     if periodic == 1:
@@ -141,6 +209,24 @@ def find_lw_force(lw_centre_x, lw_centre_y, lw_kappa_x, lw_kappa_y, X , Y, min_g
 
 
 def find_uw_force(uw_centre_x, uw_centre_y, uw_kappa_x, uw_kappa_y, X , Y, min_grid, max_grid, grid_space, periodic):
+    """Find 2D upper wall force.
+
+    Args:
+        lw_centre_x (float): CV1-position of upper wall potential
+        lw_centre_y (float): CV2-position of upper wall potential
+        lw_kappa_x (float): CV1-force_constant of upper wall potential
+        lw_kappa_y (float): CV2-force_constant of upper wall potential
+        X (array): 2D array of CV1 grid positions
+        Y (array): 2D array of CV2 grid positions
+        min_grid (list): list of CV1-minimum value of grid and CV2-minimum value of grid
+        max_grid (list): list of CV1-maximum value of grid and CV2-maximum value of grid
+        grid_space (list): list of CV1-grid spacing and CV2-grid spacing
+        periodic (binary): information if system is periodic. value of 0 corresponds to non-periodic system. Value of 1 corresponds to periodic system.
+
+    Returns:
+        [F_wall_x, F_wall_y] - list: CV1 upper wall force array and CV2 upper wall force array
+    """
+
     #Calculate x-force
     F_wall_x = np.where(X > uw_centre_x, 2 * uw_kappa_x * (X - uw_centre_x), 0)
     if periodic == 1:
@@ -174,20 +260,36 @@ def MFI_2D(HILLS="HILLS", position_x="position_x", position_y="position_y", bw=1
            lw_centre_x=0.0, lw_centre_y=0.0, lw_kappa_x=0, lw_kappa_y=0,
            uw_centre_x=0.0, uw_centre_y=0.0, uw_kappa_x=0, uw_kappa_y=0):
     """Compute a time-independent estimate of the Mean Thermodynamic Force, i.e. the free energy gradient in 2D CV spaces.
+
     Args:
-        HILLS (str, optional): HILLS array. Defaults to "HILLS".
-        position_x (str, optional): CV1 array. Defaults to "position_x".
-        position_y (str, optional): CV2 array. Defaults to "position_y".
+        HILLS (str): HILLS array. Defaults to "HILLS".
+        position_x (str): CV1 array. Defaults to "position_x".
+        position_y (str): CV2 array. Defaults to "position_y".
         bw (int, optional): Scalar, bandwidth for the construction of the KDE estimate of the biased probability density. Defaults to 1.
         kT (int, optional): Scalar, kT. Defaults to 1.
-        min_grid (_type_, optional): Lower bound of the simulation domain. Defaults to np.array((-np.pi, -np.pi)).
-        max_grid (_type_, optional): Upper bound of the simulation domain. Defaults to np.array((np.pi, np.pi)).
-        nbins (int, optional): number of bins in CV1,CV2. Defaults to np.array((200,200)).
+        min_grid (array, optional): Lower bound of the force domain. Defaults to np.array((-np.pi, -np.pi)).
+        max_grid (array, optional): Upper bound of the force domain. Defaults to np.array((np.pi, np.pi)).
+        nbins (array, optional): number of bins in CV1,CV2. Defaults to np.array((200,200)).
         log_pace (int, optional): Pace for outputting progress and convergence. Defaults to 10.
         error_pace (int, optional): Pace for the calculation of the on-the-fly measure of global convergence. Defaults to 200.
-        WellTempered (int, optional): Is the simulation well tempered? . Defaults to 1.
+        base_terms (int or list, optional): When set to 0, inactive. When activated, "on the fly" variance is calculated as a patch to base (previous) simulation. To activate, put force terms of base simulation ([Ftot_den, Ftot_den2, Ftot_x, Ftot_y, ofv_x, ofv_y]). Defaults to 0.
+        window_corners (list, optional): When set to [], inactive. When activated, error is ALSO calculated for mean force in the window. To activate, put the min and max values of the window ([min_x, max_x, min_y, max_y]). Defaults to [].
+        WellTempered (binary, optional): Is the simulation well tempered? . Defaults to 1.
         nhills (int, optional): Number of HILLS to analyse, -1 for the entire HILLS array. Defaults to -1, i.e. the entire dataset.
         periodic (int, optional): Is the CV space periodic? 1 for yes. Defaults to 0.
+        hp_centre_x (float, optional): CV1-position of harmonic potential. Defaults to 0.0.
+        hp_centre_y (float, optional): CV2-position of harmonic potential. Defaults to 0.0.
+        hp_kappa_x (int, optional): CV1-force_constant of harmonic potential. Defaults to 0.
+        hp_kappa_y (int, optional): CV2-force_constant of harmonic potential. Defaults to 0.
+        lw_centre_x (float, optional): CV1-position of lower wall potential. Defaults to 0.0.
+        lw_centre_y (float, optional): CV2-position of lower wall potential. Defaults to 0.0.
+        lw_kappa_x (int, optional): CV1-force_constant of lower wall potential. Defaults to 0.
+        lw_kappa_y (int, optional): CV2-force_constant of lower wall potential. Defaults to 0.
+        uw_centre_x (float, optional): CV1-position of upper wall potential. Defaults to 0.0.
+        uw_centre_y (float, optional): CV2-position of upper wall potential. Defaults to 0.0.
+        uw_kappa_x (int, optional): CV1-force_constant of upper wall potential. Defaults to 0.
+        uw_kappa_y (int, optional): CV2-force_constant of upper wall potential. Defaults to 0.
+
     Returns:
         X: array of size (nbins[0], nbins[1]) - CV1 grid positions
         Y: array of size (nbins[0], nbins[1]) - CV2 grid positions
@@ -196,8 +298,12 @@ def MFI_2D(HILLS="HILLS", position_x="position_x", position_y="position_y", bw=1
         Ftot_y:  array of size (nbins[0], nbins[1]) - CV2 component of the Mean Force.
         ofe:  array of size (nbins[0], nbins[1]) - on the fly estimate of the local convergence
         ofe_history: array of size (1, total_number_of_hills) - running estimate of the global convergence of the mean force.
+        (option with window corner activated: ofe_history_window: array of size (1, total_number_of_hills) - running estimate of the "window" convergence of the mean force.)
+        ofe_history_time: array of size (1, total_number_of_hills) - time array of ofe_history
+        Ftot_den2: array of size (nbins[0], nbins[1]) - Cumulative squared biased probability density
+        ofv_x: array of size (nbins[0], nbins[1]) - intermediate component in the calculation of the CV1 "on the fly variance" ( sum of: pb_t * dfds_x ** 2)
+        ofv_y: array of size (nbins[0], nbins[1]) - intermediate component in the calculation of the CV2 "on the fly variance" ( sum of: pb_t * dfds_y ** 2)
     """
-
     gridx = np.linspace(min_grid[0], max_grid[0], nbins[0])
     gridy = np.linspace(min_grid[1], max_grid[1], nbins[1])
     grid_space = np.array(((max_grid[0] - min_grid[0]) / (nbins[0]-1), (max_grid[1] - min_grid[1]) / (nbins[1]-1)))
@@ -332,6 +438,19 @@ def MFI_2D(HILLS="HILLS", position_x="position_x", position_y="position_y", bw=1
 
 # @jit
 def mean_force_variance(Ftot_den, Ftot_den2, Ftot_x, Ftot_y, var_x, var_y):
+    """Calculates the variance of the mean force
+
+    Args:
+        Ftot_den (array of size (nbins[0], nbins[1])): Cumulative biased probability density
+        Ftot_den2 (array of size (nbins[0], nbins[1])):  Cumulative squared biased probability density
+        Ftot_x (array of size (nbins[0], nbins[1])): CV1 component of the Mean Force.
+        Ftot_y (array of size (nbins[0], nbins[1])): CV2 component of the Mean Force.
+        var_x (array of size (nbins[0], nbins[1])): intermediate component in the calculation of the CV1 "on the fly variance" ( sum of: pb_t * dfds_x ** 2)
+        var_y (array of size (nbins[0], nbins[1])): intermediate component in the calculation of the CV2 "on the fly variance" ( sum of: pb_t * dfds_y ** 2)
+
+    Returns:
+        var (array of size (nbins[0], nbins[1])): modulus of "on the fly variance" 
+    """
     # calculate ofe (standard error)
     Ftot_den_ratio = np.divide(Ftot_den2, (Ftot_den ** 2 - Ftot_den2), out=np.zeros_like(Ftot_den), where=(Ftot_den ** 2 - Ftot_den2) != 0)
     var_x = np.divide(var_x, Ftot_den, out=np.zeros_like(var_x), where=Ftot_den != 0) - Ftot_x ** 2
@@ -344,6 +463,15 @@ def mean_force_variance(Ftot_den, Ftot_den2, Ftot_x, Ftot_y, var_x, var_y):
 
 
 def patch_to_base_variance(master0, master):
+    """Patches force terms of a base simulation (alaysed prior to current simulation) with current simulation to return patched "on the fly variance".
+
+    Args:
+        master0 (list): Force terms of base simulation (alaysed prior to current simulation) [Ftot_den, Ftot_den2, Ftot_x, Ftot_y, ofv_x, ofv_y]
+        master (list): Force terms of current simulation [Ftot_den, Ftot_den2, Ftot_x, Ftot_y, ofv_x, ofv_y]
+
+    Returns:
+        OFV (array of size (nbins[0], nbins[1])): modulus of patched "on the fly variance" 
+    """
 
     #Define names
     [PD0, PD20, FX0, FY0, OFV_X0, OFV_Y0] = master0
@@ -376,6 +504,20 @@ def patch_to_base_variance(master0, master):
 ### Integration using Fast Fourier Transform (FFT integration) in 2D
 def FFT_intg_2D(FX, FY, min_grid=np.array((-np.pi, -np.pi)), max_grid=np.array((np.pi, np.pi)),
                 nbins=np.array((200, 200))):
+    """2D integration of force gradient (FX, FY) to find FES using Fast Fourier Transform.
+
+    Args:
+        FX (array of size (nbins[0], nbins[1])): CV1 component of the Mean Force.
+        FY (array of size (nbins[0], nbins[1])): CV1 component of the Mean Force.
+        min_grid (array, optional): Lower bound of the simulation domain. Defaults to np.array((-np.pi, -np.pi)).
+        min_grid (array, optional): Upper bound of the simulation domain. Defaults to np.array((np.pi, np.pi)).
+        nbins (int, optional): number of bins in CV1,CV2. Defaults to np.array((200,200)).
+
+    Returns:
+        X: array of size (nbins[0], nbins[1]) - CV1 grid positions
+        Y: array of size (nbins[0], nbins[1]) - CV2 grid positions
+        fes: array of size (nbins[0], nbins[1]) - Free Energy Surface
+    """
     gridx = np.linspace(min_grid[0], max_grid[0], nbins[0])
     gridy = np.linspace(min_grid[1], max_grid[1], nbins[1])
     grid_spacex = (max_grid[0] - min_grid[0]) / (nbins[0] - 1)
@@ -402,15 +544,18 @@ def FFT_intg_2D(FX, FY, min_grid=np.array((-np.pi, -np.pi)), max_grid=np.array((
 
 # Equivalent to integration MS in Alanine dipeptide notebook.
 def intg_2D(FX, FY, min_grid=np.array((-np.pi, -np.pi)), max_grid=np.array((np.pi, np.pi)), nbins=np.array((200, 200))):
-    """_summary_
+    """2D integration of force gradient (FX, FY) to find FES using finite difference method.
+    
     Args:
-        FX (_type_): _description_
-        FY (_type_): _description_
-        min_grid (_type_, optional): _description_. Defaults to np.array((-np.pi, -np.pi)).
-        max_grid (_type_, optional): _description_. Defaults to np.array((np.pi, np.pi)).
-        nbins (_type_, optional): _description_. Defaults to np.array((200,200)).
+        FX (array of size (nbins[0], nbins[1])): CV1 component of the Mean Force.
+        FY (array of size (nbins[0], nbins[1])): CV2 component of the Mean Force.
+        min_grid (array, optional): Lower bound of the simulation domain. Defaults to np.array((-np.pi, -np.pi)).
+        min_grid (array, optional): Upper bound of the simulation domain. Defaults to np.array((np.pi, np.pi)).
+        nbins (int, optional): number of bins in CV1,CV2. Defaults to np.array((200,200)).
     Returns:
-        _type_: _description_
+        X: array of size (nbins[0], nbins[1]) - CV1 grid positions
+        Y: array of size (nbins[0], nbins[1]) - CV2 grid positions
+        fes: array of size (nbins[0], nbins[1]) - Free Energy Surface
     """
 
     gridx = np.linspace(min_grid[0], max_grid[0], nbins[0])
@@ -431,14 +576,17 @@ def intg_2D(FX, FY, min_grid=np.array((-np.pi, -np.pi)), max_grid=np.array((np.p
 
 
 def plot_recap_2D(X, Y, FES, TOTAL_DENSITY, CONVMAP, CONV_history, CONV_history_time, FES_lim=50, ofe_map_lim=40):
-    """_summary_
+    """Plots 1. FES, 2. varinace_map, 3. Cumulative biased probability density, 4. Convergece of variance.
+    
     Args:
-        X (_type_): _description_
-        Y (_type_): _description_
-        FES (_type_): _description_
-        TOTAL_DENSITY (_type_): _description_
-        CONVMAP (_type_): _description_
-        CONV_history (_type_): _description_
+        X: array of size (nbins[0], nbins[1]) - CV1 grid positions
+        Y: array of size (nbins[0], nbins[1]) - CV2 grid positions
+        FES: array of size (nbins[0], nbins[1]) - Free Energy Surface
+        TOTAL_DENSITY: array of size (nbins[0], nbins[1]) - Cumulative biased probability density
+        CONVMAP (array of size (nbins[0], nbins[1])): varinace_map
+        CONV_history (list): Convergece of variance
+    Returns: 
+        (Plot)
     """
     fig, axs = plt.subplots(1, 4, figsize=(18, 3))
     cp = axs[0].contourf(X, Y, FES, levels=range(0, FES_lim, 1), cmap='coolwarm', antialiased=False, alpha=0.8);
@@ -467,6 +615,15 @@ def plot_recap_2D(X, Y, FES, TOTAL_DENSITY, CONVMAP, CONV_history, CONV_history_
 
 # Patch independent simulations
 def patch_2D(master_array, nbins=np.array((200, 200))):
+    """Takes in a collection of force terms and patches them togehter to return the patched force terms
+
+    Args:
+        master_array (list): collection of force terms (n * [Ftot_den, Ftot_den2, Ftot_x, Ftot_y, ofv_x, ofv_y])
+        nbins (array, optional): number of bins in CV1,CV2. Defaults to np.array((200,200)).
+
+    Returns:
+        Patched force terms (list) -> ([Ftot_den, Ftot_den2, Ftot_x, Ftot_y, ofv_x, ofv_y])
+    """
     FP = np.zeros(nbins)
     FP2 = np.zeros(nbins)
     FX = np.zeros(nbins)
@@ -498,6 +655,15 @@ def patch_2D(master_array, nbins=np.array((200, 200))):
 
 # Patch independent simulations
 def patch_2D_simple(master_array, nbins=np.array((200, 200))):
+    """Takes in a collection of force and patches only the probability density and mean forces
+
+    Args:
+        master_array (list): collection of force terms (n * [Ftot_den, Ftot_x, Ftot_y])
+        nbins (array, optional): number of bins in CV1,CV2. Defaults to np.array((200,200)).
+
+    Returns:
+        Patched probability density and mean forces (list) -> ([Ftot_den, Ftot_x, Ftot_y])
+    """
     FP = np.zeros(nbins)
     FX = np.zeros(nbins)
     FY = np.zeros(nbins)
@@ -515,14 +681,13 @@ def patch_2D_simple(master_array, nbins=np.array((200, 200))):
 
 
 def plot_patch_2D(X, Y, FES, TOTAL_DENSITY, lim=50):
-    """_summary_
+    """Plots 1. FES, 2. Cumulative biased probability density
+    
     Args:
-        X (_type_): _description_
-        Y (_type_): _description_
-        FES (_type_): _description_
-        TOTAL_DENSITY (_type_): _description_
-        CONVMAP (_type_): _description_
-        CONV_history (_type_): _description_
+        X: array of size (nbins[0], nbins[1]) - CV1 grid positions
+        Y: array of size (nbins[0], nbins[1]) - CV2 grid positions
+        FES: array of size (nbins[0], nbins[1]) - Free Energy Surface
+        TOTAL_DENSITY: array of size (nbins[0], nbins[1]) - Cumulative biased probability density
     """
     fig, axs = plt.subplots(1, 2, figsize=(9, 3.5))
     cp = axs[0].contourf(X, Y, FES, levels=range(0, lim, 1), cmap='coolwarm', antialiased=False, alpha=0.8);
@@ -575,6 +740,17 @@ def plot_patch_2D(X, Y, FES, TOTAL_DENSITY, lim=50):
 
 
 def bootstrap_2D(X, Y, forces_all, n_bootstrap):
+    """Algorithm to determine bootstrap error
+
+    Args:
+        X: array of size (nbins[0], nbins[1]) - CV1 grid positions
+        Y: array of size (nbins[0], nbins[1]) - CV2 grid positions
+        forces_all (list): collection of force terms (n * [Ftot_den, Ftot_x, Ftot_y])
+        n_bootstrap (int): bootstrap itterations
+
+    Returns:
+        [FES_avr, var_fes, sd_fes, variance_prog, stdev_prog, var_fes_prog, sd_fes_prog ]
+    """
    
     #Define terms that will be updated itteratively
     Ftot_x_inter = np.zeros(np.shape(X))
@@ -666,6 +842,20 @@ def bootstrap_2D(X, Y, forces_all, n_bootstrap):
     return [FES_avr, var_fes, sd_fes, variance_prog, stdev_prog, var_fes_prog, sd_fes_prog ]
 
 def plot_bootstrap(X, Y, FES, var_fes, var_fes_prog, FES_lim=11, ofe_map_lim=11):
+    """Plots result of bootstrap analysis. 1. Average FES, 2. average varinace, 3. variance progression
+
+    Args:
+        X: array of size (nbins[0], nbins[1]) - CV1 grid positions
+        Y: array of size (nbins[0], nbins[1]) - CV2 grid positions
+        FES: array of size (nbins[0], nbins[1]) - Free Energy Surface
+        var_fes (array of size (nbins[0], nbins[1])): _description_
+        var_fes_prog (list): _description_
+        FES_lim (int, optional): Upper energy limit of FES plot. Defaults to 11.
+        ofe_map_lim (int, optional): Upper variance limit of variance plot. Defaults to 11.
+        
+    Returns:
+        (Plot)
+    """
     
     fig, axs = plt.subplots(1, 3, figsize=(15, 4))
     cp = axs[0].contourf(X, Y, FES, levels=range(0, FES_lim, 1), cmap='coolwarm', antialiased=False, alpha=0.8);
@@ -692,19 +882,47 @@ def plot_bootstrap(X, Y, FES, var_fes, var_fes_prog, FES_lim=11, ofe_map_lim=11)
 
 
 def save_npy(object, file_name):
+    """Saves np.array in a file with .npy format
+
+    Args:
+        object (np.array): object to be saved. Must be a numpy array.
+        file_name (string): Name of file
+    """
     with open(file_name, "wb") as fw:
         np.save(fw, object)
 
 
 def load_npy(name):
+    """Loads np.array of a file with .npy format
+
+    Args:
+        name (string): Name of file
+
+    Returns:
+        np.array: object to be loaded. Must be a numpy array.
+    """
     with open(name, "rb") as fr:
         return np.load(fr)
 
 def save_pkl(object, file_name):
+    """Saves a list/array in a file with .pkl format
+
+    Args:
+        object (any): object to be saved
+        file_name (string): Name of file
+    """
     with open(file_name, "wb") as fw:
         pickle.dump(object, fw)
 
 
 def load_pkl(name):
+    """Loads list/array of a file with .pkl format
+
+    Args:
+        name (string): Name of file
+
+    Returns:
+        any: object to be loaded
+    """
     with open(name, "rb") as fr:
         return pickle.load(fr)
