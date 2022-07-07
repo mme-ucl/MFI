@@ -2,7 +2,7 @@ MOLINFO STRUCTURE=reference.pdb
 phi: TORSION ATOMS=@phi-2
 psi: TORSION ATOMS=@psi-2
 UPDATE_IF ARG=phi,psi MORE_THAN=-0.5,-0.5 LESS_THAN=0.5,0.5
-DUMPATOMS FILE=structure_static.gro ATOMS=1-22
+DUMPATOMS FILE=structure_2sim.gro ATOMS=1-22
 UPDATE_IF ARG=phi END
 
 #plumed driver --plumed plumed.dat --mf_xtc traj_comp.xtc

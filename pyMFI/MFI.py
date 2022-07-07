@@ -836,7 +836,7 @@ def bootstrap_2D(X, Y, forces_all, n_bootstrap):
         
         
         #print progress
-        if (itteration+1) % 10 == 0:
+        if (itteration+1) % (n_bootstrap/5) == 0:
             print(itteration+1, ": var:", round(variance_prog[-1],5), "     sd:", round(stdev_prog[-1],5), "      FES: var:", round(var_fes_prog[-1],3), "     sd:", round(sd_fes_prog[-1],3) )
             
     return [FES_avr, var_fes, sd_fes, variance_prog, stdev_prog, var_fes_prog, sd_fes_prog ]
@@ -866,7 +866,7 @@ def plot_bootstrap(X, Y, FES, var_fes, var_fes_prog, FES_lim=11, ofe_map_lim=11)
 
     cp = axs[1].contourf(X, Y, var_fes, levels=range(0, ofe_map_lim, 1), cmap='coolwarm', antialiased=False, alpha=0.8);
     cbar = plt.colorbar(cp, ax=axs[1])
-    cbar.axs[1].set_ylabel("Variance of Average FES [kJ/mol]$^2$", rotation=270)
+    cbar.set_label("Variance of Average FES [kJ/mol]$^2$", rotation=270)
     axs[1].set_ylabel('CV2', fontsize=11)
     axs[1].set_xlabel('CV1', fontsize=11)
     axs[1].set_title('Bootstrap Variance of FES', fontsize=11)
@@ -926,3 +926,123 @@ def load_pkl(name):
     """
     with open(name, "rb") as fr:
         return pickle.load(fr)
+
+
+
+# #@jit(nopython=True)
+# def intgrad2(fx,fy,nx,ny,dx,dy,intconst,per1,per2,min_grid,max_grid,nbins):
+
+#     '''
+#     This function uses the inverse of the gradient to reconstruct the free energy surface from the mean force components.
+#     [John D'Errico (2022). Inverse (integrated) gradient (https://www.mathworks.com/matlabcentral/fileexchange/9734-inverse-integrated-gradient), MATLAB Central File Exchange. Retrieved May 17, 2022.]
+#     [Translated from MatLab to Python from Francesco Serse (https://github.com/Fserse)]
+#     '''
+	
+#     gridx = np.linspace(min_grid[0], max_grid[0], nbins[0])
+#     gridy = np.linspace(min_grid[1], max_grid[1], nbins[1])
+#     X, Y = np.meshgrid(gridx, gridy)
+
+#     rhs = np.ravel((fx,fy))
+    
+#     Af=np.zeros((4*nx*ny,3))
+    
+#     n=0
+#     #Equations in x
+#     for i in range(0,ny):
+#     	#Leading edge
+#     	Af[2*nx*i][0] = 2*nx*i/2
+     
+#     	if(per2):
+#     	    Af[2*nx*i][1] = nx*i+(nx-1)
+#     	else:
+#     		Af[2*nx*i][1] = nx*i
+      
+#     	Af[2*nx*i][2] = -0.5/dx
+    
+#     	Af[2*nx*i+1][0] = 2*nx*i/2
+#     	Af[2*nx*i+1][1] = nx*i+1
+#     	Af[2*nx*i+1][2] = 0.5/dx
+    
+#     	#Loop over inner space
+#     	for j in range(1,nx-1):
+#     		Af[2*nx*i+2*j][0] = int((2*nx*i+2*j)/2)
+#     		Af[2*nx*i+2*j][1] = nx*i+j
+#     		Af[2*nx*i+2*j][2] = -1/dx
+    
+#     		Af[2*nx*i+2*j+1][0] = int((2*nx*i+2*j)/2)
+#     		Af[2*nx*i+2*j+1][1] = nx*i+j+1
+#     		Af[2*nx*i+2*j+1][2] = 1/dx
+    
+#     	#Trailing edge
+#     	Af[2*nx*(i+1)-2][0] = int((2*nx*(i+1)-2)/2)
+#     	Af[2*nx*(i+1)-2][1] = nx*i+(nx-2)
+#     	Af[2*nx*(i+1)-2][2] = -0.5/dx
+    
+#     	Af[2*nx*(i+1)-1][0] = int((2*nx*(i+1)-2)/2)
+#     	if(per2):
+#     		Af[2*nx*(i+1)-1][1] = nx*i
+#     	else:
+#     		Af[2*nx*(i+1)-1][1] = nx*i+(nx-1)
+#     	Af[2*nx*(i+1)-1][2] = 0.5/dx
+    
+    
+#     n=2*nx*ny
+    
+#     #Equations in y
+#     #Leading edge
+#     for j in range(0,nx):
+    
+#     	Af[2*j+n][0] = 2*j/2 + n/2
+    	
+#     	if(per1):
+#     		Af[2*j+n][1] = (ny-1)*nx+j
+#     	else:
+#     		Af[2*j+n][1] = j
+#     	Af[2*j+n][2] = -0.5/dy
+    
+#     	Af[2*j+n+1][0] = 2*j/2 + n/2
+#     	Af[2*j+n+1][1] = j+nx
+#     	Af[2*j+n+1][2] = 0.5/dy
+    
+#     #Loop over inner space
+#     for i in range(1,ny-1):
+#     	for j in range(0,nx):
+    		
+#     		Af[2*nx*i+2*j+n][0] = int((2*nx*i+2*j+n)/2)
+#     		Af[2*nx*i+2*j+n][1] = j+(i)*nx
+#     		Af[2*nx*i+2*j+n][2] = -1/dy
+    
+#     		Af[2*nx*i+2*j+n+1][0] = int((2*nx*i+2*j+n)/2)
+#     		Af[2*nx*i+2*j+n+1][1] = j+(i+1)*nx
+#     		Af[2*nx*i+2*j+n+1][2] = 1/dy
+#     		a=2*nx*i+2*j+n+1
+#     n=n+2*(ny-1)*nx
+    
+#     #Trailing edge
+#     for j in range(0,nx):
+#     	Af[2*j+n][0] = int((2*j+n)/2)
+#     	Af[2*j+n][1] = (ny-2)*nx+j
+#     	Af[2*j+n][2] = -0.5/dy
+    
+#     	Af[2*j+n+1][0] = int((2*j+n)/2)
+#     	if(per1):
+#     		Af[2*j+n+1][1] = j
+#     	else:
+#     		Af[2*j+n+1][1] = (ny-1)*nx+j
+#     	Af[2*j+n+1][2] = 0.5/dy
+    
+    
+#     #Boundary conditions
+#     Af[0][2]=1
+#     Af[1][:]=0
+#     rhs[0] = intconst
+    
+#     #Solve
+#     A=sps.csc_matrix((Af[:,2],(Af[:,0],Af[:,1])),shape=(2*ny*nx,ny*nx))
+#     fhat=spsl.lsmr(A,rhs)
+#     fhat=fhat[0]
+#     fhat = np.reshape(fhat,nbins) 
+#     #print(fhat.shape)   
+#     fhat = fhat - np.min(fhat)
+
+#     return [X, Y, fhat]

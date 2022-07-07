@@ -120,7 +120,47 @@ TEMP={} FILE=HILLS{}\n".format(gaus_width_x, gaus_width_y, gaus_height, biasfact
     #     print(errors_process_run_simulation)
 
 
+def run_2D_Invernizzi(simulation_steps=100000, sigma=0.1, height=0.5, biasfactor=10, initial_position_x=0.0, initial_position_y=0.0,
+                   hp_center_x=0.0, hp_center_y=0.0, hp_kappa_x=0, hp_kappa_y=0,
+                   lw_center_x=0.0, lw_center_y=0.0, lw_kappa_x=0, lw_kappa_y=0,
+                   uw_center_x=0.0, uw_center_y=0.0, uw_kappa_x=0, uw_kappa_y=0,
+                   gaus_pace=200, position_pace=0, file_extension=""):
+    with open("plumed.dat","w") as f:
+        print("""p: DISTANCE ATOMS=1,2 COMPONENTS
+ff: MATHEVAL ARG=p.x,p.y PERIODIC=NO FUNC=(1.34549*x^4+1.90211*x^3*y+3.92705*x^2*y^2-6.44246*x^2-1.90211*x*y^3+5.58721*x*y+1.33481*x+1.34549*y^4-5.55754*y^2+0.904586*y+18.5598)
+bb: BIASVALUE ARG=ff
+METAD ARG=p.x,p.y PACE={} SIGMA={},{} HEIGHT={} GRID_MIN=-3,-3 GRID_MAX=3,3 GRID_BIN=300,300 BIASFACTOR={} TEMP=120 FILE=HILLSinve_{}""".format(gaus_pace, sigma, sigma, height, biasfactor,file_extension),file=f)
 
+    with open("plumed.dat", "a") as f:
+        # Harmonic potential bias. To activate, the force constant (kappa) needs to be a positive number
+        if hp_kappa_x > 0 or hp_kappa_y > 0:
+            f.write(
+                "RESTRAINT ARG=p.x,p.y AT={},{} KAPPA={},{} LABEL=restraint \n".format(hp_center_x, hp_center_y, hp_kappa_x, hp_kappa_y))
+
+        # Lower wall bias. To activate, the force constant (kappa) needs to be a positive number
+        if lw_kappa_x > 0 or lw_kappa_y > 0:
+            f.write("LOWER_WALLS ARG=p.x,p.y AT={},{} KAPPA={},{} LABEL=lowerwall \n".format(lw_center_x, lw_center_y, lw_kappa_x,lw_kappa_y))
+
+        # Upper wall bias. To activate, the force constant (kappa) needs to be a positive number
+        if uw_kappa_x > 0 or uw_kappa_y > 0:
+            f.write("UPPER_WALLS ARG=p.x,p.y AT={},{} KAPPA={},{} LABEL=upperwall \n".format(uw_center_x, uw_center_y, uw_kappa_x, uw_kappa_y))
+
+        # Print position of system. If position_pace = 0, it will be position_pace = gaus_pace/10
+        if position_pace == 0: position_pace = int(gaus_pace / 10)
+        f.write("PRINT FILE=positioninve_{} ARG=p.x,p.y STRIDE={}".format(file_extension , position_pace))
+     
+    with open("input","w") as f:
+        print("""temperature 1
+tstep 0.005
+friction 10
+dimension 2
+nstep {}
+ipos {},{}
+periodic false""".format(simulation_steps,initial_position_x,initial_position_y),file=f)
+
+    #Start simulation
+    print("Running simulation...")
+    os.system("plumed pesmd < input")
 
 # #Exaple execution (run simulation in folder: test with location <path>:
 # path = "/home/antoniu/Desktop/Public_Notebooks/"
@@ -160,7 +200,7 @@ def find_alanine_dipeptide_input(initial_position_x=0.0, initial_position_y=0.0,
 
 
 
-def run_alanine_dipeptide(simulation_steps, temperature=1,
+def run_alanine_dipeptide(simulation_steps, temperature=2.49,
                    grid_min_x="-pi", grid_max_x="pi", grid_min_y="-pi", grid_max_y="pi", grid_bin_x=201, grid_bin_y=201,
                    gaus_width_x=0.1, gaus_width_y=0.1, gaus_height=1, biasfactor=10, gaus_pace=100, position_pace=0, 
                    hp_center_x=0.0, hp_center_y=0.0, hp_kappa_x=0, hp_kappa_y=0,
