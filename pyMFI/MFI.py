@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pickle
 import random
+from matplotlib import ticker
+
 
 
 ### Load files ####
@@ -601,7 +603,7 @@ def plot_recap_2D(X, Y, FES, TOTAL_DENSITY, CONVMAP, CONV_history, CONV_history_
     axs[1].set_xlabel('CV1', fontsize=11)
     axs[1].set_title('Variance of the Mean Force', fontsize=11)
 
-    cp = axs[2].contourf(X, Y, TOTAL_DENSITY, cmap='gray_r', antialiased=False, alpha=0.8);
+    cp = axs[2].contourf(X, Y, TOTAL_DENSITY, cmap='gray_r', antialiased=False, alpha=0.8);  #, locator=ticker.LogLocator()
     cbar = plt.colorbar(cp, ax=axs[2])
     axs[2].set_ylabel('CV2', fontsize=11)
     axs[2].set_xlabel('CV1', fontsize=11)
