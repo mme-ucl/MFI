@@ -402,7 +402,7 @@ def MFI_2D(HILLS="HILLS", position_x="position_x", position_y="position_y", bw=1
         # Calculate y-component of Force
         dfds_y = np.divide(Fpbt_y, pb_t, out=np.zeros_like(Fpbt_y), where=pb_t != 0) + Fbias_y - F_static_y
         Ftot_num_y = Ftot_num_y + pb_t * dfds_y
-        Ftot_y = np.divide(Ftot_num_y, Ftot_den, out=np.zeros_like(Fpbt_y), where=Ftot_den != 0)
+        Ftot_y = np.divide(Ftot_num_y, Ftot_den, out=np.zeros_like(Fpbt_y), where=Ftot_den > 0.0000001)
 
         # calculate on the fly error components
         Ftot_den2 = Ftot_den2 + pb_t ** 2

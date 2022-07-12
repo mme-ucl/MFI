@@ -170,7 +170,7 @@ def find_uw_force(uw_center, uw_kappa, grid, min_grid, max_grid, grid_space, per
 # Run MFI algorithm with on the fly error calculation
 def MFI_1D(HILLS="HILLS", position="position", bw=1, kT=1, min_grid=-2, max_grid=2, nbins=101, log_pace=10,
            error_pace=200, WellTempered=0, periodic=0, hp_center=0.0, hp_kappa=0, lw_center=0.0, lw_kappa=0,
-           uw_center=0.0, uw_kappa=0):
+           uw_center=0.0, uw_kappa=0, intermediate_fes_number = 0):
     """Compute a time-independent estimate of the Mean Thermodynamic Force, i.e. the free energy gradient in 1D CV spaces.
 
     Args:
@@ -219,6 +219,8 @@ def MFI_1D(HILLS="HILLS", position="position", bw=1, kT=1, min_grid=-2, max_grid
     if hp_kappa > 0: F_static += find_hp_force(hp_center, hp_kappa, grid, min_grid, max_grid, grid_space, periodic)
     if lw_kappa > 0: F_static += find_lw_force(lw_center, lw_kappa, grid, periodic)
     if uw_kappa > 0: F_static += find_uw_force(uw_center, uw_kappa, grid, periodic)
+    
+    if intermediate_fes_number > 1: intermediate_fes_list = [] 
 
     # Definition Gamma Factor, allows to switch between WT and regular MetaD
     if WellTempered < 1:
@@ -270,8 +272,13 @@ def MFI_1D(HILLS="HILLS", position="position", bw=1, kT=1, min_grid=-2, max_grid
             ofe_history.append(sum(ofe) / nbins)
             if (i + 1) % int(total_number_of_hills / log_pace) == 0:
                 print(str(round((i + 1) / total_number_of_hills * 100, 0)) + "%   OFE =", round(ofe_history[-1], 4))
+                
+        if intermediate_fes_number > 1:
+            if (i+1) % (total_number_of_hills/intermediate_fes_number) == 0:
+                intermediate_fes_list.append(intg_1D(grid, Ftot))
 
-    return [grid, Ftot_den, Ftot, ofe, ofe_history]
+    if intermediate_fes_number > 1: return [grid, Ftot_den, Ftot, ofe, ofe_history, intermediate_fes_list]
+    else: return [grid, Ftot_den, Ftot, ofe, ofe_history]
 
 
 # Integrate Ftot, obtain FES
