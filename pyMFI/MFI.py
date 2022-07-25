@@ -56,38 +56,41 @@ def find_periodic_point(x_coord, y_coord, min_grid, max_grid, periodic):
         list: list of [x-coord, y-coord] pairs
     """
 
-    # Use periodic extension for defining PBC
-    periodic_extension = periodic * 1 / 2
-    grid_ext = (1 / 2) * periodic_extension * (max_grid - min_grid)
-
     coord_list = []
-    # There are potentially 4 points, 1 original and 3 periodic copies
     coord_list.append([x_coord, y_coord])
-    copy_record = [0, 0, 0, 0]
-    # check for x-copy
-    if x_coord < min_grid[0] + grid_ext[0]:
-        coord_list.append([x_coord + 2 * np.pi, y_coord])
-        copy_record[0] = 1
-    elif x_coord > max_grid[0] - grid_ext[0]:
-        coord_list.append([x_coord - 2 * np.pi, y_coord])
-        copy_record[1] = 1
-    # check for y-copy
-    if y_coord < min_grid[1] + grid_ext[1]:
-        coord_list.append([x_coord, y_coord + 2 * np.pi])
-        copy_record[2] = 1
-    elif y_coord > max_grid[1] - grid_ext[1]:
-        coord_list.append([x_coord, y_coord - 2 * np.pi])
-        copy_record[3] = 1
-    # check for xy-copy
-    if sum(copy_record) == 2:
-        if copy_record[0] == 1 and copy_record[2] == 1:
-            coord_list.append([x_coord + 2 * np.pi, y_coord + 2 * np.pi])
-        elif copy_record[1] == 1 and copy_record[2] == 1:
-            coord_list.append([x_coord - 2 * np.pi, y_coord + 2 * np.pi])
-        elif copy_record[0] == 1 and copy_record[3] == 1:
-            coord_list.append([x_coord + 2 * np.pi, y_coord - 2 * np.pi])
-        elif copy_record[1] == 1 and copy_record[3] == 1:
-            coord_list.append([x_coord - 2 * np.pi, y_coord - 2 * np.pi])
+    
+    if periodic == 1:
+        # Use periodic extension for defining PBC
+        periodic_extension = periodic * 1 / 2
+        grid_ext = (1 / 2) * periodic_extension * (max_grid - min_grid)
+
+        # There are potentially 4 points, 1 original and 3 periodic copies, or less.
+
+        copy_record = [0, 0, 0, 0]
+        # check for x-copy
+        if x_coord < min_grid[0] + grid_ext[0]:
+            coord_list.append([x_coord + 2 * np.pi, y_coord])
+            copy_record[0] = 1
+        elif x_coord > max_grid[0] - grid_ext[0]:
+            coord_list.append([x_coord - 2 * np.pi, y_coord])
+            copy_record[1] = 1
+        # check for y-copy
+        if y_coord < min_grid[1] + grid_ext[1]:
+            coord_list.append([x_coord, y_coord + 2 * np.pi])
+            copy_record[2] = 1
+        elif y_coord > max_grid[1] - grid_ext[1]:
+            coord_list.append([x_coord, y_coord - 2 * np.pi])
+            copy_record[3] = 1
+        # check for xy-copy
+        if sum(copy_record) == 2:
+            if copy_record[0] == 1 and copy_record[2] == 1:
+                coord_list.append([x_coord + 2 * np.pi, y_coord + 2 * np.pi])
+            elif copy_record[1] == 1 and copy_record[2] == 1:
+                coord_list.append([x_coord - 2 * np.pi, y_coord + 2 * np.pi])
+            elif copy_record[0] == 1 and copy_record[3] == 1:
+                coord_list.append([x_coord + 2 * np.pi, y_coord - 2 * np.pi])
+            elif copy_record[1] == 1 and copy_record[3] == 1:
+                coord_list.append([x_coord - 2 * np.pi, y_coord - 2 * np.pi])        
 
     return coord_list
 
@@ -208,7 +211,6 @@ def find_lw_force(lw_centre_x, lw_centre_y, lw_kappa_x, lw_kappa_y, X , Y, min_g
             index_period = index(lw_centre_y - grid_length/2, min_grid[1], grid_space)
             F_wall_y[:index_period, :] = 0
     return [F_wall_x, F_wall_y]
-
 
 
 def find_uw_force(uw_centre_x, uw_centre_y, uw_kappa_x, uw_kappa_y, X , Y, min_grid, max_grid, grid_space, periodic):

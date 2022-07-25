@@ -18,7 +18,7 @@ def load_HILLS(hills_name="HILLS"):
     for file in glob.glob(hills_name):
         hills = np.loadtxt(file)
         hills = hills[:-1]
-        hills0 = hills[0]
+        hills0 = np.array(hills[0])
         hills0[3] = 0
         hills = np.concatenate(([hills0], hills))
     return hills
@@ -223,7 +223,9 @@ def MFI_1D(HILLS="HILLS", position="position", bw=1, kT=1, min_grid=-2, max_grid
     if lw_kappa > 0: F_static += find_lw_force(lw_center, lw_kappa, grid, periodic)
     if uw_kappa > 0: F_static += find_uw_force(uw_center, uw_kappa, grid, periodic)
     
-    if intermediate_fes_number > 1: intermediate_fes_list = [] 
+    if intermediate_fes_number > 1: 
+        intermediate_fes_list = [] 
+        intermediate_time_list = [] 
 
     # Definition Gamma Factor, allows to switch between WT and regular MetaD
     if WellTempered < 1:
@@ -233,7 +235,7 @@ def MFI_1D(HILLS="HILLS", position="position", bw=1, kT=1, min_grid=-2, max_grid
         Gamma_Factor = (gamma - 1) / (gamma)
         
     Ftot_den_limit = 0
-
+    
     for i in range(total_number_of_hills):
         
         Ftot_den_limit = (i+1)*stride * 10**-5  # truncates the Total probability density. Can be set to 0 when probability density of window is truncated
@@ -242,7 +244,7 @@ def MFI_1D(HILLS="HILLS", position="position", bw=1, kT=1, min_grid=-2, max_grid
         s = HILLS[i, 1]  # center position of Gaussian
         sigma_meta2 = HILLS[i, 2] ** 2  # width of Gaussian
         height_meta = HILLS[i, 3] * Gamma_Factor  # Height of Gaussian
-
+        
         periodic_images = find_periodic_point(s, min_grid, max_grid, periodic)
         for j in range(len(periodic_images)):
             kernelmeta = np.exp(-0.5 * (((grid - periodic_images[j]) ** 2) / (sigma_meta2)))
@@ -282,8 +284,15 @@ def MFI_1D(HILLS="HILLS", position="position", bw=1, kT=1, min_grid=-2, max_grid
             time_history.append(HILLS[i,0])            
             if (i + 1) % int(total_number_of_hills / log_pace) == 0:
                 print(str(round((i + 1) / total_number_of_hills * 100, 0)) + "%   OFE =", round(ofe_history[-1], 4))
+                
+        #Calculate intermediate fes
+        if intermediate_fes_number > 1:
+            if (i+1) % (total_number_of_hills/intermediate_fes_number) == 0:
+                # intermediate_fes_list.append(intg_1D(grid, Ftot))
+                intermediate_fes_list.append(Ftot)
+                intermediate_time_list.append(HILLS[i,0])
 
-    if intermediate_fes_number > 1: return [grid, Ftot_den, Ftot, ofv, ofe, ofv_history, ofe_history, time_history, intermediate_fes_list]
+    if intermediate_fes_number > 1: return [grid, Ftot_den, Ftot, ofv, ofe, ofv_history, ofe_history, time_history, intermediate_fes_list, intermediate_time_list]
     else: return [grid, Ftot_den, Ftot, ofv, ofe, ofv_history, ofe_history, time_history]
 
 
@@ -321,32 +330,37 @@ def plot_recap(X, FES, Ftot_den, ofe, ofe_history, time_history, FES_lim=40, ofe
     
     fig, axs = plt.subplots(2, 2, figsize=(12, 8))
 
-    # #plot ref f
-    # y = 7*X**4 - 23*X**2
-    # y = y - min(y)    
-    # axs[0, 0].plot(X, y, color="red", alpha=0.3);
+    #plot ref f
+    y = 7*X**4 - 23*X**2
+    y = y - min(y)    
+    axs[0, 0].plot(X, y, color="red", alpha=0.3);
     
     axs[0, 0].plot(X, FES);
     axs[0, 0].set_ylim([0, FES_lim])
     axs[0, 0].set_ylabel('F(CV1) [kJ/mol]')
     axs[0, 0].set_xlabel('CV1 [nm]')
     axs[0, 0].set_title('Free Energy Surface')
+    axs[0, 0].set_xlim(-2,2)
 
     axs[0, 1].plot(X, ofe);
     axs[0, 1].plot(X, np.zeros(len(X)), color="grey", alpha=0.3);
     axs[0, 1].set_ylabel('Mean Force Error [kJ/(mol*nm)]')
     axs[0, 1].set_xlabel('CV1 [nm]')
     axs[0, 1].set_title('Local Error Map')
-    axs[0, 1].set_ylim(-0.1, ofe_lim)
+    # axs[0, 1].set_ylim(-0.1, ofe_lim)
+    axs[0, 1].set_xlim(-2,2)
+
     
 
     axs[1, 0].plot(X, Ftot_den);
     axs[1, 0].set_ylabel('Count [relative probability]')
     axs[1, 0].set_xlabel('CV1 [nm]')
     axs[1, 0].set_title('Total Probability density')
+    axs[1, 0].set_xlim(-2,2)
+
 
     axs[1, 1].plot([time/1000 for time in time_history], ofe_history);
-    axs[1, 1].plot([time/1000 for time in time_history], np.zeros(len(ofe_history)), color="grey", alpha=0.3);
+    # axs[1, 1].plot([time/1000 for time in time_history], np.zeros(len(ofe_history)), color="grey", alpha=0.3);
     axs[1, 1].set_ylabel('Average Mean Force Error [kJ/(mol*nm)]')
     axs[1, 1].set_xlabel('Simulation time [ns]')
     axs[1, 1].set_title('Progression of Average Mean Force Error')
