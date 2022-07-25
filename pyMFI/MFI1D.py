@@ -168,8 +168,8 @@ def find_uw_force(uw_center, uw_kappa, grid, min_grid, max_grid, grid_space, per
 
 ### Algorithm to run 1D MFI
 # Run MFI algorithm with on the fly error calculation
-def MFI_1D(HILLS="HILLS", position="position", bw=1, kT=1, min_grid=-2, max_grid=2, nbins=101, log_pace=10,
-           error_pace=200, WellTempered=0, periodic=0, hp_center=0.0, hp_kappa=0, lw_center=0.0, lw_kappa=0,
+def MFI_1D(HILLS="HILLS", position="position", bw=1, kT=1, min_grid=-2, max_grid=2, nbins=201, log_pace=10,
+           error_pace=200, WellTempered=1, nhills=-1, periodic=0, hp_center=0.0, hp_kappa=0, lw_center=0.0, lw_kappa=0,
            uw_center=0.0, uw_kappa=0, intermediate_fes_number = 0):
     """Compute a time-independent estimate of the Mean Thermodynamic Force, i.e. the free energy gradient in 1D CV spaces.
 
@@ -183,7 +183,7 @@ def MFI_1D(HILLS="HILLS", position="position", bw=1, kT=1, min_grid=-2, max_grid
         nbins (int, optional): number of bins in grid. Defaults to 101.
         log_pace (int, optional): Pace for outputting progress and convergence. Defaults to 10.
         error_pace (int, optional): Pace for the calculation of the on-the-fly measure of global convergence. Defaults to 200.
-        WellTempered (binary, optional): Is the simulation well tempered?. Defaults to 0.
+        WellTempered (binary, optional): Is the simulation well tempered?. Defaults to 1.
         periodic (int, optional): Is the CV space periodic? 1 for yes. Defaults to 0.
         hp_center (float, optional): position of harmonic potential. Defaults to 0.0.
         hp_kappa (int, optional): force_constant of harmonic potential. Defaults to 0.
@@ -203,16 +203,19 @@ def MFI_1D(HILLS="HILLS", position="position", bw=1, kT=1, min_grid=-2, max_grid
     grid_space = (max_grid - min_grid) / (nbins-1)
     stride = int(len(position) / len(HILLS[:, 1]))
     const = (1 / (bw * np.sqrt(2 * np.pi) * stride))
-    total_number_of_hills = len(HILLS[:, 1])
     bw2 = bw ** 2
-
+    if nhills > 0: total_number_of_hills = nhills
+    else: total_number_of_hills = len(HILLS)
+    
     # initialise force terms
     Fbias = np.zeros(len(grid))
     Ftot_num = np.zeros(len(grid))
     Ftot_den = np.zeros(len(grid))
     Ftot_den2 = np.zeros(len(grid))
-    ofv = np.zeros(len(grid))
+    ofv_num = np.zeros(len(grid))
+    ofv_history = []
     ofe_history = []
+    time_history = []
 
     #Calculate static force (form harmonic or wall potential)
     F_static = np.zeros(nbins)
@@ -228,8 +231,13 @@ def MFI_1D(HILLS="HILLS", position="position", bw=1, kT=1, min_grid=-2, max_grid
     else:
         gamma = HILLS[0, 4]
         Gamma_Factor = (gamma - 1) / (gamma)
+        
+    Ftot_den_limit = 0
 
     for i in range(total_number_of_hills):
+        
+        Ftot_den_limit = (i+1)*stride * 10**-5  # truncates the Total probability density. Can be set to 0 when probability density of window is truncated
+        
         # Build metadynamics potential
         s = HILLS[i, 1]  # center position of Gaussian
         sigma_meta2 = HILLS[i, 2] ** 2  # width of Gaussian
@@ -239,7 +247,7 @@ def MFI_1D(HILLS="HILLS", position="position", bw=1, kT=1, min_grid=-2, max_grid
         for j in range(len(periodic_images)):
             kernelmeta = np.exp(-0.5 * (((grid - periodic_images[j]) ** 2) / (sigma_meta2)))
             Fbias = Fbias + height_meta * kernelmeta * ((grid - periodic_images[j]) / (sigma_meta2))  # Bias force due to Metadynamics potentials
-
+        
         # Estimate the biased proabability density
         pb_t = np.zeros(len(grid))
         Fpbt = np.zeros(len(grid))
@@ -248,37 +256,35 @@ def MFI_1D(HILLS="HILLS", position="position", bw=1, kT=1, min_grid=-2, max_grid
             periodic_images = find_periodic_point(data[j], min_grid, max_grid, periodic)
             for k in range(len(periodic_images)):
                 kernel = const * np.exp(- (grid - periodic_images[k]) ** 2 / (2 * bw2))  # probability density of 1 datapoint
-                pb_t = pb_t + kernel  # probability density of window
+                pb_t = pb_t + kernel # probability density of window
                 Fpbt = Fpbt + kT * kernel * (grid - periodic_images[k]) / bw2
 
-        # Estimate of the Mean Force and error  for terms
-        Ftot_den = Ftot_den + pb_t  # total probability density
-        dfds = np.divide(Fpbt, pb_t, out=np.zeros_like(Fpbt), where=pb_t != 0) + Fbias - F_static
-        Ftot_num = Ftot_num + pb_t * dfds
-        Ftot = np.divide(Ftot_num, Ftot_den, out=np.zeros_like(Ftot_num), where=Ftot_den != 0)  # total force
+        pb_t = np.where(pb_t > 10**-5 * stride, pb_t, 0)  # truncated probability density of window
 
-        # additional terms for error calculation
+        # Estimate of the Mean Force and error  for terms
+        Ftot_den = Ftot_den + pb_t  # total probability density             
+        dfds = np.divide(Fpbt, pb_t, out=np.zeros_like(Fpbt), where=pb_t > 10**-5) + Fbias - F_static
+        Ftot_num = Ftot_num + pb_t * dfds
+        Ftot = np.divide(Ftot_num, Ftot_den, out=np.zeros_like(Ftot_num), where=Ftot_den > Ftot_den_limit)  # total force
+
+        # terms for error calculation
         Ftot_den2 = Ftot_den2 + pb_t ** 2  # sum of (probability densities)^2
-        ofv = ofv + pb_t * (dfds ** 2)  # sum of (weighted mean force of window)^2
+        ofv_num = ofv_num + pb_t * (dfds ** 2)  # sum of (weighted mean force of window)^2
 
         # Calculate error
         if (i + 1) % int(total_number_of_hills / error_pace) == 0:
-            # ofe
-            Ftot_den_ratio = np.divide(Ftot_den2, (Ftot_den ** 2 - Ftot_den2), out=np.zeros_like(Ftot_den),
-                                       where=Ftot_den > 1E-10)
-            ofe = np.divide(ofv, Ftot_den, out=np.zeros_like(ofv), where=Ftot_den > 1E-10) - Ftot ** 2
-            ofe = ofe * Ftot_den_ratio
-            ofe = np.sqrt(ofe)
-            ofe_history.append(sum(ofe) / nbins)
+            ofv = np.divide(ofv_num , Ftot_den, out=np.zeros_like(Ftot_den), where=Ftot_den > Ftot_den_limit) - Ftot**2
+            ofv = ofv * np.divide(Ftot_den**2 , (Ftot_den**2-Ftot_den2), out=np.zeros_like(Ftot_den), where=(Ftot_den**2-Ftot_den2) > 0)
+            ofe = np.sqrt(ofv)
+                                    
+            ofv_history.append(sum(ofv) / np.count_nonzero(ofv))
+            ofe_history.append(sum(ofe) / np.count_nonzero(ofe))
+            time_history.append(HILLS[i,0])            
             if (i + 1) % int(total_number_of_hills / log_pace) == 0:
                 print(str(round((i + 1) / total_number_of_hills * 100, 0)) + "%   OFE =", round(ofe_history[-1], 4))
-                
-        if intermediate_fes_number > 1:
-            if (i+1) % (total_number_of_hills/intermediate_fes_number) == 0:
-                intermediate_fes_list.append(intg_1D(grid, Ftot))
 
-    if intermediate_fes_number > 1: return [grid, Ftot_den, Ftot, ofe, ofe_history, intermediate_fes_list]
-    else: return [grid, Ftot_den, Ftot, ofe, ofe_history]
+    if intermediate_fes_number > 1: return [grid, Ftot_den, Ftot, ofv, ofe, ofv_history, ofe_history, time_history, intermediate_fes_list]
+    else: return [grid, Ftot_den, Ftot, ofv, ofe, ofv_history, ofe_history, time_history]
 
 
 # Integrate Ftot, obtain FES
@@ -298,35 +304,56 @@ def intg_1D(x, F):
     return fes
 
 
-def plot_recap(X, FES, TOTAL_DENSITY, CONVMAP, CONV_history, lim=40):
+def plot_recap(X, FES, Ftot_den, ofe, ofe_history, time_history, FES_lim=40, ofe_lim = 10, error_log_scale = 1):
     """Plot result of 1D MFI algorithm. 1. FES, 2. varinace_map, 3. Cumulative biased probability density, 4. Convergece of variance.
 
     Args:
         X (array): gird
         FES (array): Free energy surface
-        TOTAL_DENSITY (array): _description_
-        CONVMAP (array): Cumulative biased probability density
-        CONV_history (list): on the fly estimate of the local convergence
-        lim (int, optional): Upper energy value in FES plot. Defaults to 40.
+        Ftot_den (array): _description_
+        ofe (array): Cumulative biased probability density
+        ofe_history (list): on the fly estimate of the local convergence
+        time_history (_type_): _description_
+        FES_lim (int, optional): Upper energy value in FES plot. Defaults to 40.
+        ofe_lim (int, optional): Upper error value in FES plot. Defaults to 10.
+        error_log_scale (boolean, optional): Option to make error_conversion plot with a log scale. 1 for log scale. Defaults to 1.
     """
+    
     fig, axs = plt.subplots(2, 2, figsize=(12, 8))
 
+    # #plot ref f
+    # y = 7*X**4 - 23*X**2
+    # y = y - min(y)    
+    # axs[0, 0].plot(X, y, color="red", alpha=0.3);
+    
     axs[0, 0].plot(X, FES);
-    axs[0, 0].set_ylim([0, lim])
-    axs[0, 0].set_ylabel('F(CV1)')
-    axs[0, 0].set_xlabel('CV1')
+    axs[0, 0].set_ylim([0, FES_lim])
+    axs[0, 0].set_ylabel('F(CV1) [kJ/mol]')
+    axs[0, 0].set_xlabel('CV1 [nm]')
+    axs[0, 0].set_title('Free Energy Surface')
 
-    axs[0, 1].plot(X, CONVMAP);
-    axs[0, 1].set_ylabel('Mean Force Error')
-    axs[0, 1].set_xlabel('CV1')
+    axs[0, 1].plot(X, ofe);
+    axs[0, 1].plot(X, np.zeros(len(X)), color="grey", alpha=0.3);
+    axs[0, 1].set_ylabel('Mean Force Error [kJ/(mol*nm)]')
+    axs[0, 1].set_xlabel('CV1 [nm]')
+    axs[0, 1].set_title('Local Error Map')
+    axs[0, 1].set_ylim(-0.1, ofe_lim)
+    
 
-    axs[1, 0].plot(X, TOTAL_DENSITY);
-    axs[1, 0].set_ylabel('Count')
-    axs[1, 0].set_xlabel('CV1')
+    axs[1, 0].plot(X, Ftot_den);
+    axs[1, 0].set_ylabel('Count [relative probability]')
+    axs[1, 0].set_xlabel('CV1 [nm]')
+    axs[1, 0].set_title('Total Probability density')
 
-    axs[1, 1].plot(range(len(CONV_history)), CONV_history);
-    axs[1, 1].set_ylabel('Average Mean Force Error')
-    axs[1, 1].set_xlabel('Number of Error Evaluations')
+    axs[1, 1].plot([time/1000 for time in time_history], ofe_history);
+    axs[1, 1].plot([time/1000 for time in time_history], np.zeros(len(ofe_history)), color="grey", alpha=0.3);
+    axs[1, 1].set_ylabel('Average Mean Force Error [kJ/(mol*nm)]')
+    axs[1, 1].set_xlabel('Simulation time [ns]')
+    axs[1, 1].set_title('Progression of Average Mean Force Error')
+    if error_log_scale == 1: axs[1, 1].set_yscale('log')
+    # axs[1, 1].set_ylim([-0.5, max(ofe_history)])
+
+    fig.tight_layout()
 
 
 

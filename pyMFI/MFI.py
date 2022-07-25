@@ -6,7 +6,8 @@ import numpy as np
 import pickle
 import random
 from matplotlib import ticker
-
+import scipy.sparse as sps
+import scipy.sparse.linalg as spsl
 
 
 ### Load files ####
@@ -327,13 +328,12 @@ def MFI_2D(HILLS="HILLS", position_x="position_x", position_y="position_y", bw=1
     Ftot_num_y = np.zeros(nbins)
     Ftot_den = np.zeros(nbins)
     Ftot_den2 = np.zeros(nbins)
-    ofv_x = np.zeros(nbins)
-    ofv_y = np.zeros(nbins)
+    ofv_num_x = np.zeros(nbins)
+    ofv_num_y = np.zeros(nbins)
+    ofv_history = []
     ofe_history = []
-    ofe_history_time = []
-    
-    if len(window_corners) == 4:
-        ofe_history_window = []
+    time_history = []
+    if len(window_corners) == 4: ofe_history_window = []
 
     #Calculate static force
     F_static_x = np.zeros(nbins)
@@ -359,8 +359,14 @@ def MFI_2D(HILLS="HILLS", position_x="position_x", position_y="position_y", bw=1
     else:
         gamma = HILLS[0, 6]
         Gamma_Factor = (gamma - 1) / (gamma)
+        
+    Ftot_den_limit = 0
 
     for i in range(total_number_of_hills):
+        
+        #Probability density limit, below which (fes or error) values aren't considered.
+        # Ftot_den_limit = (i+1)*stride * 10**-5
+        
         # Build metadynamics potential
         s_x = HILLS[i, 1]  # centre x-position of Gaussian
         s_y = HILLS[i, 2]  # centre y-position of Gaussian
@@ -392,54 +398,57 @@ def MFI_2D(HILLS="HILLS", position_x="position_x", position_y="position_y", bw=1
                 pb_t = pb_t + kernel;
                 Fpbt_x = Fpbt_x + kernel * kT * (X - periodic_images[k][0]) / bw2
                 Fpbt_y = Fpbt_y + kernel * kT * (Y - periodic_images[k][1]) / bw2
+        pb_t = np.where(pb_t > 10**-5 * stride, pb_t, 0)  # truncated probability density of window
 
-        # Calculate Mean Force
+        # Calculate total probability density
         Ftot_den = Ftot_den + pb_t;
+        
         # Calculate x-component of Force
-        dfds_x = np.divide(Fpbt_x, pb_t, out=np.zeros_like(Fpbt_x), where=pb_t != 0) + Fbias_x - F_static_x
+        dfds_x = np.divide(Fpbt_x, pb_t, out=np.zeros_like(Fpbt_x), where=pb_t > 10**-5) + Fbias_x - F_static_x
         Ftot_num_x = Ftot_num_x + pb_t * dfds_x
-        Ftot_x = np.divide(Ftot_num_x, Ftot_den, out=np.zeros_like(Fpbt_x), where=Ftot_den != 0)
+        Ftot_x = np.divide(Ftot_num_x, Ftot_den, out=np.zeros_like(Fpbt_x), where=Ftot_den > Ftot_den_limit)
+        
         # Calculate y-component of Force
-        dfds_y = np.divide(Fpbt_y, pb_t, out=np.zeros_like(Fpbt_y), where=pb_t != 0) + Fbias_y - F_static_y
+        dfds_y = np.divide(Fpbt_y, pb_t, out=np.zeros_like(Fpbt_y), where=pb_t > 10**-5) + Fbias_y - F_static_y
         Ftot_num_y = Ftot_num_y + pb_t * dfds_y
-        Ftot_y = np.divide(Ftot_num_y, Ftot_den, out=np.zeros_like(Fpbt_y), where=Ftot_den > 0.0000001)
+        Ftot_y = np.divide(Ftot_num_y, Ftot_den, out=np.zeros_like(Fpbt_y), where=Ftot_den > Ftot_den_limit)
 
         # calculate on the fly error components
         Ftot_den2 = Ftot_den2 + pb_t ** 2
-        # on the fly variance of the mean force
-        ofv_x += pb_t * dfds_x ** 2
-        ofv_y += pb_t * dfds_y ** 2
+        ofv_num_x += pb_t * dfds_x ** 2
+        ofv_num_y += pb_t * dfds_y ** 2
 
         # Compute Variance of the mean force every 1/error_pace frequency
         if (i + 1) % int(total_number_of_hills / error_pace) == 0:
             # calculate ofe (standard error)
             if base_terms == 0:
-                [ofe] = mean_force_variance(Ftot_den, Ftot_den2, Ftot_x, Ftot_y, ofv_x, ofv_y)
+                [ofv, ofe] = mean_force_variance(Ftot_den, Ftot_den2, Ftot_x, Ftot_y, ofv_num_x, ofv_num_y, Ftot_den_limit=Ftot_den_limit)
             elif len(base_terms) == 6:
-                [ofe] = patch_to_base_variance(base_terms, [Ftot_den, Ftot_den2, Ftot_x, Ftot_y, ofv_x, ofv_y])
+                [ofv, ofe] = patch_to_base_variance(base_terms, [Ftot_den, Ftot_den2, Ftot_x, Ftot_y, ofv_num_x, ofv_num_y], Ftot_den_limit = Ftot_den_limit)
             else:
                 print("Either define base_terms=0 if you only wish to find the convergence of one simulation, or base_terms=[Ftot_den, Ftot_den2, Ftot_x, Ftot_y, ofv_x, ofv_y] using the terms of another simulation, to find the convergence of both simulations. Continiue with baseterm=0")
                 base_terms = 0
-                [ofe] = mean_force_variance(Ftot_den, Ftot_den2, Ftot_x, Ftot_y, ofv_x, ofv_y)
+                [ofv, ofe] = mean_force_variance(Ftot_den, Ftot_den2, Ftot_x, Ftot_y, ofv_num_x, ofv_num_y, Ftot_den_limit=Ftot_den_limit)
                 
             if len(window_corners) == 4:
                 ofe_window = reduce_to_window(ofe, min_grid, grid_space, x_min=window_corners[0], x_max=window_corners[1], y_min=window_corners[2], y_max=window_corners[3]) 
                 ofe_history_window.append(sum(sum(ofe_window)) / (np.shape(ofe_window)[0] * np.shape(ofe_window)[1]))
 
-            ofe_history.append(sum(sum(ofe)) / (nbins[0] * nbins[1]))
-            ofe_history_time.append(HILLS[i,0])
+            ofv_history.append(sum(sum(ofe)) / (np.count_nonzero(ofe)))
+            ofe_history.append(sum(sum(ofe)) / (np.count_nonzero(ofe)))
+            time_history.append(HILLS[i,0])
 
         if (i + 1) % (total_number_of_hills / log_pace) == 0:
-            print("|" + str(i + 1) + "/" + str(total_number_of_hills) + "|==> Average Mean Force Error: " + str(sum(sum(ofe)) / (nbins[0] * nbins[1])))
+            print("|" + str(i + 1) + "/" + str(total_number_of_hills) + "|==> Average Mean Force Error: " + str(sum(sum(ofe)) / (np.count_nonzero(ofe))))
             if len(window_corners) == 4: 
                 print("ofe_window", sum(sum(ofe_window)) / (np.shape(ofe_window)[0] * np.shape(ofe_window)[1]))
 
-    if len(window_corners) == 4: return [X, Y, Ftot_den, Ftot_x, Ftot_y, ofe, ofe_history, ofe_history_window, ofe_history_time, Ftot_den2, ofv_x, ofv_y]
-    else: return [X, Y, Ftot_den, Ftot_x, Ftot_y, ofe, ofe_history, ofe_history_time, Ftot_den2, ofv_x, ofv_y]
+    if len(window_corners) == 4: return [X, Y, Ftot_den, Ftot_x, Ftot_y, ofv, ofe, ofv_history, ofe_history, ofe_history_window, time_history, Ftot_den2, ofv_num_x, ofv_num_y]
+    else: return [X, Y, Ftot_den, Ftot_x, Ftot_y, ofv, ofe, ofv_history, ofe_history, time_history, Ftot_den2, ofv_num_x, ofv_num_y]
 
 
 # @jit
-def mean_force_variance(Ftot_den, Ftot_den2, Ftot_x, Ftot_y, var_x, var_y):
+def mean_force_variance(Ftot_den, Ftot_den2, Ftot_x, Ftot_y, ofv_num_x, ofv_num_y, Ftot_den_limit=10**-10):
     """Calculates the variance of the mean force
 
     Args:
@@ -447,60 +456,68 @@ def mean_force_variance(Ftot_den, Ftot_den2, Ftot_x, Ftot_y, var_x, var_y):
         Ftot_den2 (array of size (nbins[0], nbins[1])):  Cumulative squared biased probability density
         Ftot_x (array of size (nbins[0], nbins[1])): CV1 component of the Mean Force.
         Ftot_y (array of size (nbins[0], nbins[1])): CV2 component of the Mean Force.
-        var_x (array of size (nbins[0], nbins[1])): intermediate component in the calculation of the CV1 "on the fly variance" ( sum of: pb_t * dfds_x ** 2)
-        var_y (array of size (nbins[0], nbins[1])): intermediate component in the calculation of the CV2 "on the fly variance" ( sum of: pb_t * dfds_y ** 2)
+        ofv_num_x (array of size (nbins[0], nbins[1])): intermediate component in the calculation of the CV1 "on the fly variance" ( sum of: pb_t * dfds_x ** 2)
+        ofv_num_y (array of size (nbins[0], nbins[1])): intermediate component in the calculation of the CV2 "on the fly variance" ( sum of: pb_t * dfds_y ** 2)
 
     Returns:
         var (array of size (nbins[0], nbins[1])): modulus of "on the fly variance" 
     """
     # calculate ofe (standard error)
-    Ftot_den_ratio = np.divide(Ftot_den2, (Ftot_den ** 2 - Ftot_den2), out=np.zeros_like(Ftot_den), where=(Ftot_den ** 2 - Ftot_den2) != 0)
-    var_x = np.divide(var_x, Ftot_den, out=np.zeros_like(var_x), where=Ftot_den != 0) - Ftot_x ** 2
-    var_y = np.divide(var_y, Ftot_den, out=np.zeros_like(var_y), where=Ftot_den != 0) - Ftot_y ** 2
-    var_x = var_x * Ftot_den_ratio
-    var_y = var_y * Ftot_den_ratio
-    # var = np.sqrt(abs(var_x) + abs(var_y))
-    var = np.sqrt(var_x**2 + var_y**2)
-    return [var]
+    bessel_corr = np.divide(Ftot_den**2 , (Ftot_den**2-Ftot_den2), out=np.zeros_like(Ftot_den), where=(Ftot_den**2-Ftot_den2) > 0)
+        
+    ofv_x = (np.divide(ofv_num_x , Ftot_den, out=np.zeros_like(Ftot_den), where=Ftot_den > Ftot_den_limit) - Ftot_x**2) * bessel_corr
+    ofe_x = np.sqrt(ofv_x)
+    
+    ofv_y = (np.divide(ofv_num_y , Ftot_den, out=np.zeros_like(Ftot_den), where=Ftot_den > Ftot_den_limit) - Ftot_y**2) * bessel_corr
+    ofe_y = np.sqrt(ofv_y)
+    
+    ofv = np.sqrt(ofv_x**2 + ofv_y**2)
+    ofe = np.sqrt(ofe_x**2 + ofe_y**2)
+    
+    return [ofv, ofe]
 
 
-def patch_to_base_variance(master0, master):
+def patch_to_base_variance(master0, master, Ftot_den_limit = 10**-10):
     """Patches force terms of a base simulation (alaysed prior to current simulation) with current simulation to return patched "on the fly variance".
 
     Args:
-        master0 (list): Force terms of base simulation (alaysed prior to current simulation) [Ftot_den, Ftot_den2, Ftot_x, Ftot_y, ofv_x, ofv_y]
-        master (list): Force terms of current simulation [Ftot_den, Ftot_den2, Ftot_x, Ftot_y, ofv_x, ofv_y]
+        master0 (list): Force terms of base simulation (alaysed prior to current simulation) [Ftot_den, Ftot_den2, Ftot_x, Ftot_y, ofv_num_x, ofv_num_y]
+        master (list): Force terms of current simulation [Ftot_den, Ftot_den2, Ftot_x, Ftot_y, ofv_num_x, ofv_num_y]
+        Ftot_den_limit (int): Truncates the probability density below Ftot_den_limit. Default set to 10**-10.
 
     Returns:
         OFV (array of size (nbins[0], nbins[1])): modulus of patched "on the fly variance" 
     """
 
     #Define names
-    [PD0, PD20, FX0, FY0, OFV_X0, OFV_Y0] = master0
-    [PD, PD2, FX, FY, OFV_X, OFV_Y] = master
+    [PD0, PD20, FX0, FY0, OFV_num_X0, OFV_num_Y0] = master0
+    [PD, PD2, FX, FY, OFV_num_X, OFV_num_Y] = master
 
     #Patch base_terms with current_terms
     PD_patch = PD0 + PD
     PD2_patch = PD20 + PD2
     FX_patch = PD0 * FX0 + PD * FX
     FY_patch = PD0 * FY0 + PD * FY
-    OFV_X_patch = OFV_X0 + OFV_X
-    OFV_Y_patch = OFV_Y0 + OFV_Y
+    OFV_num_X_patch = OFV_num_X0 + OFV_num_X
+    OFV_num_Y_patch = OFV_num_Y0 + OFV_num_Y
 
-    FX_patch = np.divide(FX_patch, PD_patch, out=np.zeros_like(FX_patch), where=PD_patch != 0)
-    FY_patch = np.divide(FY_patch, PD_patch, out=np.zeros_like(FY_patch), where=PD_patch != 0)
-    #Ftot_patch.append([PD_patch, PD2_patch, FX_patch, FY_patch, OFV_X_patch, OFV_Y_patch])
+    FX_patch = np.divide(FX_patch, PD_patch, out=np.zeros_like(FX_patch), where=PD_patch > Ftot_den_limit)
+    FY_patch = np.divide(FY_patch, PD_patch, out=np.zeros_like(FY_patch), where=PD_patch > Ftot_den_limit)
+    #Ftot_patch.append([PD_patch, PD2_patch, FX_patch, FY_patch, OFV_num_X_patch, OFV_num_Y_patch])
 
     #Calculate variance of mean force
-    PD_ratio = np.divide(PD2_patch, (PD_patch ** 2 - PD2_patch), out=np.zeros_like(PD_patch), where=(PD_patch ** 2 - PD2_patch) != 0)
-    OFV_X = np.divide(OFV_X_patch, PD_patch, out=np.zeros_like(OFV_X_patch), where=PD_patch != 0) - FX_patch ** 2
-    OFV_Y = np.divide(OFV_Y_patch, PD_patch, out=np.zeros_like(OFV_Y_patch), where=PD_patch != 0) - FY_patch ** 2
-    OFV_X = OFV_X * PD_ratio
-    OFV_Y = OFV_Y * PD_ratio
-    # OFV = np.sqrt( abs(OFV_X) + abs(OFV_Y))
-    OFV = np.sqrt( OFV_X**2 + OFV_Y**2)
-
-    return [OFV]
+    bessel_corr = np.divide(PD_patch**2 , (PD_patch**2-PD2_patch), out=np.zeros_like(PD_patch), where=(PD_patch**2-PD2_patch) > 0)
+    
+    OFV_X = (np.divide(OFV_num_X_patch, PD_patch, out=np.zeros_like(OFV_num_X_patch), where=PD_patch > Ftot_den_limit) - FX_patch ** 2) * bessel_corr
+    OFE_X = np.sqrt(OFV_X)
+    
+    OFV_Y = (np.divide(OFV_num_Y_patch, PD_patch, out=np.zeros_like(OFV_num_Y_patch), where=PD_patch > Ftot_den_limit) - FY_patch ** 2) * bessel_corr
+    OFE_Y = np.sqrt(OFV_Y)
+    
+    OFV = np.sqrt(OFV_X**2 + OFV_Y**2)
+    OFE = np.sqrt(OFE_X**2 + OFE_Y**2)
+    
+    return [OFV, OFE]
 
 
 ### Integration using Fast Fourier Transform (FFT integration) in 2D
@@ -577,7 +594,153 @@ def intg_2D(FX, FY, min_grid=np.array((-np.pi, -np.pi)), max_grid=np.array((np.p
     return [X, Y, fes]
 
 
-def plot_recap_2D(X, Y, FES, TOTAL_DENSITY, CONVMAP, CONV_history, CONV_history_time, FES_lim=50, ofe_map_lim=40):
+#@jit(nopython=True)
+def intgrad2(fx, fy, nx=0, ny=0, intconst=0, per1 = True, per2 = True, min_grid=np.array((-np.pi, -np.pi)), max_grid=np.array((np.pi, np.pi)), nbins=0):
+    """This function uses the inverse of the gradient to reconstruct the free energy surface from the mean force components.
+    [John D'Errico (2022). Inverse (integrated) gradient (https://www.mathworks.com/matlabcentral/fileexchange/9734-inverse-integrated-gradient), MATLAB Central File Exchange. Retrieved May 17, 2022.]
+    [Translated from MatLab to Python from Francesco Serse (https://github.com/Fserse)]
+
+    Args:
+        fx (array): (ny by nx) array. X-gradient to be integrated.
+        fy (array): (ny by nx) array. X-gradient to be integrated.
+        nx (integer): nuber of datapoints in x-direction. Default to 0: will copy the shape of the input gradient.
+        ny (integer): nuber of datapoints in y-direction. Default to 0: will copy the shape of the input gradient.
+        intconst (float): Minimum value of output FES
+        per1 (boolean): True if x-variable is periodic. False if non-periodic.
+        per2 (boolean): True if y-variable is periodic. False if non-periodic
+        min_grid (list/array of length=2): list/array of minimum value of [x-grid, y-grid]
+        max_grid (list/array of length=2):  list/array of maximum value of [x-grid, y-grid]
+        nbins (list/array of length=2): list/array of number of data pointis of [x-grid, y-grid]. Default to 0: will copy the shape of the input gradient.
+
+    Returns:
+        X (ny by nx array): X-component of meshgrid
+        Y (ny by nx array): Y-component of meshgrid
+        fhat (ny by nx array): integrated free energy surface
+    """
+    
+    if nx == 0: nx = np.shape(fx)[1]    
+    if ny == 0: ny = np.shape(fx)[0]
+    try:
+        if nbins == 0: nbins = np.shape(fx)
+    except: 
+        if len(nbins) == 2: pass
+        else: print("Wrong specification of nbins")
+    
+	
+    gridx = np.linspace(min_grid[0], max_grid[0], nbins[0])
+    gridy = np.linspace(min_grid[1], max_grid[1], nbins[1])
+    dx = abs(gridx[1] - gridx[0])
+    dy = abs(gridy[1] - gridy[0])
+    X, Y = np.meshgrid(gridx, gridy)
+
+    rhs = np.ravel((fx,fy))
+    
+    Af=np.zeros((4*nx*ny,3))
+    
+    n=0
+    #Equations in x
+    for i in range(0,ny):
+    	#Leading edge
+    	Af[2*nx*i][0] = 2*nx*i/2
+     
+    	if(per2):
+    	    Af[2*nx*i][1] = nx*i+(nx-1)
+    	else:
+    		Af[2*nx*i][1] = nx*i
+      
+    	Af[2*nx*i][2] = -0.5/dx
+    
+    	Af[2*nx*i+1][0] = 2*nx*i/2
+    	Af[2*nx*i+1][1] = nx*i+1
+    	Af[2*nx*i+1][2] = 0.5/dx
+    
+    	#Loop over inner space
+    	for j in range(1,nx-1):
+    		Af[2*nx*i+2*j][0] = int((2*nx*i+2*j)/2)
+    		Af[2*nx*i+2*j][1] = nx*i+j
+    		Af[2*nx*i+2*j][2] = -1/dx
+    
+    		Af[2*nx*i+2*j+1][0] = int((2*nx*i+2*j)/2)
+    		Af[2*nx*i+2*j+1][1] = nx*i+j+1
+    		Af[2*nx*i+2*j+1][2] = 1/dx
+    
+    	#Trailing edge
+    	Af[2*nx*(i+1)-2][0] = int((2*nx*(i+1)-2)/2)
+    	Af[2*nx*(i+1)-2][1] = nx*i+(nx-2)
+    	Af[2*nx*(i+1)-2][2] = -0.5/dx
+    
+    	Af[2*nx*(i+1)-1][0] = int((2*nx*(i+1)-2)/2)
+    	if(per2):
+    		Af[2*nx*(i+1)-1][1] = nx*i
+    	else:
+    		Af[2*nx*(i+1)-1][1] = nx*i+(nx-1)
+    	Af[2*nx*(i+1)-1][2] = 0.5/dx
+    
+    
+    n=2*nx*ny
+    
+    #Equations in y
+    #Leading edge
+    for j in range(0,nx):
+    
+    	Af[2*j+n][0] = 2*j/2 + n/2
+    	
+    	if(per1):
+    		Af[2*j+n][1] = (ny-1)*nx+j
+    	else:
+    		Af[2*j+n][1] = j
+    	Af[2*j+n][2] = -0.5/dy
+    
+    	Af[2*j+n+1][0] = 2*j/2 + n/2
+    	Af[2*j+n+1][1] = j+nx
+    	Af[2*j+n+1][2] = 0.5/dy
+    
+    #Loop over inner space
+    for i in range(1,ny-1):
+    	for j in range(0,nx):
+    		
+    		Af[2*nx*i+2*j+n][0] = int((2*nx*i+2*j+n)/2)
+    		Af[2*nx*i+2*j+n][1] = j+(i)*nx
+    		Af[2*nx*i+2*j+n][2] = -1/dy
+    
+    		Af[2*nx*i+2*j+n+1][0] = int((2*nx*i+2*j+n)/2)
+    		Af[2*nx*i+2*j+n+1][1] = j+(i+1)*nx
+    		Af[2*nx*i+2*j+n+1][2] = 1/dy
+    		a=2*nx*i+2*j+n+1
+    n=n+2*(ny-1)*nx
+    
+    #Trailing edge
+    for j in range(0,nx):
+    	Af[2*j+n][0] = int((2*j+n)/2)
+    	Af[2*j+n][1] = (ny-2)*nx+j
+    	Af[2*j+n][2] = -0.5/dy
+    
+    	Af[2*j+n+1][0] = int((2*j+n)/2)
+    	if(per1):
+    		Af[2*j+n+1][1] = j
+    	else:
+    		Af[2*j+n+1][1] = (ny-1)*nx+j
+    	Af[2*j+n+1][2] = 0.5/dy
+    
+    
+    #Boundary conditions
+    Af[0][2]=1
+    Af[1][:]=0
+    rhs[0] = intconst
+    
+    #Solve
+    A=sps.csc_matrix((Af[:,2],(Af[:,0],Af[:,1])),shape=(2*ny*nx,ny*nx))
+    fhat=spsl.lsmr(A,rhs)
+    fhat=fhat[0]
+    fhat = np.reshape(fhat,nbins) 
+    #print(fhat.shape)   
+    fhat = fhat - np.min(fhat)
+
+    return [X, Y, fhat]
+
+
+
+def plot_recap_2D(X, Y, FES, TOTAL_DENSITY, CONVMAP, CONV_history, CONV_history_time, FES_lim=50, ofe_map_lim=50):
     """Plots 1. FES, 2. varinace_map, 3. Cumulative biased probability density, 4. Convergece of variance.
     
     Args:
@@ -593,26 +756,30 @@ def plot_recap_2D(X, Y, FES, TOTAL_DENSITY, CONVMAP, CONV_history, CONV_history_
     fig, axs = plt.subplots(1, 4, figsize=(18, 3))
     cp = axs[0].contourf(X, Y, FES, levels=range(0, FES_lim, 1), cmap='coolwarm', antialiased=False, alpha=0.8);
     cbar = plt.colorbar(cp, ax=axs[0])
-    axs[0].set_ylabel('CV2', fontsize=11)
-    axs[0].set_xlabel('CV1', fontsize=11)
+    cbar.set_label("Free Energy [kJ/mol]")
+    axs[0].set_ylabel('CV2 [nm]', fontsize=11)
+    axs[0].set_xlabel('CV1 [nm]', fontsize=11)
     axs[0].set_title('Free Energy Surface', fontsize=11)
 
-    cp = axs[1].contourf(X, Y, CONVMAP, levels=range(0, ofe_map_lim, 1), cmap='coolwarm', antialiased=False, alpha=0.8);
+    cp = axs[1].contourf(X, Y, zero_to_nan(CONVMAP), levels=range(0, ofe_map_lim, 1), cmap='coolwarm', antialiased=False, alpha=0.8);
     cbar = plt.colorbar(cp, ax=axs[1])
-    axs[1].set_ylabel('CV2', fontsize=11)
-    axs[1].set_xlabel('CV1', fontsize=11)
-    axs[1].set_title('Variance of the Mean Force', fontsize=11)
+    cbar.set_label("Standard Deviation [kJ/(mol*nm)]")
+    axs[1].set_ylabel('CV2 [nm]', fontsize=11)
+    axs[1].set_xlabel('CV1 [nm]', fontsize=11)
+    axs[1].set_title('Standard Deviation of the Mean Force', fontsize=11)
 
-    cp = axs[2].contourf(X, Y, TOTAL_DENSITY, cmap='gray_r', antialiased=False, alpha=0.8);  #, locator=ticker.LogLocator()
+    cp = axs[2].contourf(X, Y, (TOTAL_DENSITY), cmap='gray_r', antialiased=False, alpha=0.8);  #, locator=ticker.LogLocator()
+    # cp = axs[2].contourf(X, Y, zero_to_nan(TOTAL_DENSITY), cmap='coolwarm', antialiased=False, alpha=0.8);  #, locator=ticker.LogLocator()
     cbar = plt.colorbar(cp, ax=axs[2])
-    axs[2].set_ylabel('CV2', fontsize=11)
-    axs[2].set_xlabel('CV1', fontsize=11)
+    cbar.set_label("Relative count [-]")
+    axs[2].set_ylabel('CV2 [nm]', fontsize=11)
+    axs[2].set_xlabel('CV1 [nm]', fontsize=11)
     axs[2].set_title('Total Biased Probability Density', fontsize=11)
 
-    axs[3].plot( CONV_history_time, CONV_history);
-    axs[3].set_ylabel('Average Mean Force Error', fontsize=11)
-    axs[3].set_xlabel('Simulation time [ps]', fontsize=11)
-    axs[3].set_title('Global Convergence', fontsize=11)
+    axs[3].plot( [time/1000 for time in CONV_history_time], CONV_history);
+    axs[3].set_ylabel('Standard Deviation [kJ/(mol*nm)]', fontsize=11)
+    axs[3].set_xlabel('Simulation time [ns]', fontsize=11)
+    axs[3].set_title('Global Convergence of Standard Deviation', fontsize=11)
 
 
 # Patch independent simulations
@@ -703,42 +870,6 @@ def plot_patch_2D(X, Y, FES, TOTAL_DENSITY, lim=50):
     axs[1].set_ylabel('CV2', fontsize=11)
     axs[1].set_xlabel('CV1', fontsize=11)
     axs[1].set_title('Total Biased Probability Density', fontsize=11)
-
-
-# @jit
-# def patch_2D_error(master, nbins=np.array((200, 200))):
-#     Ftot_x = np.zeros(nbins)
-#     Ftot_y = np.zeros(nbins)
-#     Ftot_den = np.zeros(nbins)
-#     Ftot_den2 = np.zeros(nbins)
-#     ofv_x = np.zeros(nbins)
-#     ofv_y = np.zeros(nbins)
-#     var_x = np.zeros(nbins)
-#     var_y = np.zeros(nbins)
-
-#     for i in np.arange(0, len(master)):
-#         Ftot_x += master[i][0] * master[i][2]
-#         Ftot_y += master[i][0] * master[i][3]
-#         Ftot_den += master[i][0]
-#         Ftot_den2 += master[i][1]
-#         ofv_x += master[i][4]
-#         ofv_y += master[i][5]
-#         var_x += master[i][0] * (master[i][2] ** 2)
-#         var_y += master[i][0] * (master[i][3] ** 2)
-
-#     Ftot_x = np.divide(Ftot_x, Ftot_den, out=np.zeros_like(Ftot_x), where=Ftot_den != 0)
-#     Ftot_y = np.divide(Ftot_y, Ftot_den, out=np.zeros_like(Ftot_y), where=Ftot_den != 0)
-
-#     var_x = np.divide(var_x, Ftot_den, out=np.zeros_like(var_x), where=Ftot_den != 0) - (Ftot_x ** 2)
-#     var_y = np.divide(var_y, Ftot_den, out=np.zeros_like(var_y), where=Ftot_den != 0) - (Ftot_y ** 2)
-
-#     ratio = np.divide(Ftot_den2, (Ftot_den ** 2 - Ftot_den2), out=np.zeros_like(var_x), where=(Ftot_den ** 2 - Ftot_den2) != 0)
-#     var_x = var_x * ratio
-#     var_y = var_y * ratio
-
-#     var = np.sqrt(var_x ** 2 + var_y ** 2)
-
-#     return [Ftot_x, Ftot_y, Ftot_den, var]
 
 
 def bootstrap_2D(X, Y, forces_all, n_bootstrap):
@@ -928,123 +1059,125 @@ def load_pkl(name):
     """
     with open(name, "rb") as fr:
         return pickle.load(fr)
+    
+        
+def zero_to_nan(input_array):
+    output_array = np.zeros_like(input_array)
+    for ii in range(len(input_array)):
+        for jj in range(len(input_array[ii])):
+            if input_array[ii][jj] <= 0: output_array[ii][jj] = np.nan
+            else: output_array[ii][jj] = input_array[ii][jj]
+    return output_array
 
 
 
-# #@jit(nopython=True)
-# def intgrad2(fx,fy,nx,ny,dx,dy,intconst,per1,per2,min_grid,max_grid,nbins):
 
-#     '''
-#     This function uses the inverse of the gradient to reconstruct the free energy surface from the mean force components.
-#     [John D'Errico (2022). Inverse (integrated) gradient (https://www.mathworks.com/matlabcentral/fileexchange/9734-inverse-integrated-gradient), MATLAB Central File Exchange. Retrieved May 17, 2022.]
-#     [Translated from MatLab to Python from Francesco Serse (https://github.com/Fserse)]
-#     '''
-	
-#     gridx = np.linspace(min_grid[0], max_grid[0], nbins[0])
-#     gridy = np.linspace(min_grid[1], max_grid[1], nbins[1])
-#     X, Y = np.meshgrid(gridx, gridy)
 
-#     rhs = np.ravel((fx,fy))
-    
-#     Af=np.zeros((4*nx*ny,3))
-    
-#     n=0
-#     #Equations in x
-#     for i in range(0,ny):
-#     	#Leading edge
-#     	Af[2*nx*i][0] = 2*nx*i/2
-     
-#     	if(per2):
-#     	    Af[2*nx*i][1] = nx*i+(nx-1)
-#     	else:
-#     		Af[2*nx*i][1] = nx*i
-      
-#     	Af[2*nx*i][2] = -0.5/dx
-    
-#     	Af[2*nx*i+1][0] = 2*nx*i/2
-#     	Af[2*nx*i+1][1] = nx*i+1
-#     	Af[2*nx*i+1][2] = 0.5/dx
-    
-#     	#Loop over inner space
-#     	for j in range(1,nx-1):
-#     		Af[2*nx*i+2*j][0] = int((2*nx*i+2*j)/2)
-#     		Af[2*nx*i+2*j][1] = nx*i+j
-#     		Af[2*nx*i+2*j][2] = -1/dx
-    
-#     		Af[2*nx*i+2*j+1][0] = int((2*nx*i+2*j)/2)
-#     		Af[2*nx*i+2*j+1][1] = nx*i+j+1
-#     		Af[2*nx*i+2*j+1][2] = 1/dx
-    
-#     	#Trailing edge
-#     	Af[2*nx*(i+1)-2][0] = int((2*nx*(i+1)-2)/2)
-#     	Af[2*nx*(i+1)-2][1] = nx*i+(nx-2)
-#     	Af[2*nx*(i+1)-2][2] = -0.5/dx
-    
-#     	Af[2*nx*(i+1)-1][0] = int((2*nx*(i+1)-2)/2)
-#     	if(per2):
-#     		Af[2*nx*(i+1)-1][1] = nx*i
-#     	else:
-#     		Af[2*nx*(i+1)-1][1] = nx*i+(nx-1)
-#     	Af[2*nx*(i+1)-1][2] = 0.5/dx
-    
-    
-#     n=2*nx*ny
-    
-#     #Equations in y
-#     #Leading edge
-#     for j in range(0,nx):
-    
-#     	Af[2*j+n][0] = 2*j/2 + n/2
-    	
-#     	if(per1):
-#     		Af[2*j+n][1] = (ny-1)*nx+j
-#     	else:
-#     		Af[2*j+n][1] = j
-#     	Af[2*j+n][2] = -0.5/dy
-    
-#     	Af[2*j+n+1][0] = 2*j/2 + n/2
-#     	Af[2*j+n+1][1] = j+nx
-#     	Af[2*j+n+1][2] = 0.5/dy
-    
-#     #Loop over inner space
-#     for i in range(1,ny-1):
-#     	for j in range(0,nx):
-    		
-#     		Af[2*nx*i+2*j+n][0] = int((2*nx*i+2*j+n)/2)
-#     		Af[2*nx*i+2*j+n][1] = j+(i)*nx
-#     		Af[2*nx*i+2*j+n][2] = -1/dy
-    
-#     		Af[2*nx*i+2*j+n+1][0] = int((2*nx*i+2*j+n)/2)
-#     		Af[2*nx*i+2*j+n+1][1] = j+(i+1)*nx
-#     		Af[2*nx*i+2*j+n+1][2] = 1/dy
-#     		a=2*nx*i+2*j+n+1
-#     n=n+2*(ny-1)*nx
-    
-#     #Trailing edge
-#     for j in range(0,nx):
-#     	Af[2*j+n][0] = int((2*j+n)/2)
-#     	Af[2*j+n][1] = (ny-2)*nx+j
-#     	Af[2*j+n][2] = -0.5/dy
-    
-#     	Af[2*j+n+1][0] = int((2*j+n)/2)
-#     	if(per1):
-#     		Af[2*j+n+1][1] = j
-#     	else:
-#     		Af[2*j+n+1][1] = (ny-1)*nx+j
-#     	Af[2*j+n+1][2] = 0.5/dy
-    
-    
-#     #Boundary conditions
-#     Af[0][2]=1
-#     Af[1][:]=0
-#     rhs[0] = intconst
-    
-#     #Solve
-#     A=sps.csc_matrix((Af[:,2],(Af[:,0],Af[:,1])),shape=(2*ny*nx,ny*nx))
-#     fhat=spsl.lsmr(A,rhs)
-#     fhat=fhat[0]
-#     fhat = np.reshape(fhat,nbins) 
-#     #print(fhat.shape)   
-#     fhat = fhat - np.min(fhat)
+def intg_FD8(FX,FY, min_grid=np.array((0, 0)), max_grid=np.array((3, 3)), nbins=np.array((201, 201))):
 
-#     return [X, Y, fhat]
+    if nbins[0] != np.shape(FX)[0] or nbins[1] != np.shape(FX)[1]:
+
+        print("this part of the code not ready yet")
+        pass
+
+        # r = np.stack([X_old.ravel(), Y_old.ravel()]).T
+        # Sx = interpolate.CloughTocher2DInterpolator(r, FX.ravel())
+        # Sy = interpolate.CloughTocher2DInterpolator(r, FY.ravel())
+        # Nx, Ny = i_bins
+
+        # x_new = np.linspace(grid.min(), grid.max(), Nx)
+        # y_new = np.linspace(grid.min(), grid.max(), Ny)
+        # X_new, Y_new = np.meshgrid(x_new, y_new)
+
+        # ri = np.stack([X_new.ravel(), Y_new.ravel()]).T
+        # FX = Sx(ri).reshape(X_new.shape)
+        # FY = Sy(ri).reshape(Y_new.shape)
+
+        # grid_diff = np.diff(x_new)[0]
+
+    else:
+        gridx = np.linspace(min_grid[0], max_grid[0], nbins[0])
+        gridy = np.linspace(min_grid[1], max_grid[1], nbins[1])
+        X, Y = np.meshgrid(gridx, gridy) 
+
+
+    SdZx = np.cumsum(FX, axis=1) * np.diff(gridx)[0]  # cumulative sum along x-axis
+    SdZy = np.cumsum(FY, axis=0) * np.diff(gridy)[0]  # cumulative sum along y-axis
+    SdZx3 = np.cumsum(FX[::-1], axis=1) * np.diff(gridx)[0]  # cumulative sum along x-axis
+    SdZy3 = np.cumsum(FY[::-1], axis=0) * np.diff(gridy)[0]  # cumulative sum along y-axis
+    SdZx5 = np.cumsum(FX[:, ::-1], axis=1) * np.diff(gridx)[0]  # cumulative sum along x-axis
+    SdZy5 = np.cumsum(FY[:, ::-1], axis=0) * np.diff(gridy)[0]  # cumulative sum along y-axis
+    SdZx7 = np.cumsum(FX[::-1, ::-1], axis=1) * np.diff(gridx)[0]  # cumulative sum along x-axis
+    SdZy7 = np.cumsum(FY[::-1, ::-1], axis=0) * np.diff(gridy)[0]  # cumulative sum along y-axis
+
+
+    FES = np.zeros(nbins)
+    FES2 = np.zeros(nbins)
+    FES3 = np.zeros(nbins)
+    FES4 = np.zeros(nbins)
+    FES5 = np.zeros(nbins)
+    FES6 = np.zeros(nbins)
+    FES7 = np.zeros(nbins)
+    FES8 = np.zeros(nbins)
+
+    for i in range(FES.shape[0]):
+        for j in range(FES.shape[1]):
+            FES[i, j]  += np.sum([SdZy[i, 0], -SdZy[0, 0], SdZx[i, j], -SdZx[i, 0]])
+            FES2[i, j] += np.sum([SdZx[0, j], -SdZx[0, 0], SdZy[i, j], -SdZy[0, j]])
+            FES3[i, j] += np.sum([-SdZy3[i, 0], SdZy3[0, 0], SdZx3[i, j], -SdZx3[i, 0]])
+            FES4[i, j] += np.sum([SdZx3[0, j], -SdZx3[0, 0], -SdZy3[i, j], SdZy3[0, j]])
+            FES5[i, j] += np.sum([SdZy5[i, 0], -SdZy5[0, 0], -SdZx5[i, j], SdZx5[i, 0]])
+            FES6[i, j] += np.sum([-SdZx5[0, j], SdZx5[0, 0], SdZy5[i, j], -SdZy5[0, j]])
+            FES7[i, j] += np.sum([-SdZy7[i, 0], SdZy7[0, 0], -SdZx7[i, j], SdZx7[i, 0]])
+            FES8[i, j] += np.sum([-SdZx7[0, j], SdZx7[0, 0], -SdZy7[i, j], SdZy7[0, j]])
+
+    FES = FES - np.min(FES)
+    FES2 = FES2 - np.min(FES2)
+    FES3 = FES3[::-1] - np.min(FES3)
+    FES4 = FES4[::-1] - np.min(FES4)
+    FES5 = FES5[:,::-1] - np.min(FES5)
+    FES6 = FES6[:,::-1] - np.min(FES6)
+    FES7 = FES7[::-1,::-1] - np.min(FES7)
+    FES8 = FES8[::-1,::-1] - np.min(FES8)
+    FES_a = (FES + FES2 + FES3 + FES4 + FES5 + FES6 + FES7 + FES8) / 8
+    FES_a = FES_a - np.min(FES_a)
+
+    return [X, Y, FES_a]
+    
+    
+
+
+# @jit
+# def patch_2D_error(master, nbins=np.array((200, 200))):
+#     Ftot_x = np.zeros(nbins)
+#     Ftot_y = np.zeros(nbins)
+#     Ftot_den = np.zeros(nbins)
+#     Ftot_den2 = np.zeros(nbins)
+#     ofv_x = np.zeros(nbins)
+#     ofv_y = np.zeros(nbins)
+#     var_x = np.zeros(nbins)
+#     var_y = np.zeros(nbins)
+
+#     for i in np.arange(0, len(master)):
+#         Ftot_x += master[i][0] * master[i][2]
+#         Ftot_y += master[i][0] * master[i][3]
+#         Ftot_den += master[i][0]
+#         Ftot_den2 += master[i][1]
+#         ofv_x += master[i][4]
+#         ofv_y += master[i][5]
+#         var_x += master[i][0] * (master[i][2] ** 2)
+#         var_y += master[i][0] * (master[i][3] ** 2)
+
+#     Ftot_x = np.divide(Ftot_x, Ftot_den, out=np.zeros_like(Ftot_x), where=Ftot_den != 0)
+#     Ftot_y = np.divide(Ftot_y, Ftot_den, out=np.zeros_like(Ftot_y), where=Ftot_den != 0)
+
+#     var_x = np.divide(var_x, Ftot_den, out=np.zeros_like(var_x), where=Ftot_den != 0) - (Ftot_x ** 2)
+#     var_y = np.divide(var_y, Ftot_den, out=np.zeros_like(var_y), where=Ftot_den != 0) - (Ftot_y ** 2)
+
+#     ratio = np.divide(Ftot_den2, (Ftot_den ** 2 - Ftot_den2), out=np.zeros_like(var_x), where=(Ftot_den ** 2 - Ftot_den2) != 0)
+#     var_x = var_x * ratio
+#     var_y = var_y * ratio
+
+#     var = np.sqrt(var_x ** 2 + var_y ** 2)
+
+#     return [Ftot_x, Ftot_y, Ftot_den, var]

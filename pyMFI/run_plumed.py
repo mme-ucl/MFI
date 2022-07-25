@@ -299,9 +299,9 @@ def find_alanine_dipeptide_input(initial_position_x=0.0, initial_position_y=0.0,
 def run_alanine_dipeptide(simulation_steps, temperature=2.49,
                    grid_min_x="-pi", grid_max_x="pi", grid_min_y="-pi", grid_max_y="pi", grid_bin_x=201, grid_bin_y=201,
                    gaus_width_x=0.1, gaus_width_y=0.1, gaus_height=1, biasfactor=10, gaus_pace=100, position_pace=0, 
-                   hp_center_x=0.0, hp_center_y=0.0, hp_kappa_x=0, hp_kappa_y=0,
-                   lw_center_x=0.0, lw_center_y=0.0, lw_kappa_x=0, lw_kappa_y=0,
-                   uw_center_x=0.0, uw_center_y=0.0, uw_kappa_x=0, uw_kappa_y=0,
+                   hp_centre_x=0.0, hp_centre_y=0.0, hp_kappa_x=0, hp_kappa_y=0,
+                   lw_centre_x=0.0, lw_centre_y=0.0, lw_kappa_x=0, lw_kappa_y=0,
+                   uw_centre_x=0.0, uw_centre_y=0.0, uw_kappa_x=0, uw_kappa_y=0,
                    print_bias = 0, file_extension=""):
     """Function to run molecular simulation on alanine dipeptide. Requires a reference.pdb and input.tpr file.
 
@@ -390,7 +390,7 @@ TEMP={} FILE=HILLS{}\n".format(gaus_width_x, gaus_width_y, gaus_height, biasfact
 
 
 
-def run_langevin1D_plumed_fes(length, sigma=0.1, height=0.1, biasfactor=10, fes_stride = 0, grid_min = -3, grid_max = 3, grid_bin = 301):
+def run_langevin1D_plumed_fes(length, initial_position=-1.0, sigma=0.1, height=0.1, biasfactor=10, fes_stride = 0, grid_min = -3, grid_max = 3, grid_bin = 301):
     """Function to run a langevin simulation in 1 dimension on analytical potential: y = 7*x^4-23*x^2, while also calculating the FES through plumed.
 
     Args:
@@ -427,8 +427,8 @@ tstep 0.005
 friction 1
 dimension 1
 nstep {}
-ipos -1.0
-periodic false""".format(length),file=f)
+ipos {}
+periodic false""".format(length, initial_position),file=f)
 
     #Start WT-Metadynamic simulation
     print("Running simulation")
