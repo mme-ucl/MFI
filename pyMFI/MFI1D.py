@@ -81,11 +81,11 @@ def find_periodic_point(x_coord, min_grid, max_grid, periodic):
         return [x_coord]
 
 
-def find_hp_force(hp_center, hp_kappa, grid, min_grid, max_grid, grid_space, periodic):
+def find_hp_force(hp_centre, hp_kappa, grid, min_grid, max_grid, grid_space, periodic):
     """Find 1D harmonic potential force. 
 
     Args:
-        hp_center (float): position of harmonic potential
+        hp_centre (float): position of harmonic potential
         hp_kappa (float): force_constant of harmonic potential
         grid (array): CV grid positions
         min_grid (float): minimum value of grid
@@ -96,24 +96,24 @@ def find_hp_force(hp_center, hp_kappa, grid, min_grid, max_grid, grid_space, per
     Returns:
         array: harmonic force array
     """
-    F_harmonic = hp_kappa * (grid - hp_center)
+    F_harmonic = hp_kappa * (grid - hp_centre)
     if periodic == 1:
         grid_length = max_grid - min_grid
         grid_centre = min_grid + grid_length/2
-        if hp_center < grid_centre:
-            index_period = index(hp_center + grid_length / 2, min_grid, grid_space)
-            F_harmonic[index_period:] = hp_kappa * (grid[index_period:] - hp_center - grid_length)
-        elif hp_center > grid_centre:
-            index_period = index(hp_center - grid_length / 2, min_grid, grid_space)
-            F_harmonic[:index_period] = hp_kappa * (grid[:index_period] - hp_center + grid_length)
+        if hp_centre < grid_centre:
+            index_period = index(hp_centre + grid_length / 2, min_grid, grid_space)
+            F_harmonic[index_period:] = hp_kappa * (grid[index_period:] - hp_centre - grid_length)
+        elif hp_centre > grid_centre:
+            index_period = index(hp_centre - grid_length / 2, min_grid, grid_space)
+            F_harmonic[:index_period] = hp_kappa * (grid[:index_period] - hp_centre + grid_length)
 
     return F_harmonic
 
-def find_lw_force(lw_center, lw_kappa, grid, min_grid, max_grid, grid_space, periodic):
+def find_lw_force(lw_centre, lw_kappa, grid, min_grid, max_grid, grid_space, periodic):
     """_summary_
 
     Args:
-        lw_center (float): position of lower wall potential
+        lw_centre (float): position of lower wall potential
         lw_kappa (float): force_constant of lower wall potential
         grid (array): CV grid positions
         min_grid (float): minimum value of grid
@@ -124,24 +124,24 @@ def find_lw_force(lw_center, lw_kappa, grid, min_grid, max_grid, grid_space, per
     Returns:
        array: lower wall force array
     """
-    F_harmonic = np.where(grid < lw_center, 2 * lw_kappa * (grid - lw_center), 0)
+    F_harmonic = np.where(grid < lw_centre, 2 * lw_kappa * (grid - lw_centre), 0)
     if periodic == 1:
         grid_length = max_grid - min_grid
         grid_centre = min_grid + grid_length/2
-        if lw_center < grid_centre:
-            index_period = index(lw_center + grid_length / 2, min_grid, grid_space)
-            F_harmonic[index_period:] = 2 * lw_kappa * (grid[index_period:] - lw_center - grid_length)
-        elif lw_center > grid_centre:
-            index_period = index(lw_center - grid_length / 2, min_grid, grid_space)
+        if lw_centre < grid_centre:
+            index_period = index(lw_centre + grid_length / 2, min_grid, grid_space)
+            F_harmonic[index_period:] = 2 * lw_kappa * (grid[index_period:] - lw_centre - grid_length)
+        elif lw_centre > grid_centre:
+            index_period = index(lw_centre - grid_length / 2, min_grid, grid_space)
             F_harmonic[:index_period] = 0
 
     return F_harmonic
 
-def find_uw_force(uw_center, uw_kappa, grid, min_grid, max_grid, grid_space, periodic):
+def find_uw_force(uw_centre, uw_kappa, grid, min_grid, max_grid, grid_space, periodic):
     """_summary_
 
     Args:
-        uw_center (float): position of upper wall potential
+        uw_centre (float): position of upper wall potential
         uw_kappa (float): force_constant of upper wall potential
         grid (_type_): CV grid positions
         min_grid (float): minimum value of grid
@@ -152,25 +152,25 @@ def find_uw_force(uw_center, uw_kappa, grid, min_grid, max_grid, grid_space, per
     Returns:
         array: upper wall force array
     """
-    F_harmonic = np.where(grid > uw_center, uw_kappa * (grid - uw_center), 0)
+    F_harmonic = np.where(grid > uw_centre, uw_kappa * (grid - uw_centre), 0)
     if periodic == 1:
         grid_length = max_grid - min_grid
         grid_centre = min_grid + grid_length/2
-        if uw_center < grid_centre:
-            index_period = index(uw_center + grid_length / 2, min_grid, grid_space)
+        if uw_centre < grid_centre:
+            index_period = index(uw_centre + grid_length / 2, min_grid, grid_space)
             F_harmonic[index_period:] = 0
-        elif uw_center > grid_centre:
-            index_period = index(uw_center - grid_length / 2, min_grid, grid_space)
-            F_harmonic[:index_period] = 2 * uw_kappa * (grid[:index_period] - uw_center + grid_length)
+        elif uw_centre > grid_centre:
+            index_period = index(uw_centre - grid_length / 2, min_grid, grid_space)
+            F_harmonic[:index_period] = 2 * uw_kappa * (grid[:index_period] - uw_centre + grid_length)
     
     return F_harmonic
-
-
+    
+    
 ### Algorithm to run 1D MFI
 # Run MFI algorithm with on the fly error calculation
 def MFI_1D(HILLS="HILLS", position="position", bw=1, kT=1, min_grid=-2, max_grid=2, nbins=201, log_pace=10,
-           error_pace=200, WellTempered=1, nhills=-1, periodic=0, hp_center=0.0, hp_kappa=0, lw_center=0.0, lw_kappa=0,
-           uw_center=0.0, uw_kappa=0, intermediate_fes_number = 0):
+           error_pace=200, WellTempered=1, nhills=-1, periodic=0, hp_centre=0.0, hp_kappa=0, lw_centre=0.0, lw_kappa=0,
+           uw_centre=0.0, uw_kappa=0, intermediate_fes_number = 0, truncation_limit = 10**-5, FES_cutoff = 0):
     """Compute a time-independent estimate of the Mean Thermodynamic Force, i.e. the free energy gradient in 1D CV spaces.
 
     Args:
@@ -182,15 +182,16 @@ def MFI_1D(HILLS="HILLS", position="position", bw=1, kT=1, min_grid=-2, max_grid
         max_grid (int, optional): Upper bound of the force domain. Defaults to 2.
         nbins (int, optional): number of bins in grid. Defaults to 101.
         log_pace (int, optional): Pace for outputting progress and convergence. Defaults to 10.
-        error_pace (int, optional): Pace for the calculation of the on-the-fly measure of global convergence. Defaults to 200.
+        error_pace (int, optional): Pace for the cutoffcalculation of the on-the-fly measure of global convergence. Defaults to 200.
         WellTempered (binary, optional): Is the simulation well tempered?. Defaults to 1.
         periodic (int, optional): Is the CV space periodic? 1 for yes. Defaults to 0.
-        hp_center (float, optional): position of harmonic potential. Defaults to 0.0.
+        hp_centre (float, optional): position of harmonic potential. Defaults to 0.0.
         hp_kappa (int, optional): force_constant of harmonic potential. Defaults to 0.
-        lw_center (float, optional): position of lower wall potential. Defaults to 0.0.
+        lw_centre (float, optional): position of lower wall potential. Defaults to 0.0.
         lw_kappa (int, optional): force_constant of lower wall potential. Defaults to 0.
-        uw_center (float, optional): position of upper wall potential. Defaults to 0.0.
+        uw_centre (float, optional): position of upper wall potential. Defaults to 0.0.
         uw_kappa (int, optional): force_constant of upper wall potential. Defaults to 0.
+        FES_cutoff (float, optional): Cutoff applied to FES and error calculation for FES values over the FES_cutoff. Defaults to 0. When FES_cutoff = 0, no cufoff is applied.
 
     Returns:
         grid (array of size (1, nbins)): CV-array
@@ -219,9 +220,9 @@ def MFI_1D(HILLS="HILLS", position="position", bw=1, kT=1, min_grid=-2, max_grid
 
     #Calculate static force (form harmonic or wall potential)
     F_static = np.zeros(nbins)
-    if hp_kappa > 0: F_static += find_hp_force(hp_center, hp_kappa, grid, min_grid, max_grid, grid_space, periodic)
-    if lw_kappa > 0: F_static += find_lw_force(lw_center, lw_kappa, grid, periodic)
-    if uw_kappa > 0: F_static += find_uw_force(uw_center, uw_kappa, grid, periodic)
+    if hp_kappa > 0: F_static += find_hp_force(hp_centre, hp_kappa, grid, min_grid, max_grid, grid_space, periodic)
+    if lw_kappa > 0: F_static += find_lw_force(lw_centre, lw_kappa, grid, periodic)
+    if uw_kappa > 0: F_static += find_uw_force(uw_centre, uw_kappa, grid, periodic)
     
     if intermediate_fes_number > 1: 
         intermediate_fes_list = [] 
@@ -238,10 +239,10 @@ def MFI_1D(HILLS="HILLS", position="position", bw=1, kT=1, min_grid=-2, max_grid
     
     for i in range(total_number_of_hills):
         
-        Ftot_den_limit = (i+1)*stride * 10**-5  # truncates the Total probability density. Can be set to 0 when probability density of window is truncated
+        Ftot_den_limit = (i+1)*stride * truncation_limit  # truncates the Total probability density. Can be set to 0 when probability density of window is truncated
         
         # Build metadynamics potential
-        s = HILLS[i, 1]  # center position of Gaussian
+        s = HILLS[i, 1]  # centre position of Gaussian
         sigma_meta2 = HILLS[i, 2] ** 2  # width of Gaussian
         height_meta = HILLS[i, 3] * Gamma_Factor  # Height of Gaussian
         
@@ -261,11 +262,11 @@ def MFI_1D(HILLS="HILLS", position="position", bw=1, kT=1, min_grid=-2, max_grid
                 pb_t = pb_t + kernel # probability density of window
                 Fpbt = Fpbt + kT * kernel * (grid - periodic_images[k]) / bw2
 
-        pb_t = np.where(pb_t > 10**-5 * stride, pb_t, 0)  # truncated probability density of window
+        pb_t = np.where(pb_t > truncation_limit * stride, pb_t, 0)  # truncated probability density of window
 
         # Estimate of the Mean Force and error  for terms
         Ftot_den = Ftot_den + pb_t  # total probability density             
-        dfds = np.divide(Fpbt, pb_t, out=np.zeros_like(Fpbt), where=pb_t > 10**-5) + Fbias - F_static
+        dfds = np.divide(Fpbt, pb_t, out=np.zeros_like(Fpbt), where=pb_t > truncation_limit) + Fbias - F_static
         Ftot_num = Ftot_num + pb_t * dfds
         Ftot = np.divide(Ftot_num, Ftot_den, out=np.zeros_like(Ftot_num), where=Ftot_den > Ftot_den_limit)  # total force
 
@@ -274,9 +275,17 @@ def MFI_1D(HILLS="HILLS", position="position", bw=1, kT=1, min_grid=-2, max_grid
         ofv_num = ofv_num + pb_t * (dfds ** 2)  # sum of (weighted mean force of window)^2
 
         # Calculate error
-        if (i + 1) % int(total_number_of_hills / error_pace) == 0:
+        if (i + 1) % int(total_number_of_hills / error_pace) == 0 or (i+1) == total_number_of_hills:
+            
+            if FES_cutoff > 0:
+                FES = intg_1D(grid, Ftot)
+                cutoff = np.where(FES < FES_cutoff, 1, 0)
+            else: 
+                cutoff = np.ones_like(Ftot)
+                if (i+1) == total_number_of_hills: FES = intg_1D(grid, Ftot)
+            
             ofv = np.divide(ofv_num , Ftot_den, out=np.zeros_like(Ftot_den), where=Ftot_den > Ftot_den_limit) - Ftot**2
-            ofv = ofv * np.divide(Ftot_den**2 , (Ftot_den**2-Ftot_den2), out=np.zeros_like(Ftot_den), where=(Ftot_den**2-Ftot_den2) > 0)
+            ofv = ofv * np.divide(Ftot_den**2 , (Ftot_den**2-Ftot_den2), out=np.zeros_like(Ftot_den), where=(Ftot_den**2-Ftot_den2) > 0) * cutoff
             ofe = np.sqrt(ofv)
                                     
             ofv_history.append(sum(ofv) / np.count_nonzero(ofv))
@@ -288,12 +297,11 @@ def MFI_1D(HILLS="HILLS", position="position", bw=1, kT=1, min_grid=-2, max_grid
         #Calculate intermediate fes
         if intermediate_fes_number > 1:
             if (i+1) % (total_number_of_hills/intermediate_fes_number) == 0:
-                # intermediate_fes_list.append(intg_1D(grid, Ftot))
-                intermediate_fes_list.append(Ftot)
+                intermediate_fes_list.append(intg_1D(grid, Ftot))
                 intermediate_time_list.append(HILLS[i,0])
 
-    if intermediate_fes_number > 1: return [grid, Ftot_den, Ftot, ofv, ofe, ofv_history, ofe_history, time_history, intermediate_fes_list, intermediate_time_list]
-    else: return [grid, Ftot_den, Ftot, ofv, ofe, ofv_history, ofe_history, time_history]
+    if intermediate_fes_number > 1: return [grid, Ftot_den, Ftot, FES, ofv, ofe, cutoff, ofv_history, ofe_history, time_history, intermediate_fes_list, intermediate_time_list]
+    else: return [grid, Ftot_den, Ftot, FES, ofv, ofe, cutoff, ofv_history, ofe_history, time_history]
 
 
 # Integrate Ftot, obtain FES
@@ -357,6 +365,7 @@ def plot_recap(X, FES, Ftot_den, ofe, ofe_history, time_history, FES_lim=40, ofe
     axs[1, 0].set_xlabel('CV1 [nm]')
     axs[1, 0].set_title('Total Probability density')
     axs[1, 0].set_xlim(-2,2)
+    # axs[1, 0].set_yscale('log')
 
 
     axs[1, 1].plot([time/1000 for time in time_history], ofe_history);
@@ -367,8 +376,7 @@ def plot_recap(X, FES, Ftot_den, ofe, ofe_history, time_history, FES_lim=40, ofe
     if error_log_scale == 1: axs[1, 1].set_yscale('log')
     # axs[1, 1].set_ylim([-0.5, max(ofe_history)])
 
-    fig.tight_layout()
-
+    fig.tight_layout()    
 
 
 # def patch_to_base_error(master0, master, return_terms=False):
@@ -560,3 +568,11 @@ def load_pkl(name):
     """
     with open(name, "rb") as fr:
         return pickle.load(fr)
+
+
+def zero_to_nan(input_array):
+    output_array = np.zeros_like(input_array)
+    for ii in range(len(input_array)):
+        if input_array[ii] == 0: output_array[ii] = np.nan
+        else: output_array[ii] = input_array[ii]
+    return output_array

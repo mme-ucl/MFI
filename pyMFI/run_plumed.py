@@ -9,9 +9,9 @@ def run_langevin1D(simulation_steps,
                    initial_position=0.0, temperature=1, time_step=0.005,
                    grid_min=-3.0, grid_max=3.0, grid_bin=200,
                    gaus_width=0.1, gaus_height=1, biasfactor=10, gaus_pace=100, position_pace=0,
-                   hp_center=0.0, hp_kappa=0,
-                   lw_center=0.0, lw_kappa=0,
-                   uw_center=0.0, uw_kappa=0):
+                   hp_centre=0.0, hp_kappa=0,
+                   lw_centre=0.0, lw_kappa=0,
+                   uw_centre=0.0, uw_kappa=0):
     """Function to run a langevin simulation in 1 dimension. Default analytical potential: y = 7*x^4-23*x^2.
 
     Args:
@@ -29,11 +29,11 @@ def run_langevin1D(simulation_steps,
         biasfactor (int, optional): Biasfactor of metadynamics bias. Defaults to 10.
         gaus_pace (int, optional): Pace of deposition of metadynamics hills. Defaults to 100.
         position_pace (int, optional): Pace of recording the CV in the position file. When position_pace=0, position_pace = gaus_pace/10. Defaults to 0.
-        hp_center (float, optional): position of harmonic potential. Defaults to 0.0.
+        hp_centre (float, optional): position of harmonic potential. Defaults to 0.0.
         hp_kappa (int, optional): force_constant of harmonic potential. Defaults to 0.
-        lw_center (float, optional): position of lower wall potential. Defaults to 0.0.
+        lw_centre (float, optional): position of lower wall potential. Defaults to 0.0.
         lw_kappa (int, optional): force_constant of lower wall potential. Defaults to 0.
-        uw_center (float, optional): position of upper wall potential. Defaults to 0.0.
+        uw_centre (float, optional): position of upper wall potential. Defaults to 0.0.
         uw_kappa (int, optional): force_constant of upper wall potential. Defaults to 0.
     """
 
@@ -66,15 +66,15 @@ TEMP={} \n".format(gaus_width, gaus_height, biasfactor, grid_min, grid_max, grid
 
         # Harmonic potential bias. To activate, the force constant (kappa) needs to be a positive number
         if hp_kappa > 0:
-            f.write("RESTRAINT ARG=p.x AT={} KAPPA={} LABEL=restraint \n".format(hp_center, hp_kappa))
+            f.write("RESTRAINT ARG=p.x AT={} KAPPA={} LABEL=restraint \n".format(hp_centre, hp_kappa))
 
         # Lower wall bias. To activate, the force constant (kappa) needs to be a positive number
         if lw_kappa > 0:
-            f.write("LOWER_WALLS ARG=p.x AT={} KAPPA={} LABEL=lowerwall \n".format(lw_center, lw_kappa))
+            f.write("LOWER_WALLS ARG=p.x AT={} KAPPA={} LABEL=lowerwall \n".format(lw_centre, lw_kappa))
 
         # Upper wall bias. To activate, the force constant (kappa) needs to be a positive number
         if uw_kappa > 0:
-            f.write("UPPER_WALLS ARG=p.x AT={} KAPPA={} LABEL=upperwall \n".format(uw_center, uw_kappa))
+            f.write("UPPER_WALLS ARG=p.x AT={} KAPPA={} LABEL=upperwall \n".format(uw_centre, uw_kappa))
 
         # Print position of system. If position_pace = 0, it will be position_pace = gaus_pace/10
         if position_pace == 0: position_pace = int(gaus_pace / 10)
@@ -89,9 +89,9 @@ def run_langevin2D(simulation_steps,
                    grid_min_x=-3.0, grid_max_x=3.0, grid_min_y=-3.0, grid_max_y=3.0, grid_bin_x=200,
                    grid_bin_y=200,
                    gaus_width_x=0.1, gaus_width_y=0.1, gaus_height=1, biasfactor=10, gaus_pace=100,
-                   hp_center_x=0.0, hp_center_y=0.0, hp_kappa_x=0, hp_kappa_y=0,
-                   lw_center_x=0.0, lw_center_y=0.0, lw_kappa_x=0, lw_kappa_y=0,
-                   uw_center_x=0.0, uw_center_y=0.0, uw_kappa_x=0, uw_kappa_y=0,
+                   hp_centre_x=0.0, hp_centre_y=0.0, hp_kappa_x=0, hp_kappa_y=0,
+                   lw_centre_x=0.0, lw_centre_y=0.0, lw_kappa_x=0, lw_kappa_y=0,
+                   uw_centre_x=0.0, uw_centre_y=0.0, uw_kappa_x=0, uw_kappa_y=0,
                    position_pace=0, file_extension=""):
     """Function to run a langevin simulation in 2 dimension. Default analytical potential: z = 7*x^4-23*x^2+7*y^4-23*y^2.
 
@@ -154,15 +154,15 @@ TEMP={} FILE=HILLS{}\n".format(gaus_width_x, gaus_width_y, gaus_height, biasfact
         # Harmonic potential bias. To activate, the force constant (kappa) needs to be a positive number
         if hp_kappa_x > 0 or hp_kappa_y > 0:
             f.write(
-                "RESTRAINT ARG=p.x,p.y AT={},{} KAPPA={},{} LABEL=restraint \n".format(hp_center_x, hp_center_y, hp_kappa_x, hp_kappa_y))
+                "RESTRAINT ARG=p.x,p.y AT={},{} KAPPA={},{} LABEL=restraint \n".format(hp_centre_x, hp_centre_y, hp_kappa_x, hp_kappa_y))
 
         # Lower wall bias. To activate, the force constant (kappa) needs to be a positive number
         if lw_kappa_x > 0 or lw_kappa_y > 0:
-            f.write("LOWER_WALLS ARG=p.x,p.y AT={},{} KAPPA={},{} LABEL=lowerwall \n".format(lw_center_x, lw_center_y, lw_kappa_x,lw_kappa_y))
+            f.write("LOWER_WALLS ARG=p.x,p.y AT={},{} KAPPA={},{} LABEL=lowerwall \n".format(lw_centre_x, lw_centre_y, lw_kappa_x,lw_kappa_y))
 
         # Upper wall bias. To activate, the force constant (kappa) needs to be a positive number
         if uw_kappa_x > 0 or uw_kappa_y > 0:
-            f.write("UPPER_WALLS ARG=p.x,p.y AT={},{} KAPPA={},{} LABEL=upperwall \n".format(uw_center_x, uw_center_y, uw_kappa_x, uw_kappa_y))
+            f.write("UPPER_WALLS ARG=p.x,p.y AT={},{} KAPPA={},{} LABEL=upperwall \n".format(uw_centre_x, uw_centre_y, uw_kappa_x, uw_kappa_y))
 
         # Print position of system. If position_pace = 0, it will be position_pace = gaus_pace/10
         if position_pace == 0: position_pace = int(gaus_pace / 10)
@@ -181,9 +181,9 @@ TEMP={} FILE=HILLS{}\n".format(gaus_width_x, gaus_width_y, gaus_height, biasfact
 
 
 def run_2D_Invernizzi(simulation_steps=100000, sigma=0.1, height=0.5, biasfactor=10, initial_position_x=0.0, initial_position_y=0.0,
-                   hp_center_x=0.0, hp_center_y=0.0, hp_kappa_x=0, hp_kappa_y=0,
-                   lw_center_x=0.0, lw_center_y=0.0, lw_kappa_x=0, lw_kappa_y=0,
-                   uw_center_x=0.0, uw_center_y=0.0, uw_kappa_x=0, uw_kappa_y=0,
+                   hp_centre_x=0.0, hp_centre_y=0.0, hp_kappa_x=0, hp_kappa_y=0,
+                   lw_centre_x=0.0, lw_centre_y=0.0, lw_kappa_x=0, lw_kappa_y=0,
+                   uw_centre_x=0.0, uw_centre_y=0.0, uw_kappa_x=0, uw_kappa_y=0,
                    gaus_pace=200, position_pace=0, file_extension=""):
     """Function to run a langevin simulation (in 2D) on the Invernizzi potential. Analytical form is approx.: 1.35*x^4+1.90*x^3*y+3.93*x^2*y^2-6.44*x^2-1.90*x*y^3+5.59*x*y+1.33*x+1.35*y^4-5.56*y^2+0.90*y+18.56.
 
@@ -220,15 +220,15 @@ METAD ARG=p.x,p.y PACE={} SIGMA={},{} HEIGHT={} GRID_MIN=-3,-3 GRID_MAX=3,3 GRID
         # Harmonic potential bias. To activate, the force constant (kappa) needs to be a positive number
         if hp_kappa_x > 0 or hp_kappa_y > 0:
             f.write(
-                "RESTRAINT ARG=p.x,p.y AT={},{} KAPPA={},{} LABEL=restraint \n".format(hp_center_x, hp_center_y, hp_kappa_x, hp_kappa_y))
+                "RESTRAINT ARG=p.x,p.y AT={},{} KAPPA={},{} LABEL=restraint \n".format(hp_centre_x, hp_centre_y, hp_kappa_x, hp_kappa_y))
 
         # Lower wall bias. To activate, the force constant (kappa) needs to be a positive number
         if lw_kappa_x > 0 or lw_kappa_y > 0:
-            f.write("LOWER_WALLS ARG=p.x,p.y AT={},{} KAPPA={},{} LABEL=lowerwall \n".format(lw_center_x, lw_center_y, lw_kappa_x,lw_kappa_y))
+            f.write("LOWER_WALLS ARG=p.x,p.y AT={},{} KAPPA={},{} LABEL=lowerwall \n".format(lw_centre_x, lw_centre_y, lw_kappa_x,lw_kappa_y))
 
         # Upper wall bias. To activate, the force constant (kappa) needs to be a positive number
         if uw_kappa_x > 0 or uw_kappa_y > 0:
-            f.write("UPPER_WALLS ARG=p.x,p.y AT={},{} KAPPA={},{} LABEL=upperwall \n".format(uw_center_x, uw_center_y, uw_kappa_x, uw_kappa_y))
+            f.write("UPPER_WALLS ARG=p.x,p.y AT={},{} KAPPA={},{} LABEL=upperwall \n".format(uw_centre_x, uw_centre_y, uw_kappa_x, uw_kappa_y))
 
         # Print position of system. If position_pace = 0, it will be position_pace = gaus_pace/10
         if position_pace == 0: position_pace = int(gaus_pace / 10)
@@ -251,7 +251,7 @@ periodic false""".format(simulation_steps,initial_position_x,initial_position_y)
 # path = "/home/antoniu/Desktop/Public_Notebooks/"
 # os.chdir(path + "test")
 # 
-# run_langevin2D(100000, lw_center_x=1.5, lw_center_y=1.0, lw_kappa_x=30, lw_kappa_y=50, uw_center_x=2.0, uw_center_y=2.5, uw_kappa_x=70, uw_kappa_y=90)
+# run_langevin2D(100000, lw_centre_x=1.5, lw_centre_y=1.0, lw_kappa_x=30, lw_kappa_y=50, uw_centre_x=2.0, uw_centre_y=2.5, uw_kappa_x=70, uw_kappa_y=90)
 
 
 
@@ -302,7 +302,7 @@ def run_alanine_dipeptide(simulation_steps, temperature=2.49,
                    hp_centre_x=0.0, hp_centre_y=0.0, hp_kappa_x=0, hp_kappa_y=0,
                    lw_centre_x=0.0, lw_centre_y=0.0, lw_kappa_x=0, lw_kappa_y=0,
                    uw_centre_x=0.0, uw_centre_y=0.0, uw_kappa_x=0, uw_kappa_y=0,
-                   print_bias = 0, file_extension=""):
+                   print_bias = 0, file_extension=""):    
     """Function to run molecular simulation on alanine dipeptide. Requires a reference.pdb and input.tpr file.
 
     Args:
@@ -349,18 +349,18 @@ TEMP={} FILE=HILLS{}\n".format(gaus_width_x, gaus_width_y, gaus_height, biasfact
 
         # Harmonic potential bias. To activate, the force constant (kappa) needs to be a positive number
         if hp_kappa_x > 0 or hp_kappa_y > 0:
-            f.write("RESTRAINT ARG=phi,psi AT={},{} KAPPA={},{} LABEL=restraint \n".format(hp_center_x, hp_center_y, hp_kappa_x, hp_kappa_y))
+            f.write("RESTRAINT ARG=phi,psi AT={},{} KAPPA={},{} LABEL=restraint \n".format(hp_centre_x, hp_centre_y, hp_kappa_x, hp_kappa_y))
             if print_bias == 1:
                 f.write("PRINT FILE=restraint ARG=phi,psi,restraint.bias,restraint.force2 STRIDE=100")
 
 
         # Lower wall bias. To activate, the force constant (kappa) needs to be a positive number
         if lw_kappa_x > 0 or lw_kappa_y > 0:
-            f.write("LOWER_WALLS ARG=phi,psi AT={},{} KAPPA={},{} LABEL=lowerwall \n".format(lw_center_x, lw_center_y, lw_kappa_x,lw_kappa_y))
+            f.write("LOWER_WALLS ARG=phi,psi AT={},{} KAPPA={},{} LABEL=lowerwall \n".format(lw_centre_x, lw_centre_y, lw_kappa_x,lw_kappa_y))
 
         # Upper wall bias. To activate, the force constant (kappa) needs to be a positive number
         if uw_kappa_x > 0 or uw_kappa_y > 0:
-            f.write("UPPER_WALLS ARG=phi,psi AT={},{} KAPPA={},{} LABEL=upperwall \n".format(uw_center_x, uw_center_y, uw_kappa_x, uw_kappa_y))
+            f.write("UPPER_WALLS ARG=phi,psi AT={},{} KAPPA={},{} LABEL=upperwall \n".format(uw_centre_x, uw_centre_y, uw_kappa_x, uw_kappa_y))
 
         # Print position of system. If position_pace = 0, it will be position_pace = gaus_pace/10
         if position_pace == 0: position_pace = int(gaus_pace / 10)

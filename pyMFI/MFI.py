@@ -8,6 +8,7 @@ import random
 from matplotlib import ticker
 import scipy.sparse as sps
 import scipy.sparse.linalg as spsl
+from sympy import O
 
 
 ### Load files ####
@@ -24,7 +25,6 @@ def load_HILLS_2D(hills_name="HILLS"):
         hills = np.concatenate(([hills[0]], hills[:-1]))
         hills[0][5] = 0
     return hills
-
 
 def load_position_2D(position_name="position"):
     """Load 2-dimensional position/trajectory data.
@@ -258,9 +258,9 @@ def find_uw_force(uw_centre_x, uw_centre_y, uw_kappa_x, uw_kappa_y, X , Y, min_g
 
 ### Main Mean Force Integration
 
-def MFI_2D(HILLS="HILLS", position_x="position_x", position_y="position_y", bw=1, kT=1,
+def MFI_2D_FES(HILLS="HILLS", position_x="position_x", position_y="position_y", bw=1, kT=1,
            min_grid=np.array((-np.pi, -np.pi)), max_grid=np.array((np.pi, np.pi)), nbins=np.array((200, 200)),
-           log_pace=10, error_pace=200, base_terms = 0, window_corners=[], WellTempered=1, nhills=-1, periodic=0,
+           log_pace=10, error_pace=200, base_terms = 0, window_corners=[], WellTempered=1, nhills=-1, periodic=0, FES_cutoff = 50, FFT_integration = 0, 
            hp_centre_x=0.0, hp_centre_y=0.0, hp_kappa_x=0, hp_kappa_y=0,
            lw_centre_x=0.0, lw_centre_y=0.0, lw_kappa_x=0, lw_kappa_y=0,
            uw_centre_x=0.0, uw_centre_y=0.0, uw_kappa_x=0, uw_kappa_y=0):
@@ -282,6 +282,7 @@ def MFI_2D(HILLS="HILLS", position_x="position_x", position_y="position_y", bw=1
         WellTempered (binary, optional): Is the simulation well tempered? . Defaults to 1.
         nhills (int, optional): Number of HILLS to analyse, -1 for the entire HILLS array. Defaults to -1, i.e. the entire dataset.
         periodic (int, optional): Is the CV space periodic? 1 for yes. Defaults to 0.
+        FES_cutoff (float, optional): Cutoff applied to FES and error calculation for FES values over the FES_cutoff. Defaults to 0. When FES_cutoff = 0, no cufoff is applied.
         hp_centre_x (float, optional): CV1-position of harmonic potential. Defaults to 0.0.
         hp_centre_y (float, optional): CV2-position of harmonic potential. Defaults to 0.0.
         hp_kappa_x (int, optional): CV1-force_constant of harmonic potential. Defaults to 0.
@@ -400,18 +401,18 @@ def MFI_2D(HILLS="HILLS", position_x="position_x", position_y="position_y", bw=1
                 pb_t = pb_t + kernel;
                 Fpbt_x = Fpbt_x + kernel * kT * (X - periodic_images[k][0]) / bw2
                 Fpbt_y = Fpbt_y + kernel * kT * (Y - periodic_images[k][1]) / bw2
-        pb_t = np.where(pb_t > 10**-5 * stride, pb_t, 0)  # truncated probability density of window
+        pb_t = np.where(pb_t > 10**-10 * stride, pb_t, 0)  # truncated probability density of window
 
         # Calculate total probability density
         Ftot_den = Ftot_den + pb_t;
         
         # Calculate x-component of Force
-        dfds_x = np.divide(Fpbt_x, pb_t, out=np.zeros_like(Fpbt_x), where=pb_t > 10**-5) + Fbias_x - F_static_x
+        dfds_x = np.divide(Fpbt_x, pb_t, out=np.zeros_like(Fpbt_x), where=pb_t > 10**-10) + Fbias_x - F_static_x
         Ftot_num_x = Ftot_num_x + pb_t * dfds_x
         Ftot_x = np.divide(Ftot_num_x, Ftot_den, out=np.zeros_like(Fpbt_x), where=Ftot_den > Ftot_den_limit)
         
         # Calculate y-component of Force
-        dfds_y = np.divide(Fpbt_y, pb_t, out=np.zeros_like(Fpbt_y), where=pb_t > 10**-5) + Fbias_y - F_static_y
+        dfds_y = np.divide(Fpbt_y, pb_t, out=np.zeros_like(Fpbt_y), where=pb_t > 10**-10) + Fbias_y - F_static_y
         Ftot_num_y = Ftot_num_y + pb_t * dfds_y
         Ftot_y = np.divide(Ftot_num_y, Ftot_den, out=np.zeros_like(Fpbt_y), where=Ftot_den > Ftot_den_limit)
 
@@ -421,32 +422,246 @@ def MFI_2D(HILLS="HILLS", position_x="position_x", position_y="position_y", bw=1
         ofv_num_y += pb_t * dfds_y ** 2
 
         # Compute Variance of the mean force every 1/error_pace frequency
-        if (i + 1) % int(total_number_of_hills / error_pace) == 0:
+        if (i + 1) % int(total_number_of_hills / error_pace) == 0 or (i+1) == total_number_of_hills:
+            
             # calculate ofe (standard error)
             if base_terms == 0:
                 [ofv, ofe] = mean_force_variance(Ftot_den, Ftot_den2, Ftot_x, Ftot_y, ofv_num_x, ofv_num_y, Ftot_den_limit=Ftot_den_limit)
             elif len(base_terms) == 6:
-                [ofv, ofe] = patch_to_base_variance(base_terms, [Ftot_den, Ftot_den2, Ftot_x, Ftot_y, ofv_num_x, ofv_num_y], Ftot_den_limit = Ftot_den_limit)
-            else:
-                print("Either define base_terms=0 if you only wish to find the convergence of one simulation, or base_terms=[Ftot_den, Ftot_den2, Ftot_x, Ftot_y, ofv_x, ofv_y] using the terms of another simulation, to find the convergence of both simulations. Continiue with baseterm=0")
-                base_terms = 0
-                [ofv, ofe] = mean_force_variance(Ftot_den, Ftot_den2, Ftot_x, Ftot_y, ofv_num_x, ofv_num_y, Ftot_den_limit=Ftot_den_limit)
+                [Ftot_den_temp, Ftot_x_temp, Ftot_y_temp, ofv, ofe] = patch_to_base_variance(base_terms, [Ftot_den, Ftot_den2, Ftot_x, Ftot_y, ofv_num_x, ofv_num_y], Ftot_den_limit = Ftot_den_limit)
                 
-            if len(window_corners) == 4:
-                ofe_window = reduce_to_window(ofe, min_grid, grid_space, x_min=window_corners[0], x_max=window_corners[1], y_min=window_corners[2], y_max=window_corners[3]) 
-                ofe_history_window.append(sum(sum(ofe_window)) / (np.shape(ofe_window)[0] * np.shape(ofe_window)[1]))
-
-            ofv_history.append(sum(sum(ofe)) / (np.count_nonzero(ofe)))
-            ofe_history.append(sum(sum(ofe)) / (np.count_nonzero(ofe)))
+            #if there is a FES_cutoff, calculate fes
+            if FES_cutoff > 0: 
+                if base_terms == 0: [Ftot_den_temp, Ftot_x_temp, Ftot_y_temp] = [np.array(Ftot_den), np.array(Ftot_x), np.array(Ftot_y)]
+                
+                if periodic == 1 or FFT_integration == 1: [X, Y, FES] = FFT_intg_2D(Ftot_x_temp, Ftot_y_temp, min_grid=min_grid, max_grid=max_grid)
+                else: [X, Y, FES] = intgrad2(Ftot_x_temp, Ftot_y_temp, min_grid=min_grid, max_grid=max_grid)
+                cutoff = np.where(FES <= np.ones_like(FES) * FES_cutoff, 1, 0)
+            else: cutoff = np.ones_like(Ftot_den)
+            
+            # Cutoff for points that havent been visited
+            cutoff = np.where(Ftot_den_temp >= np.ones_like(Ftot_den_temp) * 0.1, cutoff, 0)
+            ofe_cut = np.array(ofe * cutoff)
+                        
+            #Calculate averaged global error                
+            # ofv_history.append(sum(sum(ofv * cutoff)) / (np.count_nonzero(ofv * cutoff)))
+            ofe_history.append(sum(sum(ofe_cut)) / (np.count_nonzero(ofe_cut)))
             time_history.append(HILLS[i,0])
-
+            if len(window_corners) == 4:
+                ofe_cut_window = reduce_to_window(ofe_cut, min_grid, grid_space, x_min=window_corners[0], x_max=window_corners[1], y_min=window_corners[2], y_max=window_corners[3]) 
+                ofe_history_window.append(sum(sum(ofe_cut_window)) / (np.count_nonzero(ofe_cut_window)))
+                                          
+        #print progress
         if (i + 1) % (total_number_of_hills / log_pace) == 0:
-            print("|" + str(i + 1) + "/" + str(total_number_of_hills) + "|==> Average Mean Force Error: " + str(sum(sum(ofe)) / (np.count_nonzero(ofe))))
-            if len(window_corners) == 4: 
-                print("ofe_window", sum(sum(ofe_window)) / (np.shape(ofe_window)[0] * np.shape(ofe_window)[1]))
+            print("|" + str(i + 1) + "/" + str(total_number_of_hills) + "|==> Average Mean Force Error: " + str(ofe_history[-1]), end="")
+            if len(window_corners) == 4: print("    ||    Error in window", ofe_history_window[-1])
+            else: print("")
+            
+    if len(window_corners) == 4: return [X, Y, Ftot_den, Ftot_x, Ftot_y, ofv, ofe, cutoff, ofv_history, ofe_history, ofe_history_window, time_history, Ftot_den2, ofv_num_x, ofv_num_y]
+    else: return [X, Y, Ftot_den, Ftot_x, Ftot_y, ofv, ofe, cutoff, ofv_history, ofe_history, time_history, Ftot_den2, ofv_num_x, ofv_num_y]
 
-    if len(window_corners) == 4: return [X, Y, Ftot_den, Ftot_x, Ftot_y, ofv, ofe, ofv_history, ofe_history, ofe_history_window, time_history, Ftot_den2, ofv_num_x, ofv_num_y]
-    else: return [X, Y, Ftot_den, Ftot_x, Ftot_y, ofv, ofe, ofv_history, ofe_history, time_history, Ftot_den2, ofv_num_x, ofv_num_y]
+def MFI_2D(HILLS="HILLS", position_x="position_x", position_y="position_y", bw=1, kT=1,
+           min_grid=np.array((-np.pi, -np.pi)), max_grid=np.array((np.pi, np.pi)), nbins=np.array((200, 200)),
+           log_pace=10, error_pace=200, base_terms = 0, window_corners=[], WellTempered=1, nhills=-1, periodic=0, FES_cutoff = 50, FFT_integration = 0, 
+           hp_centre_x=0.0, hp_centre_y=0.0, hp_kappa_x=0, hp_kappa_y=0,
+           lw_centre_x=0.0, lw_centre_y=0.0, lw_kappa_x=0, lw_kappa_y=0,
+           uw_centre_x=0.0, uw_centre_y=0.0, uw_kappa_x=0, uw_kappa_y=0):
+    """Compute a time-independent estimate of the Mean Thermodynamic Force, i.e. the free energy gradient in 2D CV spaces.
+
+    Args:
+        HILLS (str): HILLS array. Defaults to "HILLS".
+        position_x (str): CV1 array. Defaults to "position_x".
+        position_y (str): CV2 array. Defaults to "position_y".
+        bw (int, optional): Scalar, bandwidth for the construction of the KDE estimate of the biased probability density. Defaults to 1.
+        kT (int, optional): Scalar, kT. Defaults to 1.
+        min_grid (array, optional): Lower bound of the force domain. Defaults to np.array((-np.pi, -np.pi)).
+        max_grid (array, optional): Upper bound of the force domain. Defaults to np.array((np.pi, np.pi)).
+        nbins (array, optional): number of bins in CV1,CV2. Defaults to np.array((200,200)).
+        log_pace (int, optional): Pace for outputting progress and convergence. Defaults to 10.
+        error_pace (int, optional): Pace for the calculation of the on-the-fly measure of global convergence. Defaults to 200.
+        base_terms (int or list, optional): When set to 0, inactive. When activated, "on the fly" variance is calculated as a patch to base (previous) simulation. To activate, put force terms of base simulation ([Ftot_den, Ftot_den2, Ftot_x, Ftot_y, ofv_x, ofv_y]). Defaults to 0.
+        window_corners (list, optional): When set to [], inactive. When activated, error is ALSO calculated for mean force in the window. To activate, put the min and max values of the window ([min_x, max_x, min_y, max_y]). Defaults to [].
+        WellTempered (binary, optional): Is the simulation well tempered? . Defaults to 1.
+        nhills (int, optional): Number of HILLS to analyse, -1 for the entire HILLS array. Defaults to -1, i.e. the entire dataset.
+        periodic (int, optional): Is the CV space periodic? 1 for yes. Defaults to 0.
+        FES_cutoff (float, optional): Cutoff applied to FES and error calculation for FES values over the FES_cutoff. Defaults to 0. When FES_cutoff = 0, no cufoff is applied.
+        hp_centre_x (float, optional): CV1-position of harmonic potential. Defaults to 0.0.
+        hp_centre_y (float, optional): CV2-position of harmonic potential. Defaults to 0.0.
+        hp_kappa_x (int, optional): CV1-force_constant of harmonic potential. Defaults to 0.
+        hp_kappa_y (int, optional): CV2-force_constant of harmonic potential. Defaults to 0.
+        lw_centre_x (float, optional): CV1-position of lower wall potential. Defaults to 0.0.
+        lw_centre_y (float, optional): CV2-position of lower wall potential. Defaults to 0.0.
+        lw_kappa_x (int, optional): CV1-force_constant of lower wall potential. Defaults to 0.
+        lw_kappa_y (int, optional): CV2-force_constant of lower wall potential. Defaults to 0.
+        uw_centre_x (float, optional): CV1-position of upper wall potential. Defaults to 0.0.
+        uw_centre_y (float, optional): CV2-position of upper wall potential. Defaults to 0.0.
+        uw_kappa_x (int, optional): CV1-force_constant of upper wall potential. Defaults to 0.
+        uw_kappa_y (int, optional): CV2-force_constant of upper wall potential. Defaults to 0.
+
+    Returns:
+        X: array of size (nbins[0], nbins[1]) - CV1 grid positions
+        Y: array of size (nbins[0], nbins[1]) - CV2 grid positions
+        Ftot_den: array of size (nbins[0], nbins[1]) - Cumulative biased probability density, equivalent to an unbiased histogram of samples in CV space.
+        Ftot_x:  array of size (nbins[0], nbins[1]) - CV1 component of the Mean Force.
+        Ftot_y:  array of size (nbins[0], nbins[1]) - CV2 component of the Mean Force.
+        ofe:  array of size (nbins[0], nbins[1]) - on the fly estimate of the local convergence
+        ofe_history: array of size (1, total_number_of_hills) - running estimate of the global convergence of the mean force.
+        (option with window corner activated: ofe_history_window: array of size (1, total_number_of_hills) - running estimate of the "window" convergence of the mean force.)
+        ofe_history_time: array of size (1, total_number_of_hills) - time array of ofe_history
+        Ftot_den2: array of size (nbins[0], nbins[1]) - Cumulative squared biased probability density
+        ofv_x: array of size (nbins[0], nbins[1]) - intermediate component in the calculation of the CV1 "on the fly variance" ( sum of: pb_t * dfds_x ** 2)
+        ofv_y: array of size (nbins[0], nbins[1]) - intermediate component in the calculation of the CV2 "on the fly variance" ( sum of: pb_t * dfds_y ** 2)
+    """
+    gridx = np.linspace(min_grid[0], max_grid[0], nbins[0])
+    gridy = np.linspace(min_grid[1], max_grid[1], nbins[1])
+    grid_space = np.array(((max_grid[0] - min_grid[0]) / (nbins[0]-1), (max_grid[1] - min_grid[1]) / (nbins[1]-1)))
+    X, Y = np.meshgrid(gridx, gridy)
+    stride = int(len(position_x) / len(HILLS))
+    const = (1 / (bw * np.sqrt(2 * np.pi) * stride))
+
+    # Optional - analyse only nhills, if nhills is set
+    if nhills > 0:
+        total_number_of_hills = nhills
+    else:
+        total_number_of_hills = len(HILLS)
+    bw2 = bw ** 2
+
+    # Initialize force terms
+    Fbias_x = np.zeros(nbins)
+    Fbias_y = np.zeros(nbins)
+    Ftot_num_x = np.zeros(nbins)
+    Ftot_num_y = np.zeros(nbins)
+    Ftot_den = np.zeros(nbins)
+    Ftot_den2 = np.zeros(nbins)
+    ofv_num_x = np.zeros(nbins)
+    ofv_num_y = np.zeros(nbins)
+    ofv_history = []
+    ofe_history = []
+    time_history = []
+    if len(window_corners) == 4: ofe_history_window = []
+
+    #Calculate static force
+    F_static_x = np.zeros(nbins)
+    F_static_y = np.zeros(nbins)
+    if hp_kappa_x > 0 or hp_kappa_y > 0:
+        [Force_x, Force_y] = find_hp_force(hp_centre_x, hp_centre_y, hp_kappa_x, hp_kappa_y, X , Y, min_grid, max_grid, grid_space, periodic)
+        F_static_x += Force_x
+        F_static_y += Force_y
+    if lw_kappa_x > 0 or lw_kappa_y > 0:
+        [Force_x, Force_y] = find_lw_force(lw_centre_x, lw_centre_y, lw_kappa_x, lw_kappa_y, X , Y, periodic)
+        F_static_x += Force_x
+        F_static_y += Force_y
+    if uw_kappa_x > 0 or uw_kappa_y > 0:
+        [Force_x, Force_y] = find_uw_force(uw_centre_x, uw_centre_y, uw_kappa_x, uw_kappa_y, X , Y, periodic)
+        F_static_x += Force_x
+        F_static_y += Force_y
+
+    print("Total no. of Gaussians analysed: " + str(total_number_of_hills))
+
+    # Definition Gamma Factor, allows to switch between WT and regular MetaD
+    if WellTempered < 1:
+        Gamma_Factor = 1
+    else:
+        gamma = HILLS[0, 6]
+        Gamma_Factor = (gamma - 1) / (gamma)
+        
+    Ftot_den_limit = 0
+
+    for i in range(total_number_of_hills):
+        
+        #Probability density limit, below which (fes or error) values aren't considered.
+        # Ftot_den_limit = (i+1)*stride * 10**-5
+        
+        # Build metadynamics potential
+        s_x = HILLS[i, 1]  # centre x-position of Gaussian
+        s_y = HILLS[i, 2]  # centre y-position of Gaussian
+        sigma_meta2_x = HILLS[i, 3] ** 2  # width of Gaussian
+        sigma_meta2_y = HILLS[i, 4] ** 2  # width of Gaussian
+        height_meta = HILLS[i, 5] * Gamma_Factor  # Height of Gaussian
+
+        periodic_images = find_periodic_point(s_x, s_y, min_grid, max_grid, periodic)
+        for j in range(len(periodic_images)):
+            kernelmeta = np.exp(-0.5 * (((X - periodic_images[j][0]) ** 2) / sigma_meta2_x + (
+                        (Y - periodic_images[j][1]) ** 2) / sigma_meta2_y))  # potential erorr in calc. of s-s_t
+            Fbias_x = Fbias_x + height_meta * kernelmeta * ((X - periodic_images[j][0]) / sigma_meta2_x);
+            Fbias_y = Fbias_y + height_meta * kernelmeta * ((Y - periodic_images[j][1]) / sigma_meta2_y);
+
+            # Biased probability density component of the force
+        # Estimate the biased proabability density p_t ^ b(s)
+        pb_t = np.zeros(nbins)
+        Fpbt_x = np.zeros(nbins)
+        Fpbt_y = np.zeros(nbins)
+
+        data_x = position_x[i * stride: (i + 1) * stride]
+        data_y = position_y[i * stride: (i + 1) * stride]
+
+        for j in range(stride):
+            periodic_images = find_periodic_point(data_x[j], data_y[j], min_grid, max_grid, periodic)
+            for k in range(len(periodic_images)):
+                kernel = const * np.exp(
+                    - (1 / (2 * bw2)) * ((X - periodic_images[k][0]) ** 2 + (Y - periodic_images[k][1]) ** 2));
+                pb_t = pb_t + kernel;
+                Fpbt_x = Fpbt_x + kernel * kT * (X - periodic_images[k][0]) / bw2
+                Fpbt_y = Fpbt_y + kernel * kT * (Y - periodic_images[k][1]) / bw2
+        pb_t = np.where(pb_t > 10**-10 * stride, pb_t, 0)  # truncated probability density of window
+
+        # Calculate total probability density
+        Ftot_den = Ftot_den + pb_t;
+        
+        # Calculate x-component of Force
+        dfds_x = np.divide(Fpbt_x, pb_t, out=np.zeros_like(Fpbt_x), where=pb_t > 10**-10) + Fbias_x - F_static_x
+        Ftot_num_x = Ftot_num_x + pb_t * dfds_x
+        Ftot_x = np.divide(Ftot_num_x, Ftot_den, out=np.zeros_like(Fpbt_x), where=Ftot_den > Ftot_den_limit)
+        
+        # Calculate y-component of Force
+        dfds_y = np.divide(Fpbt_y, pb_t, out=np.zeros_like(Fpbt_y), where=pb_t > 10**-10) + Fbias_y - F_static_y
+        Ftot_num_y = Ftot_num_y + pb_t * dfds_y
+        Ftot_y = np.divide(Ftot_num_y, Ftot_den, out=np.zeros_like(Fpbt_y), where=Ftot_den > Ftot_den_limit)
+
+        # calculate on the fly error components
+        Ftot_den2 = Ftot_den2 + pb_t ** 2
+        ofv_num_x += pb_t * dfds_x ** 2
+        ofv_num_y += pb_t * dfds_y ** 2
+
+        # Compute Variance of the mean force every 1/error_pace frequency
+        if (i + 1) % int(total_number_of_hills / error_pace) == 0 or (i+1) == total_number_of_hills:
+            
+            # calculate ofe (standard error)
+            if base_terms == 0:
+                [ofv, ofe] = mean_force_variance(Ftot_den, Ftot_den2, Ftot_x, Ftot_y, ofv_num_x, ofv_num_y, Ftot_den_limit=Ftot_den_limit)
+            elif len(base_terms) == 6:
+                [Ftot_den_temp, Ftot_x_temp, Ftot_y_temp, ofv, ofe] = patch_to_base_variance(base_terms, [Ftot_den, Ftot_den2, Ftot_x, Ftot_y, ofv_num_x, ofv_num_y], Ftot_den_limit = Ftot_den_limit)
+                
+            # #if there is a FES_cutoff, calculate fes
+            # if FES_cutoff > 0: 
+            #     if base_terms == 0: [Ftot_den_temp, Ftot_x_temp, Ftot_y_temp] = [np.array(Ftot_den), np.array(Ftot_x), np.array(Ftot_y)]
+                
+            #     if periodic == 1 or FFT_integration == 1: [X, Y, FES] = FFT_intg_2D(Ftot_x_temp, Ftot_y_temp, min_grid=min_grid, max_grid=max_grid)
+            #     else: [X, Y, FES] = intgrad2(Ftot_x_temp, Ftot_y_temp, min_grid=min_grid, max_grid=max_grid)
+            #     cutoff = np.where(FES <= np.ones_like(FES) * FES_cutoff, 1, 0)
+            # else: cutoff = np.ones_like(Ftot_den)
+            
+            # Cutoff for points that havent been visited
+            cutoff = np.ones_like(Ftot_den)
+            cutoff = np.where(Ftot_den_temp >= np.ones_like(Ftot_den_temp) * (0.4 * i * stride / 10000), 1, 0)
+            ofe_cut = np.array(ofe * cutoff)
+                        
+            #Calculate averaged global error                
+            # ofv_history.append(sum(sum(ofv * cutoff)) / (np.count_nonzero(ofv * cutoff)))
+            ofe_history.append(sum(sum(ofe_cut)) / (np.count_nonzero(ofe_cut)))
+            time_history.append(HILLS[i,0])
+            if len(window_corners) == 4:
+                ofe_cut_window = reduce_to_window(ofe_cut, min_grid, grid_space, x_min=window_corners[0], x_max=window_corners[1], y_min=window_corners[2], y_max=window_corners[3]) 
+                ofe_history_window.append(sum(sum(ofe_cut_window)) / (np.count_nonzero(ofe_cut_window)))
+                                          
+        #print progress
+        if (i + 1) % (total_number_of_hills / log_pace) == 0:
+            print("|" + str(i + 1) + "/" + str(total_number_of_hills) + "|==> Average Mean Force Error: " + str(ofe_history[-1]), end="")
+            if len(window_corners) == 4: print("    ||    Error in window", ofe_history_window[-1])
+            else: print("")
+            
+    if len(window_corners) == 4: return [X, Y, Ftot_den, Ftot_x, Ftot_y, ofv, ofe, cutoff, ofv_history, ofe_history, ofe_history_window, time_history, Ftot_den2, ofv_num_x, ofv_num_y]
+    else: return [X, Y, Ftot_den, Ftot_x, Ftot_y, ofv, ofe, cutoff, ofv_history, ofe_history, time_history, Ftot_den2, ofv_num_x, ofv_num_y]
 
 
 # @jit
@@ -463,7 +678,7 @@ def mean_force_variance(Ftot_den, Ftot_den2, Ftot_x, Ftot_y, ofv_num_x, ofv_num_
 
     Returns:
         var (array of size (nbins[0], nbins[1])): modulus of "on the fly variance" 
-    """
+    """    
     # calculate ofe (standard error)
     bessel_corr = np.divide(Ftot_den**2 , (Ftot_den**2-Ftot_den2), out=np.zeros_like(Ftot_den), where=(Ftot_den**2-Ftot_den2) > 0)
         
@@ -475,7 +690,7 @@ def mean_force_variance(Ftot_den, Ftot_den2, Ftot_x, Ftot_y, ofv_num_x, ofv_num_
     
     ofv = np.sqrt(ofv_x**2 + ofv_y**2)
     ofe = np.sqrt(ofe_x**2 + ofe_y**2)
-    
+        
     return [ofv, ofe]
 
 
@@ -490,7 +705,6 @@ def patch_to_base_variance(master0, master, Ftot_den_limit = 10**-10):
     Returns:
         OFV (array of size (nbins[0], nbins[1])): modulus of patched "on the fly variance" 
     """
-
     #Define names
     [PD0, PD20, FX0, FY0, OFV_num_X0, OFV_num_Y0] = master0
     [PD, PD2, FX, FY, OFV_num_X, OFV_num_Y] = master
@@ -519,12 +733,11 @@ def patch_to_base_variance(master0, master, Ftot_den_limit = 10**-10):
     OFV = np.sqrt(OFV_X**2 + OFV_Y**2)
     OFE = np.sqrt(OFE_X**2 + OFE_Y**2)
     
-    return [OFV, OFE]
+    return [PD_patch, FX_patch, FY_patch, OFV, OFE]
 
 
 ### Integration using Fast Fourier Transform (FFT integration) in 2D
-def FFT_intg_2D(FX, FY, min_grid=np.array((-np.pi, -np.pi)), max_grid=np.array((np.pi, np.pi)),
-                nbins=np.array((200, 200))):
+def FFT_intg_2D(FX, FY, min_grid=np.array((-np.pi, -np.pi)), max_grid=np.array((np.pi, np.pi)), nbins=0):
     """2D integration of force gradient (FX, FY) to find FES using Fast Fourier Transform.
 
     Args:
@@ -532,13 +745,15 @@ def FFT_intg_2D(FX, FY, min_grid=np.array((-np.pi, -np.pi)), max_grid=np.array((
         FY (array of size (nbins[0], nbins[1])): CV1 component of the Mean Force.
         min_grid (array, optional): Lower bound of the simulation domain. Defaults to np.array((-np.pi, -np.pi)).
         min_grid (array, optional): Upper bound of the simulation domain. Defaults to np.array((np.pi, np.pi)).
-        nbins (int, optional): number of bins in CV1,CV2. Defaults to np.array((200,200)).
+        nbins (int, optional): number of bins in CV1,CV2. Defaults to 0. When nbins=0, nbins will take the shape of FX.
 
     Returns:
         X: array of size (nbins[0], nbins[1]) - CV1 grid positions
         Y: array of size (nbins[0], nbins[1]) - CV2 grid positions
         fes: array of size (nbins[0], nbins[1]) - Free Energy Surface
     """
+    if hasattr(nbins, "__len__") == False: nbins = np.shape(FX)        
+    
     gridx = np.linspace(min_grid[0], max_grid[0], nbins[0])
     gridy = np.linspace(min_grid[1], max_grid[1], nbins[1])
     grid_spacex = (max_grid[0] - min_grid[0]) / (nbins[0] - 1)
@@ -597,7 +812,7 @@ def intg_2D(FX, FY, min_grid=np.array((-np.pi, -np.pi)), max_grid=np.array((np.p
 
 
 #@jit(nopython=True)
-def intgrad2(fx, fy, nx=0, ny=0, intconst=0, per1 = True, per2 = True, min_grid=np.array((-np.pi, -np.pi)), max_grid=np.array((np.pi, np.pi)), nbins=0):
+def intgrad2(fx, fy, nx=0, ny=0, intconst=0, per1 = False, per2 = False, min_grid=np.array((-2, -2)), max_grid=np.array((2, 2)), nbins=0):
     """This function uses the inverse of the gradient to reconstruct the free energy surface from the mean force components.
     [John D'Errico (2022). Inverse (integrated) gradient (https://www.mathworks.com/matlabcentral/fileexchange/9734-inverse-integrated-gradient), MATLAB Central File Exchange. Retrieved May 17, 2022.]
     [Translated from MatLab to Python from Francesco Serse (https://github.com/Fserse)]
@@ -622,13 +837,8 @@ def intgrad2(fx, fy, nx=0, ny=0, intconst=0, per1 = True, per2 = True, min_grid=
     
     if nx == 0: nx = np.shape(fx)[1]    
     if ny == 0: ny = np.shape(fx)[0]
-    try:
-        if nbins == 0: nbins = np.shape(fx)
-    except: 
-        if len(nbins) == 2: pass
-        else: print("Wrong specification of nbins")
+    if hasattr(nbins, "__len__") == False: nbins = np.shape(fx) 
     
-	
     gridx = np.linspace(min_grid[0], max_grid[0], nbins[0])
     gridy = np.linspace(min_grid[1], max_grid[1], nbins[1])
     dx = abs(gridx[1] - gridx[0])
@@ -736,13 +946,13 @@ def intgrad2(fx, fy, nx=0, ny=0, intconst=0, per1 = True, per2 = True, min_grid=
     fhat=fhat[0]
     fhat = np.reshape(fhat,nbins) 
     #print(fhat.shape)   
-    fhat = fhat - np.min(fhat)
+    fhat = fhat - np.min(fhat)    
 
     return [X, Y, fhat]
 
 
 
-def plot_recap_2D(X, Y, FES, TOTAL_DENSITY, CONVMAP, CONV_history, CONV_history_time, FES_lim=50, ofe_map_lim=50):
+def plot_recap_2D(X, Y, FES, TOTAL_DENSITY, CONVMAP, CONV_history, CONV_history_time, FES_lim=50, ofe_map_lim=50, FES_step=1, ofe_step=1):
     """Plots 1. FES, 2. varinace_map, 3. Cumulative biased probability density, 4. Convergece of variance.
     
     Args:
@@ -756,18 +966,22 @@ def plot_recap_2D(X, Y, FES, TOTAL_DENSITY, CONVMAP, CONV_history, CONV_history_
         (Plot)
     """
     fig, axs = plt.subplots(1, 4, figsize=(18, 3))
-    cp = axs[0].contourf(X, Y, FES, levels=range(0, FES_lim, 1), cmap='coolwarm', antialiased=False, alpha=0.8);
+    cp = axs[0].contourf(X, Y, FES, levels=range(0, FES_lim, FES_step), cmap='coolwarm', antialiased=False, alpha=0.8);
     cbar = plt.colorbar(cp, ax=axs[0])
     cbar.set_label("Free Energy [kJ/mol]")
     axs[0].set_ylabel('CV2 [nm]', fontsize=11)
     axs[0].set_xlabel('CV1 [nm]', fontsize=11)
+    axs[0].set_xlim(np.min(X),np.max(X))
+    axs[0].set_ylim(np.min(Y),np.max(Y))
     axs[0].set_title('Free Energy Surface', fontsize=11)
 
-    cp = axs[1].contourf(X, Y, zero_to_nan(CONVMAP), levels=range(0, ofe_map_lim, 1), cmap='coolwarm', antialiased=False, alpha=0.8);
+    cp = axs[1].contourf(X, Y, zero_to_nan(CONVMAP), levels=range(0, ofe_map_lim, ofe_step), cmap='coolwarm', antialiased=False, alpha=0.8);
     cbar = plt.colorbar(cp, ax=axs[1])
     cbar.set_label("Standard Deviation [kJ/(mol*nm)]")
     axs[1].set_ylabel('CV2 [nm]', fontsize=11)
     axs[1].set_xlabel('CV1 [nm]', fontsize=11)
+    axs[1].set_xlim(np.min(X),np.max(X))
+    axs[1].set_ylim(np.min(Y),np.max(Y))
     axs[1].set_title('Standard Deviation of the Mean Force', fontsize=11)
 
     cp = axs[2].contourf(X, Y, (TOTAL_DENSITY), cmap='gray_r', antialiased=False, alpha=0.8);  #, locator=ticker.LogLocator()
@@ -776,6 +990,8 @@ def plot_recap_2D(X, Y, FES, TOTAL_DENSITY, CONVMAP, CONV_history, CONV_history_
     cbar.set_label("Relative count [-]")
     axs[2].set_ylabel('CV2 [nm]', fontsize=11)
     axs[2].set_xlabel('CV1 [nm]', fontsize=11)
+    axs[2].set_xlim(np.min(X),np.max(X))
+    axs[2].set_ylim(np.min(Y),np.max(Y))
     axs[2].set_title('Total Biased Probability Density', fontsize=11)
 
     axs[3].plot( [time/1000 for time in CONV_history_time], CONV_history);
@@ -874,7 +1090,7 @@ def plot_patch_2D(X, Y, FES, TOTAL_DENSITY, lim=50):
     axs[1].set_title('Total Biased Probability Density', fontsize=11)
 
 
-def bootstrap_2D(X, Y, forces_all, n_bootstrap):
+def bootstrap_2D(X, Y, forces_all, n_bootstrap, FES_cutoff = 0, FFT_integration=0, min_grid=np.array((-3, -3)), max_grid=np.array((3, 3))):
     """Algorithm to determine bootstrap error
 
     Args:
@@ -887,19 +1103,19 @@ def bootstrap_2D(X, Y, forces_all, n_bootstrap):
         [FES_avr, var_fes, sd_fes, variance_prog, stdev_prog, var_fes_prog, sd_fes_prog ]
     """
    
-    #Define terms that will be updated itteratively
-    Ftot_x_inter = np.zeros(np.shape(X))
-    Ftot_y_inter = np.zeros(np.shape(X))
-    Ftot_x_sum = np.zeros(np.shape(X))
-    Ftot_y_sum = np.zeros(np.shape(X))
-    Ftot_den_sum = np.zeros(np.shape(X))
-    Ftot_den2_sum = np.zeros(np.shape(X))
+    # #Define terms that will be updated itteratively
+    # Ftot_x_inter = np.zeros(np.shape(X))
+    # Ftot_y_inter = np.zeros(np.shape(X))
+    # Ftot_x_sum = np.zeros(np.shape(X))
+    # Ftot_y_sum = np.zeros(np.shape(X))
+    # Ftot_den_sum = np.zeros(np.shape(X))
+    # Ftot_den2_sum = np.zeros(np.shape(X))
     FES_sum = np.zeros(np.shape(X))
-    FES2_sum = np.zeros(np.shape(X))
+    # FES2_sum = np.zeros(np.shape(X))
 
-    #store var and sd progression here
-    variance_prog = []
-    stdev_prog = []
+    # #store var and sd progression here
+    # variance_prog = []
+    # stdev_prog = []
     var_fes_prog  = []
     sd_fes_prog = []
 
@@ -922,61 +1138,157 @@ def bootstrap_2D(X, Y, forces_all, n_bootstrap):
                 
         #patch forces to find average Ftot_den, Ftot and FES
         [Ftot_den, Ftot_x, Ftot_y] = patch_2D_simple(force_rand_select)
-        [X, Y, FES] = intg_2D(Ftot_x, Ftot_y)
-        FES = FES - np.min(FES)
+        
+        #Calculate FES. if there is a FES_cutoff, find cutoff. 
+        if FFT_integration == 1: [X, Y, FES] = FFT_intg_2D(Ftot_x, Ftot_y, min_grid=min_grid, max_grid=max_grid)
+        else: [X, Y, FES] = intgrad2(Ftot_x, Ftot_y, min_grid=min_grid, max_grid=max_grid)
+
+
 
         #Save terms
         FES_collection.append(FES)
 
-        #calculate sums for variance
-        Ftot_x_inter += Ftot_den * Ftot_x**2
-        Ftot_y_inter += Ftot_den * Ftot_y**2
-        Ftot_x_sum += Ftot_x
-        Ftot_y_sum += Ftot_y
-        Ftot_den_sum += Ftot_den
-        Ftot_den2_sum += Ftot_den**2
+        # #calculate sums for variance
+        # Ftot_x_inter += Ftot_den * Ftot_x**2
+        # Ftot_y_inter += Ftot_den * Ftot_y**2
+        # Ftot_x_sum += Ftot_x
+        # Ftot_y_sum += Ftot_y
+        # Ftot_den_sum += Ftot_den
+        # Ftot_den2_sum += Ftot_den**2
         
         FES_sum += FES
-        FES2_sum += FES**2
+        # FES2_sum += FES**2
 
         if itteration > 0:
             
-            #calculate force variance
-            Ftot_x_avr = Ftot_x_sum / (itteration+1)
-            Ftot_y_avr = Ftot_y_sum / (itteration+1)
-            Ftot2_x_weighted = np.divide(Ftot_x_inter, Ftot_den_sum, out=np.zeros_like(Ftot_x_inter), where=Ftot_den_base>10)
-            Ftot2_y_weighted = np.divide(Ftot_y_inter, Ftot_den_sum, out=np.zeros_like(Ftot_y_inter), where=Ftot_den_base>10)
-            Ftot_den_ratio = np.divide(Ftot_den_sum ** 2, (Ftot_den_sum ** 2 - Ftot_den2_sum), out=np.zeros_like(Ftot_den_sum), where=Ftot_den_base > 10)
-            variance_x = (Ftot2_x_weighted - Ftot_x_avr**2) * Ftot_den_ratio
-            variance_y = (Ftot2_y_weighted - Ftot_y_avr**2) * Ftot_den_ratio
-            n_eff = np.divide(Ftot_den_sum ** 2, Ftot_den2_sum, out=np.zeros_like(Ftot_den), where=Ftot_den_base>10)
-            stdev_x = np.where(Ftot_den_base > 10,  np.sqrt(variance_x / n_eff ), 0)
-            stdev_y = np.where(Ftot_den_base > 10,  np.sqrt(variance_y / n_eff ), 0)
-            variance = (variance_x**2 + variance_y**2)**(1/2)
-            stdev = (stdev_x**2 + stdev_y**2)**(1/2)
+            # #calculate force variance
+            # Ftot_x_avr = Ftot_x_sum / (itteration+1)
+            # Ftot_y_avr = Ftot_y_sum / (itteration+1)
+            # Ftot2_x_weighted = np.divide(Ftot_x_inter, Ftot_den_sum, out=np.zeros_like(Ftot_x_inter), where=Ftot_den_base>10)
+            # Ftot2_y_weighted = np.divide(Ftot_y_inter, Ftot_den_sum, out=np.zeros_like(Ftot_y_inter), where=Ftot_den_base>10)
+            
+            # Ftot_den_ratio = np.divide(Ftot_den_sum ** 2, (Ftot_den_sum ** 2 - Ftot_den2_sum), out=np.zeros_like(Ftot_den_sum), where=Ftot_den_base > 10)
+            
+            # variance_x = (Ftot2_x_weighted - Ftot_x_avr**2) * Ftot_den_ratio
+            # variance_y = (Ftot2_y_weighted - Ftot_y_avr**2) * Ftot_den_ratio
+                        
+            # stdev_x = np.sqrt(variance_x)
+            # stdev_y = np.sqrt(variance_y)
+            
+            # stdev = np.sqrt(stdev_x**2 + stdev_y**2)
         
             #calculate FES variance
             FES_avr = FES_sum/ (itteration+1)
+            
+            # if FES_cutoff > 0: cutoff = np.where(FES <= np.ones_like(FES) * FES_cutoff, 1, 0)
+            # else: cutoff = np.ones_like(Ftot_den)
+            
+            cutoff = np.where(Ftot_den >= np.ones_like(FES) * 0.1, 1, 0)
+            
             var_fes = np.zeros(np.shape(X))
             for i in range(len(FES_collection)): 
                 var_fes += (FES_collection[i] - FES_avr)**2
-            var_fes = 1/(len(FES_collection)-1) * var_fes
+            var_fes = (1/(len(FES_collection)-1)) * var_fes
             sd_fes = np.sqrt(var_fes)
                         
             #save variance
-            variance_prog.append(sum(sum(variance))/(len(X)*len(X[0])))
-            stdev_prog.append(sum(sum(stdev))/(len(X)*len(X[0])))
-            var_fes_prog.append(sum(sum(var_fes))/(len(X)*len(X[0])))   
-            sd_fes_prog.append(sum(sum(sd_fes))/(len(X)*len(X[0])))    
+            # stdev_prog.append(sum(sum(stdev*cutoff))/(np.count_nonzero(stdev*cutoff)))
+            var_fes_prog.append(sum(sum(var_fes*cutoff))/(np.count_nonzero(var_fes*cutoff))) 
+            sd_fes_prog.append(sum(sum(sd_fes*cutoff))/(np.count_nonzero(sd_fes*cutoff)))
         
         
         #print progress
         if (itteration+1) % (n_bootstrap/5) == 0:
-            print(itteration+1, ": var:", round(variance_prog[-1],5), "     sd:", round(stdev_prog[-1],5), "      FES: var:", round(var_fes_prog[-1],3), "     sd:", round(sd_fes_prog[-1],3) )
+            # print(itteration+1, "Ftot: sd=", round(stdev_prog[-1],5), "      FES: var=", round(var_fes_prog[-1],3), "     sd=", round(sd_fes_prog[-1],3) )
+            print(itteration+1, "FES: var=", round(var_fes_prog[-1],3), "     sd=", round(sd_fes_prog[-1],3) )
             
-    return [FES_avr, var_fes, sd_fes, variance_prog, stdev_prog, var_fes_prog, sd_fes_prog ]
+    # return [FES_avr, cutoff, var_fes, sd_fes, variance_prog, stdev_prog, var_fes_prog, sd_fes_prog ]
+    return [FES_avr, cutoff, var_fes, sd_fes, var_fes_prog, sd_fes_prog ]
 
-def plot_bootstrap(X, Y, FES, var_fes, var_fes_prog, FES_lim=11, ofe_map_lim=11):
+
+def bootstrap_2D_fes(X, Y, forces_all, n_bootstrap, FES_cutoff = 0, FFT_integration=0, min_grid=np.array((-3, -3)), max_grid=np.array((3, 3))):
+    """Algorithm to determine bootstrap error
+
+    Args:
+        X: array of size (nbins[0], nbins[1]) - CV1 grid positions
+        Y: array of size (nbins[0], nbins[1]) - CV2 grid positions
+        forces_all (list): collection of force terms (n * [Ftot_den, Ftot_x, Ftot_y])
+        n_bootstrap (int): bootstrap itterations
+
+    Returns:
+        [FES_avr, var_fes, sd_fes, variance_prog, stdev_prog, var_fes_prog, sd_fes_prog ]
+    """
+   
+    # #Define terms that will be updated itteratively
+    FES_sum = np.zeros(np.shape(X))
+    Ftot_den_sum = np.zeros(np.shape(X))
+    Ftot_den2_sum = np.zeros(np.shape(X))
+    var_num = np.zeros(np.shape(X))
+
+    #store var and sd progression here
+    sd_fes_prog = []
+
+    #Save patch force terms and FES
+    FES_collection = []
+    Ftot_den_collection = []
+
+    #Patch forces
+    [Ftot_den, Ftot_x, Ftot_y] = patch_2D_simple(forces_all)
+
+    #cutoff all points that havent been visited
+    cutoff = np.where(Ftot_den >= np.ones_like(Ftot_den) * 0.1, 1, 0)
+
+    for itteration in range(n_bootstrap):
+
+        #Randomly choose forces
+        force_rand_select = []    
+        for i in range(len(forces_all)):
+            force_rand_select.append(forces_all[random.randint(0,len(forces_all)-1)])  
+                
+        #patch forces to find average Ftot_den, Ftot and FES
+        [Ftot_den, Ftot_x, Ftot_y] = patch_2D_simple(force_rand_select)
+        
+        #Calculate FES. if there is a FES_cutoff, find cutoff. 
+        if FFT_integration == 1: [X, Y, FES] = FFT_intg_2D(Ftot_x, Ftot_y, min_grid=min_grid, max_grid=max_grid)
+        else: [X, Y, FES] = intgrad2(Ftot_x, Ftot_y, min_grid=min_grid, max_grid=max_grid)
+
+        #Save FES
+        FES_collection.append(FES) 
+        Ftot_den_collection.append(Ftot_den)       
+        FES_sum += FES
+        # var_num += Ftot_den * FES**2
+        Ftot_den_sum += Ftot_den
+        Ftot_den2_sum += Ftot_den**2
+
+        if itteration > 0:
+                    
+            #calculate FES variance
+            FES_avr = FES_sum/ (itteration+1)
+                                    
+            var_fes = np.zeros(np.shape(X))
+            for i in range(len(FES_collection)): 
+                var_fes += Ftot_den_collection[i] * (FES_collection[i] - FES_avr)**2
+            var_fes = np.divide( var_fes , Ftot_den_sum, out=np.zeros_like(Ftot_den_sum), where=Ftot_den_sum > 10**-10)
+            
+            # var_fes = np.divide( var_num , Ftot_den_sum, out=np.zeros_like(Ftot_den_sum), where=Ftot_den_sum > 10**-10) - FES_avr**2
+            
+            bessel_corr = np.divide(Ftot_den_sum**2 , (Ftot_den_sum**2-Ftot_den2_sum), out=np.zeros_like(Ftot_den), where=(Ftot_den_sum**2-Ftot_den2_sum) > 0)
+            
+            var_fes = var_fes * bessel_corr
+            sd_fes = np.sqrt(var_fes)
+                        
+            #save variance
+            sd_fes_prog.append(sum(sum(sd_fes*cutoff))/(np.count_nonzero(sd_fes*cutoff)))
+        
+        
+        #print progress
+        if (itteration+1) % (n_bootstrap/5) == 0:
+            # print(itteration+1, "Ftot: sd=", round(stdev_prog[-1],5), "      FES: var=", round(var_fes_prog[-1],3), "     sd=", round(sd_fes_prog[-1],3) )
+            print(itteration+1, "FES st. dev. =", round(sd_fes_prog[-1],3) )
+            
+    return [FES_avr, cutoff, sd_fes, sd_fes_prog ]
+
+def plot_bootstrap(X, Y, FES, sd_fes, sd_fes_prog, FES_lim=11, ofe_lim=11, FES_step=1, ofe_step=1):
     """Plots result of bootstrap analysis. 1. Average FES, 2. average varinace, 3. variance progression
 
     Args:
@@ -999,7 +1311,7 @@ def plot_bootstrap(X, Y, FES, var_fes, var_fes_prog, FES_lim=11, ofe_map_lim=11)
     axs[0].set_xlabel('CV1', fontsize=11)
     axs[0].set_title('Average FES', fontsize=11)
 
-    cp = axs[1].contourf(X, Y, var_fes, levels=range(0, ofe_map_lim, 1), cmap='coolwarm', antialiased=False, alpha=0.8);
+    cp = axs[1].contourf(X, Y, sd_fes, levels=range(0, ofe_lim, 1), cmap='coolwarm', antialiased=False, alpha=0.8);
     cbar = plt.colorbar(cp, ax=axs[1])
     cbar.set_label("Variance of Average FES [kJ/mol]$^2$", rotation=270)
     axs[1].set_ylabel('CV2', fontsize=11)
@@ -1007,7 +1319,7 @@ def plot_bootstrap(X, Y, FES, var_fes, var_fes_prog, FES_lim=11, ofe_map_lim=11)
     axs[1].set_title('Bootstrap Variance of FES', fontsize=11)
 
 
-    axs[2].plot( range(len(var_fes_prog)), var_fes_prog);
+    axs[2].plot( range(len(sd_fes_prog)), sd_fes_prog);
     axs[2].set_ylabel('Average Variance of Average FES [kJ/mol]$^2$', fontsize=11)
     axs[2].set_xlabel('Bootstrap itterations', fontsize=11)
     axs[2].set_title('Global Convergence of Bootstrap Variance', fontsize=11)
@@ -1070,8 +1382,6 @@ def zero_to_nan(input_array):
             if input_array[ii][jj] <= 0: output_array[ii][jj] = np.nan
             else: output_array[ii][jj] = input_array[ii][jj]
     return output_array
-
-
 
 
 
