@@ -631,9 +631,9 @@ def MFI_2D(HILLS="HILLS", position_x="position_x", position_y="position_y", bw=1
 			elif len(base_terms) == 6:
 				[Ftot_den_temp, Ftot_x_temp, Ftot_y_temp, ofv, ofe] = patch_to_base_variance(base_terms, [Ftot_den, Ftot_den2, Ftot_x, Ftot_y, ofv_num_x, ofv_num_y], Ftot_den_limit = Ftot_den_limit)
 				
-			# #if there is a FES_cutoff, calculate fes
-			# if FES_cutoff > 0: 
-			#     if base_terms == 0: [Ftot_den_temp, Ftot_x_temp, Ftot_y_temp] = [np.array(Ftot_den), np.array(Ftot_x), np.array(Ftot_y)]
+			#if there is a FES_cutoff, calculate fes
+			if FES_cutoff > 0: 
+			    if base_terms == 0: [Ftot_den_temp, Ftot_x_temp, Ftot_y_temp] = [np.array(Ftot_den), np.array(Ftot_x), np.array(Ftot_y)]
 				
 			#     if periodic == 1 or FFT_integration == 1: [X, Y, FES] = FFT_intg_2D(Ftot_x_temp, Ftot_y_temp, min_grid=min_grid, max_grid=max_grid)
 			#     else: [X, Y, FES] = intgrad2(Ftot_x_temp, Ftot_y_temp, min_grid=min_grid, max_grid=max_grid)
@@ -1045,7 +1045,7 @@ def patch_2D_simple(master_array, nbins=np.array((200, 200))):
 	"""Takes in a collection of force and patches only the probability density and mean forces
 
 	Args:
-		master_array (list): collection of force terms (n * [Ftot_den, Ftot_x, Ftot_y])
+		master_array (list): collection of force terms (n * [X, Y, Ftot_den, Ftot_x, Ftot_y])
 		nbins (array, optional): number of bins in CV1,CV2. Defaults to np.array((200,200)).
 
 	Returns:

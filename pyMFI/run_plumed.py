@@ -169,7 +169,8 @@ TEMP={} FILE=HILLS{}\n".format(gaus_width_x, gaus_width_y, gaus_height, biasfact
         f.write("PRINT FILE=position{} ARG=p.x,p.y STRIDE={}".format(file_extension , position_pace))
      
     print("starting simulation...")
-    os.system("plumed pesmd < input")
+    os.system("plumed pesmd < input > /dev/null")
+    
 
     # process_run_simulation = subprocess.Popen(["plumed", "pesmd", "<", "input"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     # process_run_simulation.wait()
