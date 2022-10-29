@@ -1,9 +1,0 @@
-MOLINFO STRUCTURE=reference.pdb
-phi: TORSION ATOMS=@phi-2
-psi: TORSION ATOMS=@psi-2
-RESTRAINT ARG=phi,psi AT=-0.031415926535897754,-0.031415926535897754 KAPPA=100,100 LABEL=restraint
-METAD ARG=phi,psi PACE=100 SIGMA=0.1,0.1 HEIGHT=0.5 TEMP=300 BIASFACTOR=3 GRID_MIN=-pi,-pi GRID_MAX=pi,pi GRID_BIN=1000,1000
-PRINT FILE=position ARG=phi,psi STRIDE=10
-PRINT FILE=restraint ARG=phi,psi,restraint.bias,restraint.force2 STRIDE=100
-
-#gmx mdrun -s topolA.tpr -nsteps 1000000 -plumed plumed_first.dat -v
