@@ -215,7 +215,7 @@ def run_2D_Invernizzi(simulation_steps=10, sigma=0.1, height=0.5, biasfactor=10,
         print("""p: DISTANCE ATOMS=1,2 COMPONENTS
 ff: MATHEVAL ARG=p.x,p.y PERIODIC=NO FUNC=(1.34549*x^4+1.90211*x^3*y+3.92705*x^2*y^2-6.44246*x^2-1.90211*x*y^3+5.58721*x*y+1.33481*x+1.34549*y^4-5.55754*y^2+0.904586*y+18.5598)
 bb: BIASVALUE ARG=ff
-METAD ARG=p.x,p.y PACE={} SIGMA={},{} HEIGHT={} GRID_MIN=-3,-3 GRID_MAX=3,3 GRID_BIN=300,300 BIASFACTOR={} TEMP=120 FILE=HILLSinve_{}""".format(gaus_pace, sigma, sigma, height, biasfactor,file_extension),file=f)
+METAD ARG=p.x,p.y PACE={} SIGMA={},{} HEIGHT={} GRID_MIN=-4,-4 GRID_MAX=4,4 GRID_BIN=400,400 BIASFACTOR={} TEMP=120 FILE=HILLSinve_{}""".format(gaus_pace, sigma, sigma, height, biasfactor,file_extension),file=f)
 
     with open("plumed.dat", "a") as f:
         # Harmonic potential bias. To activate, the force constant (kappa) needs to be a positive number
