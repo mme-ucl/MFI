@@ -828,7 +828,7 @@ def patch_2D(master_array, nbins=np.array((200, 200))):
 	# OFE_X = OFE_X * PD_ratio
 	# OFE_Y = OFE_Y * PD_ratio
 	# OFE = np.sqrt( abs(OFE_X) + abs(OFE_Y))
-	
+
 	return [FP, FP2, FX, FY, OFV_X, OFV_Y]
 
 # Patch independent simulations
@@ -888,13 +888,13 @@ def bootstrap_2D(X, Y, forces_all, n_bootstrap, FES_cutoff = 0, FFT_integration=
 		X: array of size (nbins[0], nbins[1]) - CV1 grid positions
 		Y: array of size (nbins[0], nbins[1]) - CV2 grid positions
 		forces_all (list): collection of force terms (n * [Ftot_den, Ftot_x, Ftot_y])
-		n_bootstrap (int): bootstrap itterations
+		n_bootstrap (int): bootstrap iterations
 
 	Returns:
 		[FES_avr, var_fes, sd_fes, variance_prog, stdev_prog, var_fes_prog, sd_fes_prog ]
 	"""
    
-	# #Define terms that will be updated itteratively
+	# #Define terms that will be updated iteratively
 	# Ftot_x_inter = np.zeros(np.shape(X))
 	# Ftot_y_inter = np.zeros(np.shape(X))
 	# Ftot_x_sum = np.zeros(np.shape(X))
@@ -920,7 +920,7 @@ def bootstrap_2D(X, Y, forces_all, n_bootstrap, FES_cutoff = 0, FFT_integration=
 	Ftot_den_base = np.array(Ftot_den)
 
 
-	for itteration in range(n_bootstrap):
+	for iteration in range(n_bootstrap):
 
 		#Randomly choose forces
 		force_rand_select = []    
@@ -950,11 +950,11 @@ def bootstrap_2D(X, Y, forces_all, n_bootstrap, FES_cutoff = 0, FFT_integration=
 		FES_sum += FES
 		# FES2_sum += FES**2
 
-		if itteration > 0:
+		if iteration > 0:
 			
 			# #calculate force variance
-			# Ftot_x_avr = Ftot_x_sum / (itteration+1)
-			# Ftot_y_avr = Ftot_y_sum / (itteration+1)
+			# Ftot_x_avr = Ftot_x_sum / (iteration+1)
+			# Ftot_y_avr = Ftot_y_sum / (iteration+1)
 			# Ftot2_x_weighted = np.divide(Ftot_x_inter, Ftot_den_sum, out=np.zeros_like(Ftot_x_inter), where=Ftot_den_base>10)
 			# Ftot2_y_weighted = np.divide(Ftot_y_inter, Ftot_den_sum, out=np.zeros_like(Ftot_y_inter), where=Ftot_den_base>10)
 			
@@ -969,7 +969,7 @@ def bootstrap_2D(X, Y, forces_all, n_bootstrap, FES_cutoff = 0, FFT_integration=
 			# stdev = np.sqrt(stdev_x**2 + stdev_y**2)
 		
 			#calculate FES variance
-			FES_avr = FES_sum/ (itteration+1)
+			FES_avr = FES_sum/ (iteration+1)
 			
 			# if FES_cutoff > 0: cutoff = np.where(FES <= np.ones_like(FES) * FES_cutoff, 1, 0)
 			# else: cutoff = np.ones_like(Ftot_den)
@@ -989,9 +989,9 @@ def bootstrap_2D(X, Y, forces_all, n_bootstrap, FES_cutoff = 0, FFT_integration=
 		
 		
 		#print progress
-		if (itteration+1) % (n_bootstrap/5) == 0:
-			# print(itteration+1, "Ftot: sd=", round(stdev_prog[-1],5), "      FES: var=", round(var_fes_prog[-1],3), "     sd=", round(sd_fes_prog[-1],3) )
-			print(itteration+1, "FES: var=", round(var_fes_prog[-1],3), "     sd=", round(sd_fes_prog[-1],3) )
+		if (iteration+1) % (n_bootstrap/5) == 0:
+			# print(iteration+1, "Ftot: sd=", round(stdev_prog[-1],5), "      FES: var=", round(var_fes_prog[-1],3), "     sd=", round(sd_fes_prog[-1],3) )
+			print(iteration+1, "FES: var=", round(var_fes_prog[-1],3), "     sd=", round(sd_fes_prog[-1],3) )
 			
 	# return [FES_avr, cutoff, var_fes, sd_fes, variance_prog, stdev_prog, var_fes_prog, sd_fes_prog ]
 	return [FES_avr, cutoff, var_fes, sd_fes, var_fes_prog, sd_fes_prog ]
@@ -1004,13 +1004,13 @@ def bootstrap_2D_fes(X, Y, forces_all, n_bootstrap, FES_cutoff = 0, FFT_integrat
 		X: array of size (nbins[0], nbins[1]) - CV1 grid positions
 		Y: array of size (nbins[0], nbins[1]) - CV2 grid positions
 		forces_all (list): collection of force terms (n * [Ftot_den, Ftot_x, Ftot_y])
-		n_bootstrap (int): bootstrap itterations
+		n_bootstrap (int): bootstrap iterations
 
 	Returns:
 		[FES_avr, var_fes, sd_fes, variance_prog, stdev_prog, var_fes_prog, sd_fes_prog ]
 	"""
    
-	# #Define terms that will be updated itteratively
+	# #Define terms that will be updated iteratively
 	FES_sum = np.zeros(np.shape(X))
 	Ftot_den_sum = np.zeros(np.shape(X))
 	Ftot_den2_sum = np.zeros(np.shape(X))
@@ -1074,7 +1074,7 @@ def bootstrap_2D_fes(X, Y, forces_all, n_bootstrap, FES_cutoff = 0, FFT_integrat
 		
 		#print progress
 		if (iteration+1) % (n_bootstrap/5) == 0:
-			# print(itteration+1, "Ftot: sd=", round(stdev_prog[-1],5), "      FES: var=", round(var_fes_prog[-1],3), "     sd=", round(sd_fes_prog[-1],3) )
+			# print(iteration+1, "Ftot: sd=", round(stdev_prog[-1],5), "      FES: var=", round(var_fes_prog[-1],3), "     sd=", round(sd_fes_prog[-1],3) )
 			print(iteration+1, "FES st. dev. =", round(sd_fes_prog[-1],3) )
 			
 	return [FES_avr, cutoff, sd_fes, sd_fes_prog ]
@@ -1112,7 +1112,7 @@ def plot_bootstrap(X, Y, FES, sd_fes, sd_fes_prog, FES_lim=11, ofe_lim=11, FES_s
 
 	axs[2].plot( range(len(sd_fes_prog)), sd_fes_prog);
 	axs[2].set_ylabel('Average Variance of Average FES [kJ/mol]$^2$', fontsize=11)
-	axs[2].set_xlabel('Bootstrap itterations', fontsize=11)
+	axs[2].set_xlabel('Bootstrap iterations', fontsize=11)
 	axs[2].set_title('Global Convergence of Bootstrap Variance', fontsize=11)
 
 	plt.rcParams["figure.figsize"] = (5,4)
