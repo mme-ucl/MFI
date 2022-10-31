@@ -185,7 +185,7 @@ def run_2D_Invernizzi(simulation_steps=10, sigma=0.1, height=0.5, biasfactor=10,
                    hp_centre_x=0.0, hp_centre_y=0.0, hp_kappa_x=0, hp_kappa_y=0,
                    lw_centre_x=0.0, lw_centre_y=0.0, lw_kappa_x=0, lw_kappa_y=0,
                    uw_centre_x=0.0, uw_centre_y=0.0, uw_kappa_x=0, uw_kappa_y=0,
-                   gaus_pace=200, position_pace=0, file_extension=""):
+                   gaus_pace=500, position_pace=0, file_extension=""):
     """Function to run a langevin simulation (in 2D) on the Invernizzi potential. Analytical form is approx.: 1.35*x^4+1.90*x^3*y+3.93*x^2*y^2-6.44*x^2-1.90*x*y^3+5.59*x*y+1.33*x+1.35*y^4-5.56*y^2+0.90*y+18.56.
 
     Args:
@@ -207,7 +207,7 @@ def run_2D_Invernizzi(simulation_steps=10, sigma=0.1, height=0.5, biasfactor=10,
         uw_centre_y (float, optional): y-position of upper wall potential. Defaults to 0.0.
         uw_kappa_x (int, optional): x-force_constant of upper wall potential. Defaults to 0.
         uw_kappa_y (int, optional): y-force_constant of upper wall potential. Defaults to 0.
-        gaus_pace (int, optional): Pace of deposition of metadynamics hills. Defaults to 200.
+        gaus_pace (int, optional): Pace of deposition of metadynamics hills. Defaults to 500.
         position_pace (int, optional): Pace of recording the CV in the position file. When position_pace=0, position_pace = gaus_pace/10. Defaults to 0.
         file_extension (str, optional): Adds an extension the the position and HILLS file. E.g. file_extension="_1" -> position_file="position_1". Defaults to "".
     """    

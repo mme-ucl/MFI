@@ -828,8 +828,7 @@ def patch_2D(master_array, nbins=np.array((200, 200))):
 	# OFE_X = OFE_X * PD_ratio
 	# OFE_Y = OFE_Y * PD_ratio
 	# OFE = np.sqrt( abs(OFE_X) + abs(OFE_Y))
-
-
+	
 	return [FP, FP2, FX, FY, OFV_X, OFV_Y]
 
 # Patch independent simulations
