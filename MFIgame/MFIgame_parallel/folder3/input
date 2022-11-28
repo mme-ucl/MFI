@@ -1,7 +1,0 @@
-temperature 1
-tstep 0.005
-friction 1
-dimension 1
-nstep 150000
-ipos -0.6499999999999999
-periodic false
