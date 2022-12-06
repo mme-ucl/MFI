@@ -2,6 +2,6 @@ temperature 1
 tstep 0.005
 friction 10
 dimension 2
-nstep 250000
-ipos -0.7043368435121642,-0.01106776595994341
+nstep 50000
+ipos 0.5,0.5
 periodic false
