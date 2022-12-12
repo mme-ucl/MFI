@@ -382,8 +382,8 @@ def MFI_2D(HILLS="HILLS", position_x="position_x", position_y="position_y", bw=1
 			kernelmeta_x = np.exp( - np.square(gridx - periodic_images[j][0]) / (2 * sigma_meta2_x)) * height_meta
 			kernelmeta_y = np.exp( - np.square(gridy - periodic_images[j][1]) / (2 * sigma_meta2_y))
 			# kernelmeta = np.outer(kernelmeta_y, kernelmeta_x)
-			Fbias_x = Fbias_x + np.outer(kernelmeta_y, np.multiply(kernelmeta_x, (gridx - periodic_images[j][0])) / sigma_meta2_x )
-			Fbias_y = Fbias_y + np.outer(np.multiply(kernelmeta_y, (gridy - periodic_images[j][1])) / sigma_meta2_y, kernelmeta_x )
+			Fbias_x += np.outer(kernelmeta_y, np.multiply(kernelmeta_x, (gridx - periodic_images[j][0])) / sigma_meta2_x )
+			Fbias_y += np.outer(np.multiply(kernelmeta_y, (gridy - periodic_images[j][1])) / sigma_meta2_y, kernelmeta_x )
 
 		# Estimate the biased proabability density p_t ^ b(s)
 		pb_t = np.zeros(nbins)
@@ -399,23 +399,23 @@ def MFI_2D(HILLS="HILLS", position_x="position_x", position_y="position_y", bw=1
 				kernel_x = np.exp( - np.square(gridx - periodic_images[k][0]) / (2 * bw2)) * const #add constant here for less computations
 				kernel_y = np.exp( - np.square(gridy - periodic_images[k][1]) / (2 * bw2))
 				kernel = np.outer(kernel_y, kernel_x)
-				kernel_x = kernel_x * kT / bw2 #add constant here for less computations
+				kernel_x += * kT / bw2 #add constant here for less computations
     
-				pb_t = pb_t + kernel
-				Fpbt_x = Fpbt_x + np.outer(kernel_y, np.multiply(kernel_x, (gridx - periodic_images[k][0])) )
-				Fpbt_y = Fpbt_y + np.outer(np.multiply(kernel_y, (gridy - periodic_images[k][1])) , kernel_x )
+				pb_t += kernel
+				Fpbt_x += np.outer(kernel_y, np.multiply(kernel_x, (gridx - periodic_images[k][0])) )
+				Fpbt_y += np.outer(np.multiply(kernel_y, (gridy - periodic_images[k][1])) , kernel_x )
 
 		# Calculate total probability density
 		pb_t = np.where(pb_t > Ftot_den_limit, pb_t, 0)  # truncated probability density of window
-		Ftot_den = Ftot_den + pb_t
+		Ftot_den += pb_t
 		
 		# Calculate x-component of Force
 		dfds_x = np.divide(Fpbt_x, pb_t, out=np.zeros_like(Fpbt_x), where=pb_t > 0) + Fbias_x - F_static_x
-		Ftot_num_x = Ftot_num_x + np.multiply(pb_t, dfds_x)
+		Ftot_num_x += np.multiply(pb_t, dfds_x)
 		
 		# Calculate y-component of Force
 		dfds_y = np.divide(Fpbt_y, pb_t, out=np.zeros_like(Fpbt_y), where=pb_t > 0) + Fbias_y - F_static_y
-		Ftot_num_y = Ftot_num_y + np.multiply(pb_t, dfds_y)
+		Ftot_num_y += np.multiply(pb_t, dfds_y)
 
 		# calculate on the fly error components
 		Ftot_den2 += np.square(pb_t)
