@@ -399,7 +399,7 @@ def MFI_2D(HILLS="HILLS", position_x="position_x", position_y="position_y", bw=1
 				kernel_x = np.exp( - np.square(gridx - periodic_images[k][0]) / (2 * bw2)) * const #add constant here for less computations
 				kernel_y = np.exp( - np.square(gridy - periodic_images[k][1]) / (2 * bw2))
 				kernel = np.outer(kernel_y, kernel_x)
-				kernel_x += * kT / bw2 #add constant here for less computations
+				kernel_x *= kT / bw2 #add constant here for less computations
     
 				pb_t += kernel
 				Fpbt_x += np.outer(kernel_y, np.multiply(kernel_x, (gridx - periodic_images[k][0])) )
