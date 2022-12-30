@@ -1,0 +1,21 @@
+# Langevin dynamics simulation with metadynamics of a simple harmonic oscillator
+
+# Define the analytical potential energy surface
+V(x) = sin(x) + (-0.08*exp(-(x-(0.58))^2/0.41))
+analytic: RESTRAINT ARG=x AT=V KAPPA=100.0
+
+# Define the Langevin dynamics integrator
+langevin: LANGEVIN ARG=x PACE=100.0 TEMP=300.0 DAMP=5.0
+
+# Apply metadynamics bias
+meta: METAD ARG=x SIGMA=0.1 HEIGHT=0.1 PACE=50
+
+# Run the simulation for 1000 steps with a time step of 0.01 picoseconds
+DUMPGRID GRID_MIN=-3.14 GRID_MAX=3.14 GRID_BIN=100 GRID_SPACING=0.01 ARG=x FILE=grid.data STRIDE=10
+MDCYCLE STRIDE=10
+
+# Apply periodic boundary conditions
+PERIODIC
+
+# Stop the simulation when the total simulation time reaches 10 picoseconds
+STOP TIME=10.0

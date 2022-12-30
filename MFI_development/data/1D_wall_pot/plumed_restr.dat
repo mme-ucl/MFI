@@ -1,0 +1,10 @@
+MOLINFO STRUCTURE=reference.pdb
+phi: TORSION ATOMS=@phi-2
+psi: TORSION ATOMS=@psi-2
+UPPER_WALLS ARG=phi,psi AT=-2.5,-1.6 KAPPA=0,0 LABEL=upper_wall
+LOWER_WALLS ARG=phi,psi AT=-2.5,-1.6 KAPPA=0,100 LABEL=lower_wall
+METAD ARG=phi,psi PACE=100 SIGMA=0.1,0.1 HEIGHT=3 TEMP=300 BIASFACTOR=20 GRID_MIN=-pi,-pi GRID_MAX=pi,pi GRID_BIN=1000,1000
+PRINT FILE=position ARG=phi,psi STRIDE=10
+PRINT FILE=restraint ARG=phi,psi,upper_wall.bias,lower_wall.bias STRIDE=100
+
+#gmx mdrun -s topolA.tpr -nsteps 1000000 -plumed plumed_first.dat -v

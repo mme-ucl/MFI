@@ -207,7 +207,6 @@ def MFI_1D(HILLS="HILLS", position="position", bw=1, kT=1, min_grid=-2, max_grid
     bw2 = bw ** 2
     if nhills > 0: total_number_of_hills = nhills
     else: total_number_of_hills = len(HILLS)
-    print(nhills)
     
     # initialise force terms
     Fbias = np.zeros(len(grid))
@@ -301,8 +300,8 @@ def MFI_1D(HILLS="HILLS", position="position", bw=1, kT=1, min_grid=-2, max_grid
                 intermediate_fes_list.append(intg_1D(grid, Ftot))
                 intermediate_time_list.append(HILLS[i,0])
 
-    if intermediate_fes_number > 1: return [grid, Ftot_den, Ftot, FES, ofv, ofe, cutoff, ofv_history, ofe_history, time_history, intermediate_fes_list, intermediate_time_list]
-    else: return [grid, Ftot_den, Ftot, FES, ofv, ofe, cutoff, ofv_history, ofe_history, time_history]
+    if intermediate_fes_number > 1: return [grid, Ftot_den, Ftot_den2, Ftot, ofv_num, FES, ofv, ofe, cutoff, ofv_history, ofe_history, time_history, intermediate_fes_list, intermediate_time_list]
+    else: return [grid, Ftot_den, Ftot_den2, Ftot, ofv_num, FES, ofv, ofe, cutoff, ofv_history, ofe_history, time_history]
 
 
 # Integrate Ftot, obtain FES
@@ -337,7 +336,7 @@ def plot_recap(X, FES, Ftot_den, ofe, ofe_history, time_history, FES_lim=40, ofe
         error_log_scale (boolean, optional): Option to make error_conversion plot with a log scale. 1 for log scale. Defaults to 1.
     """
     
-    fig, axs = plt.subplots(1, 3, figsize=(12, 8))
+    fig, axs = plt.subplots(2, 2, figsize=(12, 8))
 
     #plot ref f
     #y = 7*X**4 - 23*X**2
@@ -349,7 +348,7 @@ def plot_recap(X, FES, Ftot_den, ofe, ofe_history, time_history, FES_lim=40, ofe
     axs[0, 0].set_ylabel('F(CV1) [kJ/mol]')
     axs[0, 0].set_xlabel('CV1')
     axs[0, 0].set_title('Free Energy Surface')
-    axs[0, 0].set_xlim(-2,2)
+    axs[0, 0].set_xlim(np.min(X),np.max(X))
 
     axs[0, 1].plot(X, ofe);
     axs[0, 1].plot(X, np.zeros(len(X)), color="grey", alpha=0.3);
@@ -357,7 +356,7 @@ def plot_recap(X, FES, Ftot_den, ofe, ofe_history, time_history, FES_lim=40, ofe
     axs[0, 1].set_xlabel('CV1')
     axs[0, 1].set_title('Local Error Map')
     # axs[0, 1].set_ylim(-0.1, ofe_lim)
-    axs[0, 1].set_xlim(-2,2)
+    axs[0, 0].set_xlim(np.min(X),np.max(X))
 
     
 
@@ -365,7 +364,7 @@ def plot_recap(X, FES, Ftot_den, ofe, ofe_history, time_history, FES_lim=40, ofe
     axs[1, 0].set_ylabel('Count [relative probability]')
     axs[1, 0].set_xlabel('CV1')
     axs[1, 0].set_title('Total Probability density')
-    axs[1, 0].set_xlim(-2,2)
+    axs[0, 0].set_xlim(np.min(X),np.max(X))
     # axs[1, 0].set_yscale('log')
 
 
@@ -423,6 +422,108 @@ def patch_forces(force_vector):
 
     return [PD_patch, F_patch]
 
+def patch_FES_AD_ofe(force_vector, grid, y, nbins):
+    #initialisa terms
+    PD_patch = np.zeros(nbins)
+    PD2_patch = np.zeros(nbins)
+    F_patch = np.zeros(nbins)
+    OFV_patch = np.zeros(nbins)   
+    
+    #Patch force terms    
+    for i in range(len(force_vector)):
+        PD_patch += force_vector[i][0]
+        PD2_patch += force_vector[i][1]
+        F_patch += force_vector[i][0] * force_vector[i][2]
+        OFV_patch += force_vector[i][3]
+    F_patch = np.divide(F_patch, PD_patch, out=np.zeros_like(F_patch), where=PD_patch > 0)
+
+    #Calculate error
+    PD_ratio = np.divide(PD2_patch, (PD_patch ** 2 - PD2_patch), out=np.zeros_like(PD_patch), where=(PD_patch ** 2 - PD2_patch) > 0)
+    OFV = (np.divide(OFV_patch, PD_patch, out=np.zeros_like(OFV_patch), where=PD_patch > 0) - F_patch ** 2) * PD_ratio
+    OFE = np.where(OFV > 10E-10, np.sqrt(OFV), 0)
+    AOFE = sum(OFE) / nbins
+
+    #Find FES and AAD
+    FES = intg_1D(grid, F_patch)        
+    AD = abs(FES - y)
+    AAD = sum(AD) / nbins
+    
+    if AOFE != AOFE:
+        print("\n\n\n*************ATTENTION*****************")
+        print("AOFE = ", AOFE)
+        
+        print("\n\n")
+        print("OFE = \n", OFE)
+        
+        print("\n\n")
+        print("OFV = \n", OFV)
+        
+        print("\n\n")
+        print("PD_ratio = \n", PD_ratio)
+        
+        print("\n\n")
+        print("PD2_patch = \n", PD2_patch)
+        
+        print("\n\n")
+        print("PD2_patch = \n", PD2_patch)
+        
+        print("\n\n")
+        print("OFV_patch = \n", OFV_patch)
+        
+        exit()
+    
+    return [grid, PD_patch, F_patch, FES, AD, AAD, OFE, AOFE]
+
+
+def patch_FES_ofe(force_vector, grid, nbins):
+    #initialisa terms
+    PD_patch = np.zeros(nbins)
+    PD2_patch = np.zeros(nbins)
+    F_patch = np.zeros(nbins)
+    OFV_patch = np.zeros(nbins)   
+    
+    #Patch force terms    
+    for i in range(len(force_vector)):
+        PD_patch += force_vector[i][0]
+        PD2_patch += force_vector[i][1]
+        F_patch += force_vector[i][0] * force_vector[i][2]
+        OFV_patch += force_vector[i][3]
+    F_patch = np.divide(F_patch, PD_patch, out=np.zeros_like(F_patch), where=PD_patch > 0)
+
+    #Calculate error
+    PD_ratio = np.divide(PD2_patch, (PD_patch ** 2 - PD2_patch), out=np.zeros_like(PD_patch), where=(PD_patch ** 2 - PD2_patch) > 0)
+    OFV = (np.divide(OFV_patch, PD_patch, out=np.zeros_like(OFV_patch), where=PD_patch > 0) - F_patch ** 2) * PD_ratio
+    OFE = np.where(OFV > 10E-10, np.sqrt(OFV), 0)
+    AOFE = sum(OFE) / nbins
+
+    #Find FES and AAD
+    FES = intg_1D(grid, F_patch)        
+    
+    if AOFE != AOFE:
+        print("\n\n\n*************ATTENTION*****************")
+        print("AOFE = ", AOFE)
+        
+        print("\n\n")
+        print("OFE = \n", OFE)
+        
+        print("\n\n")
+        print("OFV = \n", OFV)
+        
+        print("\n\n")
+        print("PD_ratio = \n", PD_ratio)
+        
+        print("\n\n")
+        print("PD2_patch = \n", PD2_patch)
+        
+        print("\n\n")
+        print("PD2_patch = \n", PD2_patch)
+        
+        print("\n\n")
+        print("OFV_patch = \n", OFV_patch)
+        
+        exit()
+    
+    return [grid, PD_patch, F_patch, FES, OFE, AOFE]
 
 
 def bootstrap_forw_back(grid, forward_force, backward_force, n_bootstrap):

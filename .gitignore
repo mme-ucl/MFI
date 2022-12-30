@@ -1,0 +1,8 @@
+bck.*
+*#
+confout.gro
+ener.edr
+*.log
+*.mdp
+*.cpt
+*.out
