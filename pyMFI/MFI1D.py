@@ -4,6 +4,7 @@ import scipy.integrate as integrate
 import numpy as np
 import pickle
 import random
+from numba import jit, njit
 
 
 def load_HILLS(hills_name="HILLS"):
@@ -39,6 +40,7 @@ def load_position(position_name="position"):
     return colvar[:-1, 1]
 
 #define indexing
+@njit
 def index(position, min_grid, grid_space):
     """Finds (approximate) index of a position in a grid. Independent of CV-type.
 
@@ -53,7 +55,7 @@ def index(position, min_grid, grid_space):
     return int((position-min_grid)//grid_space) + 1
 
 
-def find_periodic_point(x_coord, min_grid, max_grid, periodic):
+def find_periodic_point(x_coord, min_grid, max_grid, periodic, grid_ext, grid_length):
     """Finds periodic copies of input coordinate. 
 
     Args:
@@ -70,17 +72,51 @@ def find_periodic_point(x_coord, min_grid, max_grid, periodic):
         coord_list = []
         #There are potentially 2 points, 1 original and 1 periodic copy.
         coord_list.append(x_coord)
-        #define grid extension
-        grid_ext = 0.25 * (max_grid-min_grid)
         #check for copy
-        if x_coord < min_grid+grid_ext: coord_list.append(x_coord + 2*np.pi)
-        elif x_coord > max_grid-grid_ext: coord_list.append(x_coord - 2*np.pi)
+        if x_coord < min_grid+grid_ext: coord_list.append(x_coord + grid_length)
+        elif x_coord > max_grid-grid_ext: coord_list.append(x_coord - grid_length)
 
         return coord_list
     else:
         return [x_coord]
+    
+@jit
+def find_periodic_point_numpy(coord_array, min_grid, max_grid, periodic, grid_ext, grid_length):
 
+    len_coord_array = len(coord_array)
 
+    if periodic == 0:
+        return coord_array
+    elif periodic == 1:
+        for i in range(len_coord_array):
+            if coord_array[i] < min_grid+grid_ext:
+                coord_array = np.append(coord_array, coord_array[i] + grid_length)
+            elif coord_array[i] > max_grid-grid_ext:
+                coord_array = np.append(coord_array, coord_array[i] - grid_length)
+        return coord_array  
+    
+@jit
+def window_forces(periodic_positions, periodic_hills, grid, sigma_meta2, height_meta, kT, const, bw2, Ftot_den_limit):
+    
+    pb_t = np.zeros(len(grid))
+    Fpbt = np.zeros(len(grid))
+    Fbias_window = np.zeros(len(grid))
+    
+    for j in range(len(periodic_hills)):
+        kernelmeta = np.exp( - np.square(grid - periodic_hills[j]) / (2*sigma_meta2) )
+        Fbias_window += height_meta / sigma_meta2 * np.multiply(kernelmeta, (grid - periodic_hills[j]))
+    
+    # Estimate the biased proabability density
+    for j in range(len(periodic_positions)):
+        kernel = const * np.exp(- np.square(grid - periodic_positions[j]) / (2 * bw2))  
+        pb_t += kernel
+        Fpbt += kT / bw2 * np.multiply(kernel, (grid - periodic_positions[j]))
+
+    pb_t = np.where(pb_t > Ftot_den_limit, pb_t, 0)  # truncated probability density of window
+   
+    return [pb_t, Fpbt, Fbias_window]  
+
+@njit
 def find_hp_force(hp_centre, hp_kappa, grid, min_grid, max_grid, grid_space, periodic):
     """Find 1D harmonic potential force. 
 
@@ -109,6 +145,7 @@ def find_hp_force(hp_centre, hp_kappa, grid, min_grid, max_grid, grid_space, per
 
     return F_harmonic
 
+@njit
 def find_lw_force(lw_centre, lw_kappa, grid, min_grid, max_grid, grid_space, periodic):
     """_summary_
 
@@ -137,6 +174,7 @@ def find_lw_force(lw_centre, lw_kappa, grid, min_grid, max_grid, grid_space, per
 
     return F_harmonic
 
+@njit
 def find_uw_force(uw_centre, uw_kappa, grid, min_grid, max_grid, grid_space, periodic):
     """_summary_
 
@@ -164,13 +202,35 @@ def find_uw_force(uw_centre, uw_kappa, grid, min_grid, max_grid, grid_space, per
             F_harmonic[:index_period] = 2 * uw_kappa * (grid[:index_period] - uw_centre + grid_length)
     
     return F_harmonic
+
+@njit
+def intg_1D(Force, dx):
+    """Integration of 1D gradient using finite difference method (simpson's method).
+
+    Args:
+        Force (array): Mean force
+        dx (array): grid spacing
+
+    Returns:
+        FES (array): Free energy surface
+    """
+    fes = np.zeros_like(Force)
     
-    
+    for j in range(len(Force)): 
+        y = Force[:j + 1]
+        N = len(y)
+        if N % 2 == 0: fes[j] = dx/6 * (np.sum(y[: N-3: 2] + 4*y[1: N-3+1: 2] + y[2: N-3+2: 2]) + np.sum(y[1: N-2: 2] + 4*y[1+1: N-1: 2] + y[1+2: N: 2])) + dx/4 * ( y[1] + y[0] + y[-1] + y[-2])
+        else: fes[j] = dx / 3.0 * np.sum(y[: N-2: 2] + 4*y[1: N-1: 2] + y[2: N: 2])
+            
+    fes = fes - min(fes)
+    return fes
+   
 ### Algorithm to run 1D MFI
 # Run MFI algorithm with on the fly error calculation
+@njit
 def MFI_1D(HILLS="HILLS", position="position", bw=1, kT=1, min_grid=-2, max_grid=2, nbins=201, log_pace=10,
            error_pace=200, WellTempered=1, nhills=-1, periodic=0, hp_centre=0.0, hp_kappa=0, lw_centre=0.0, lw_kappa=0,
-           uw_centre=0.0, uw_kappa=0, intermediate_fes_number = 0, truncation_limit = 10**-5, FES_cutoff = 0):
+           uw_centre=0.0, uw_kappa=0, intermediate_fes_number = 0, Ftot_den_limit = 1E-10, FES_cutoff = 0, Ftot_den_cutoff = 0):
     """Compute a time-independent estimate of the Mean Thermodynamic Force, i.e. the free energy gradient in 1D CV spaces.
 
     Args:
@@ -200,8 +260,11 @@ def MFI_1D(HILLS="HILLS", position="position", bw=1, kT=1, min_grid=-2, max_grid
         ofe (array of size (1, nbins)): on the fly estimate of the variance of the mean force
         ofe_history (list of size (1, error_pace)): running estimate of the global on the fly variance of the mean force
     """
+    
     grid = np.linspace(min_grid, max_grid, nbins)
     grid_space = (max_grid - min_grid) / (nbins-1)
+    grid_ext = 0.25 * (max_grid-min_grid)
+    grid_length = max_grid - min_grid
     stride = int(len(position) / len(HILLS[:, 1]))
     const = (1 / (bw * np.sqrt(2 * np.pi) * stride))
     bw2 = bw ** 2
@@ -214,19 +277,23 @@ def MFI_1D(HILLS="HILLS", position="position", bw=1, kT=1, min_grid=-2, max_grid
     Ftot_den = np.zeros(len(grid))
     Ftot_den2 = np.zeros(len(grid))
     ofv_num = np.zeros(len(grid))
-    ofv_history = []
-    ofe_history = []
-    time_history = []
-
+    
+    #initialise error terms
+    error_history_collection = np.zeros((int(error_pace), 3))
+    error_count = 0
+    volume_history = np.zeros(int(error_pace))
+    
+    intermediate_fes_collection = np.zeros((int(intermediate_fes_number), nbins))
+    intermediate_cutoff_collection = np.zeros((int(intermediate_fes_number), nbins))
+    intermediate_time_collection = np.zeros(int(intermediate_fes_number))
+    intermediate_fes_count = 0
+        
     #Calculate static force (form harmonic or wall potential)
     F_static = np.zeros(nbins)
     if hp_kappa > 0: F_static += find_hp_force(hp_centre, hp_kappa, grid, min_grid, max_grid, grid_space, periodic)
-    if lw_kappa > 0: F_static += find_lw_force(lw_centre, lw_kappa, grid, periodic)
-    if uw_kappa > 0: F_static += find_uw_force(uw_centre, uw_kappa, grid, periodic)
-    
-    if intermediate_fes_number > 1: 
-        intermediate_fes_list = [] 
-        intermediate_time_list = [] 
+    if lw_kappa > 0: F_static += find_lw_force(lw_centre, lw_kappa, grid, min_grid, max_grid, grid_space, periodic)
+    if uw_kappa > 0: F_static += find_uw_force(uw_centre, uw_kappa, grid, min_grid, max_grid, grid_space, periodic)
+
 
     # Definition Gamma Factor, allows to switch between WT and regular MetaD
     if WellTempered < 1:
@@ -235,77 +302,92 @@ def MFI_1D(HILLS="HILLS", position="position", bw=1, kT=1, min_grid=-2, max_grid
         gamma = HILLS[0, 4]
         Gamma_Factor = (gamma - 1) / (gamma)
         
-    Ftot_den_limit = 0
     
     for i in range(total_number_of_hills):
         
-        Ftot_den_limit = (i+1)*stride * truncation_limit  # truncates the Total probability density. Can be set to 0 when probability density of window is truncated
         
-        # Build metadynamics potential
+        #Get position data of window        
         s = HILLS[i, 1]  # centre position of Gaussian
         sigma_meta2 = HILLS[i, 2] ** 2  # width of Gaussian
         height_meta = HILLS[i, 3] * Gamma_Factor  # Height of Gaussian
-        
-        periodic_images = find_periodic_point(s, min_grid, max_grid, periodic)
-        for j in range(len(periodic_images)):
-            kernelmeta = np.exp(-0.5 * (((grid - periodic_images[j]) ** 2) / (sigma_meta2)))
-            Fbias = Fbias + height_meta * kernelmeta * ((grid - periodic_images[j]) / (sigma_meta2))  # Bias force due to Metadynamics potentials
-        
-        # Estimate the biased proabability density
-        pb_t = np.zeros(len(grid))
-        Fpbt = np.zeros(len(grid))
         data = position[i * stride: (i + 1) * stride]  # positons of window of constant bias force.
-        for j in range(stride):
-            periodic_images = find_periodic_point(data[j], min_grid, max_grid, periodic)
-            for k in range(len(periodic_images)):
-                kernel = const * np.exp(- (grid - periodic_images[k]) ** 2 / (2 * bw2))  # probability density of 1 datapoint
-                pb_t = pb_t + kernel # probability density of window
-                Fpbt = Fpbt + kT * kernel * (grid - periodic_images[k]) / bw2
+        periodic_hills = find_periodic_point_numpy(np.array([s]), min_grid, max_grid, periodic, grid_ext, grid_length)
+        periodic_positions = find_periodic_point_numpy(data, min_grid, max_grid, periodic, grid_ext, grid_length)
+                
+        # Find forces of window
+        [pb_t, Fpbt, Fbias_window] = window_forces(periodic_positions, periodic_hills, grid, sigma_meta2, height_meta, kT, const, bw2, Ftot_den_limit)
 
-        pb_t = np.where(pb_t > truncation_limit * stride, pb_t, 0)  # truncated probability density of window
-
-        # Estimate of the Mean Force and error  for terms
-        Ftot_den = Ftot_den + pb_t  # total probability density             
-        dfds = np.divide(Fpbt, pb_t, out=np.zeros_like(Fpbt), where=pb_t > truncation_limit) + Fbias - F_static
-        Ftot_num = Ftot_num + pb_t * dfds
-        Ftot = np.divide(Ftot_num, Ftot_den, out=np.zeros_like(Ftot_num), where=Ftot_den > Ftot_den_limit)  # total force
+        # update force terms
+        Ftot_den += pb_t  # total probability density             
+        Fbias += Fbias_window
+        dfds = np.where(pb_t < Ftot_den_limit, 0, Fpbt / pb_t) + Fbias - F_static
+        Ftot_num += np.multiply(pb_t, dfds)
+        Ftot = np.where(Ftot_den > Ftot_den_limit, Ftot_num / Ftot_den, 0)
 
         # terms for error calculation
-        Ftot_den2 = Ftot_den2 + pb_t ** 2  # sum of (probability densities)^2
-        ofv_num = ofv_num + pb_t * (dfds ** 2)  # sum of (weighted mean force of window)^2
+        Ftot_den2 += np.square(pb_t) 
+        ofv_num += np.multiply(pb_t, np.square(dfds))  
+  
 
         # Calculate error
         if (i + 1) % int(total_number_of_hills / error_pace) == 0 or (i+1) == total_number_of_hills:
             
+    
+            cutoff = np.ones(nbins, dtype=np.float64)
             if FES_cutoff > 0:
-                FES = intg_1D(grid, Ftot)
-                cutoff = np.where(FES < FES_cutoff, 1, 0)
-            else: 
-                cutoff = np.ones_like(Ftot)
-                if (i+1) == total_number_of_hills: FES = intg_1D(grid, Ftot)
-            
-            ofv = np.divide(ofv_num , Ftot_den, out=np.zeros_like(Ftot_den), where=Ftot_den > Ftot_den_limit) - Ftot**2
-            ofv = ofv * np.divide(Ftot_den**2 , (Ftot_den**2-Ftot_den2), out=np.zeros_like(Ftot_den), where=(Ftot_den**2-Ftot_den2) > 0) * cutoff
-            ofe = np.sqrt(ofv)
-                                    
-            ofv_history.append(sum(ofv) / np.count_nonzero(ofv))
-            ofe_history.append(sum(ofe) / np.count_nonzero(ofe))
-            time_history.append(HILLS[i,0])            
-            if (i + 1) % int(total_number_of_hills / log_pace) == 0:
-                print(str(round((i + 1) / total_number_of_hills * 100, 0)) + "%   OFE =", round(ofe_history[-1], 4))
-                
-        #Calculate intermediate fes
-        if intermediate_fes_number > 1:
-            if (i+1) % (total_number_of_hills/intermediate_fes_number) == 0:
-                intermediate_fes_list.append(intg_1D(grid, Ftot))
-                intermediate_time_list.append(HILLS[i,0])
+                FES = intg_1D(Ftot, grid_space)
+                cutoff = np.where(FES < FES_cutoff, 1.0, 0)
+            if Ftot_den_cutoff > 0:
+                cutoff = np.where(Ftot_den > Ftot_den_cutoff, 1.0, 0)
 
-    if intermediate_fes_number > 1: return [grid, Ftot_den, Ftot_den2, Ftot, ofv_num, FES, ofv, ofe, cutoff, ofv_history, ofe_history, time_history, intermediate_fes_list, intermediate_time_list]
-    else: return [grid, Ftot_den, Ftot_den2, Ftot, ofv_num, FES, ofv, ofe, cutoff, ofv_history, ofe_history, time_history]
+            # print(np.shape(cutoff))
+    
+            ofv = np.where(Ftot_den > Ftot_den_limit, ofv_num / Ftot_den, 0) - np.square(Ftot)
+            ofv *= np.where((Ftot_den**2-Ftot_den2) > 0, Ftot_den**2 / (Ftot_den**2-Ftot_den2), 0)
+            ofe = np.where(ofv != 0, np.sqrt(ofv), 0)  
+        
+            error_history_collection[error_count,0] = sum(ofv) / np.count_nonzero(ofv)
+            error_history_collection[error_count,1] = sum(ofe) / np.count_nonzero(ofe)
+            error_history_collection[error_count,2] = HILLS[i,0]
+            
+            absolute_explored_volume = np.count_nonzero(cutoff)
+            # volume_history[error_count] = nbins / absolute_explored_volume
+
+            error_count += 1
+            
+            #window error            
+            
+            
+                         
+        if (i + 1) % int(total_number_of_hills / log_pace) == 0:
+            print((round((i + 1) / total_number_of_hills * 100, 0)) , "%   OFE =", round(error_history_collection[error_count-1,1], 4))
+                
+        # #Calculate intermediate fes
+        if intermediate_fes_number > 1:
+            if (i+1) % (total_number_of_hills/intermediate_fes_number) == 0 or (i+1) == total_number_of_hills:
+                
+                FES = intg_1D(Ftot, grid_space)
+                
+                cutoff = np.ones(nbins, dtype=np.float64)
+                if FES_cutoff > 0:
+                    cutoff = np.where(FES < FES_cutoff, 1.0, 0)
+                if Ftot_den_cutoff > 0:
+                    cutoff = np.where(Ftot_den > Ftot_den_cutoff, 1.0, 0)
+            
+                intermediate_fes_collection[intermediate_fes_count] = FES
+                intermediate_cutoff_collection[intermediate_fes_count] = cutoff
+                intermediate_time_collection[intermediate_fes_count] = HILLS[i,0]
+                intermediate_fes_count += 1
+
+    FES = intg_1D(Ftot, grid_space)
+    
+    if intermediate_fes_number > 1: return grid, Ftot_den, Ftot_den2, Ftot, ofv_num, FES, ofv, ofe, cutoff, error_history_collection, volume_history, intermediate_fes_collection, intermediate_cutoff_collection, intermediate_time_collection
+    else: return grid, Ftot_den, Ftot_den2, Ftot, ofv_num, FES, ofv, ofe, cutoff, error_history_collection, volume_history, intermediate_fes_collection, intermediate_cutoff_collection, intermediate_time_collection
+
 
 
 # Integrate Ftot, obtain FES
-def intg_1D(x, F):
+def intg_1D_old(x, F):
     """Integration of 1D gradient using finite difference method (simpson's method).
 
     Args:
@@ -339,9 +421,9 @@ def plot_recap(X, FES, Ftot_den, ofe, ofe_history, time_history, FES_lim=40, ofe
     fig, axs = plt.subplots(2, 2, figsize=(12, 8))
 
     #plot ref f
-    #y = 7*X**4 - 23*X**2
-    #y = y - min(y)    
-    #axs[0, 0].plot(X, y, color="red", alpha=0.3);
+    y = 7*X**4 - 23*X**2
+    y = y - min(y)  
+    axs[0, 0].plot(X, y, color="red", alpha=0.3);
     
     axs[0, 0].plot(X, FES);
     axs[0, 0].set_ylim([0, FES_lim])
