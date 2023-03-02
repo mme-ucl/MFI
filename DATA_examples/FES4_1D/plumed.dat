@@ -1,0 +1,6 @@
+p: DISTANCE ATOMS=1,2 COMPONENTS
+ff: MATHEVAL ARG=p.x FUNC=(-45*exp(-0.5/1.5*(x+4.0)^2)-20*exp(-0.5/0.4*(x+1.26)^2)-50*exp(-0.5*(x-1.2)^2)-45*exp(-0.5*(x-3.9)^2)+exp(-x-5)^2+exp(x-5)) PERIODIC=NO
+bb: BIASVALUE ARG=ff
+METAD ARG=p.x SIGMA=0.1 HEIGHT=5 BIASFACTOR=10 GRID_MIN=-8.0 GRID_MAX=8.0 GRID_BIN=400 PACE=100 TEMP=120 
+EXTERNAL ARG=p.x FILE=external_bias.dat LABEL=external 
+PRINT FILE=position ARG=p.x STRIDE=10

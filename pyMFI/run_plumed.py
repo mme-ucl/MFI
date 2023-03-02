@@ -2,6 +2,7 @@ import os
 import subprocess
 from subprocess import PIPE
 from random import randint
+import numpy as np
 
 
 def run_langevin1D(simulation_steps,
@@ -11,7 +12,8 @@ def run_langevin1D(simulation_steps,
                    gaus_width=0.1, gaus_height=1, biasfactor=10, gaus_pace=100, position_pace=0,
                    hp_centre=0.0, hp_kappa=0,
                    lw_centre=0.0, lw_kappa=0,
-                   uw_centre=0.0, uw_kappa=0):
+                   uw_centre=0.0, uw_kappa=0,
+                   external_bias_file=""):
     """Function to run a langevin simulation in 1 dimension. Default analytical potential: y = 7*x^4-23*x^2.
 
     Args:
@@ -85,13 +87,17 @@ TEMP={} \n".format(gaus_width, gaus_height, biasfactor, grid_min, grid_max, grid
         # Upper wall bias. To activate, the force constant (kappa) needs to be a positive number
         if uw_kappa > 0:
             f.write("UPPER_WALLS ARG=p.x AT={} KAPPA={} LABEL=upperwall \n".format(uw_centre, uw_kappa))
+            
+        if external_bias_file != "":
+            f.write("EXTERNAL ARG=p.x FILE={} LABEL=external \n".format(external_bias_file))
 
         # Print position of system. If position_pace = 0, it will be position_pace = gaus_pace/10
         if position_pace == 0: position_pace = int(gaus_pace / 10)
         f.write("PRINT FILE=position ARG=p.x STRIDE={}".format(position_pace))
 
 
-    os.system("plumed pesmd < input")
+    # os.system("plumed pesmd < input")
+    os.system("plumed pesmd < input >/dev/null 2>&1")
 
 def run_langevin2D(simulation_steps,
                    analytical_function="7*x^4-23*x^2+7*y^4-23*y^2", periodic_f="NO",
@@ -554,19 +560,34 @@ ipos {}""".format(temperature, time_step, simulation_steps, initial_position),fi
 
 
 
-
-
-#     with open("input" ,"w") as f:
-#         print("""temperature {}
-# tstep {}
-# friction 1
-# dimension 1
-# nstep {}
-# ipos {}""".format(temperature, time_step, simulation_steps,  initial_position) ,file=f)
-
 #         if periodic_boundaries == "NO":
 #             f.write("periodic false")
 #         else:
 #             f.write("periodic on\n")
 #             f.write("min {}\n".format(periodic_boundaries.split(",")[0]))
 #             f.write("max {}".format(periodic_boundaries.split(",")[1]))
+
+
+def make_external_bias_1D(grid_old, FES, Ftot, grid_min_plumed, grid_max_plumed, FES_cutoff, file_name_extension=""):
+    
+    #create extended grid so that it goes to reaches grid_min_plumed and grid_max_plumed
+    grid_spacing = grid_old[1] - grid_old[0]
+    lower_new_values = int((grid_old[0] - grid_min_plumed)/grid_spacing) + 1
+    upper_new_values = int((grid_max_plumed - grid_old[-1])/grid_spacing) + 1
+    new_end_values = (grid_old[0] - grid_spacing*lower_new_values, grid_old[-1] + grid_spacing*upper_new_values) 
+       
+    grid_plumed = np.pad(grid_old, (lower_new_values, upper_new_values), mode="linear_ramp", end_values=new_end_values)
+    nbins_plumed = len(grid_plumed)
+    
+    #Extend FES and Ftot using constant values
+    FES_plumed = np.where(FES > FES_cutoff, FES_cutoff, FES)
+    FES_plumed = np.pad(FES_plumed, (lower_new_values, upper_new_values), mode="constant", constant_values=FES_cutoff)
+    FES_plumed = -FES_plumed + FES_cutoff   
+    Ftot_plumed = np.pad(-Ftot, (lower_new_values, upper_new_values), mode="constant")
+    
+    #Save to external_bias.dat file
+    head_text = "#! FIELDS p.x external.bias der_p.x\n#! SET min_p.x " + str(grid_min_plumed) + "\n#! SET max_p.x " + str(grid_max_plumed) + "\n#! SET nbins_p.x " + str(nbins_plumed-1) + "\n#! SET periodic_p.x false"
+    external_bias_vector = np.array([grid_plumed, FES_plumed, Ftot_plumed]).T       
+    np.savetxt("external_bias.dat" + file_name_extension , external_bias_vector, fmt="%.8f", delimiter="   ", header=head_text, comments="")
+
+    return [grid_plumed, FES_plumed, Ftot_plumed]
