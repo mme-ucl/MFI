@@ -309,7 +309,7 @@ def MFI_2D(HILLS="HILLS", position_x="position_x", position_y="position_y", bw=1
 		ofv_y: array of size (nbins[0], nbins[1]) - intermediate component in the calculation of the CV2 "on the fly variance" ( sum of: pb_t * dfds_y ** 2)
 	"""
 
-	if FES_cutoff > 0: print("I will integrate the FES every ",str(error_pace)," steps. This may take a while." )
+	if FES_cutoff > 0 and FFT_integration == 0: print("I will integrate the FES every ",str(error_pace)," steps. This may take a while." )
 
 	gridx = np.linspace(min_grid[0], max_grid[0], nbins[0])
 	gridy = np.linspace(min_grid[1], max_grid[1], nbins[1])
@@ -356,7 +356,7 @@ def MFI_2D(HILLS="HILLS", position_x="position_x", position_y="position_y", bw=1
 		F_static_x += Force_x
 		F_static_y += Force_y
 
-	print("Total no. of Gaussians analysed: " + str(total_number_of_hills))
+	# print("Total no. of Gaussians analysed: " + str(total_number_of_hills))
 
 	# Definition Gamma Factor, allows to switch between WT and regular MetaD
 	if WellTempered < 1:
@@ -429,7 +429,7 @@ def MFI_2D(HILLS="HILLS", position_x="position_x", position_y="position_y", bw=1
 
 			# calculate ofe (standard error)
 			if base_terms == 0:
-				[ofv] = mean_force_variance(Ftot_den, Ftot_den2, Ftot_x, Ftot_y, ofv_num_x, ofv_num_y)
+				[ofv, ofe] = mean_force_variance(Ftot_den, Ftot_den2, Ftot_x, Ftot_y, ofv_num_x, ofv_num_y)
 				[Ftot_den_temp, Ftot_x_temp, Ftot_y_temp] = [np.array(Ftot_den), np.array(Ftot_x), np.array(Ftot_y)]
 			elif len(base_terms) == 6:
 				[Ftot_den_temp, Ftot_x_temp, Ftot_y_temp, ofv, ofe] = patch_to_base_variance(base_terms, [Ftot_den, Ftot_den2, Ftot_x, Ftot_y, ofv_num_x, ofv_num_y])
@@ -443,13 +443,13 @@ def MFI_2D(HILLS="HILLS", position_x="position_x", position_y="position_y", bw=1
 					cutoff = np.where(FES <= np.ones_like(FES) * FES_cutoff, 1, 0)
 			else: cutoff = np.where(Ftot_den_temp >= np.ones_like(Ftot_den_temp) * Ftot_den_cutoff, 1, 0)
 			
-			ofe = np.sqrt(np.multiply(ofv, cutoff)) #used to be np.sqrt(np.array(np.multiply(ofv, cutoff)))
+			ofe = np.multiply(ofe, cutoff) 
 
 			#Calculate averaged global error
 			absolute_explored_volume = np.count_nonzero(cutoff)
 			volume_history.append( nbins[0]*nbins[1]/absolute_explored_volume)
 			ofe_history.append( np.sum(ofe) / absolute_explored_volume)
-			time_history.append(HILLS[i,0])
+			time_history.append(HILLS[i,0] + HILLS[2,0] - HILLS[1,0])
 			if len(window_corners) == 4:
 				ofe_cut_window = reduce_to_window(ofe, min_grid, grid_space, x_min=window_corners[0], x_max=window_corners[1], y_min=window_corners[2], y_max=window_corners[3]) 
 				ofe_history_window.append(np.sum(ofe_cut_window) / (np.count_nonzero(ofe_cut_window)))
@@ -470,7 +470,7 @@ def mean_force_variance(Ftot_den, Ftot_den2, Ftot_x, Ftot_y, ofv_num_x, ofv_num_
 
 	Args:
 		Ftot_den (array of size (nbins[0], nbins[1])): Cumulative biased probability density
-		Ftot_den2 (array of size (nbins[0], nbins[1])):  Cumulative squared biased probability density
+		25Ftot_den2 (array of size (nbins[0], nbins[1])):  Cumulative squared biased probability density
 		Ftot_x (array of size (nbins[0], nbins[1])): CV1 component of the Mean Force.
 		Ftot_y (array of size (nbins[0], nbins[1])): CV2 component of the Mean Force.
 		ofv_num_x (array of size (nbins[0], nbins[1])): intermediate component in the calculation of the CV1 "on the fly variance" ( sum of: pb_t * dfds_x ** 2)
@@ -488,7 +488,12 @@ def mean_force_variance(Ftot_den, Ftot_den2, Ftot_x, Ftot_y, ofv_num_x, ofv_num_
 	ofv_y = np.multiply(np.divide(ofv_num_y , Ftot_den, out=np.zeros_like(Ftot_den), where=Ftot_den > 0) - np.square(Ftot_y) , bessel_corr )
 	
 	ofv = np.sqrt(np.square(ofv_x) + np.square(ofv_y))	
-	return [ofv]
+ 
+	ofe_x = np.sqrt(ofv_x)
+	ofe_y = np.sqrt(ofv_y)
+	ofe = np.sqrt(np.square(ofe_x) + np.square(ofe_y))
+
+	return [ofv, ofe]
 
 
 def patch_to_base_variance(master0, master):
@@ -765,7 +770,7 @@ def plot_recap_2D(X, Y, FES, TOTAL_DENSITY, CONVMAP, CONV_history, CONV_history_
 	Returns: 
 		(Plot)
 	"""
-	fig, axs = plt.subplots(1, 4, figsize=(18, 3))
+	fig, axs = plt.subplots(1, 4, figsize=(16, 3))
 	cp = axs[0].contourf(X, Y, FES, levels=range(0, FES_lim, FES_step), cmap='coolwarm', antialiased=False, alpha=0.8);
 	cbar = plt.colorbar(cp, ax=axs[0])
 	cbar.set_label("Free Energy [kJ/mol]")
@@ -793,10 +798,12 @@ def plot_recap_2D(X, Y, FES, TOTAL_DENSITY, CONVMAP, CONV_history, CONV_history_
 	axs[2].set_ylim(np.min(Y),np.max(Y))
 	axs[2].set_title('Total Biased Probability Density', fontsize=11)
 
-	axs[3].plot( [time/1000 for time in CONV_history_time], CONV_history);
+	axs[3].plot( [time/1000 for time in CONV_history_time], CONV_history, label="global ofe");
 	axs[3].set_ylabel('Standard Deviation [kJ/(mol*nm)]', fontsize=11)
 	axs[3].set_xlabel('Simulation time [ns]', fontsize=11)
 	axs[3].set_title('Global Convergence of Standard Deviation', fontsize=11)
+ 
+	plt.tight_layout()
 
 
 # Patch independent simulations
@@ -1109,7 +1116,7 @@ def plot_bootstrap(X, Y, FES, sd_fes, sd_fes_prog, FES_lim=11, ofe_lim=11, FES_s
 	axs[0].set_xlabel('CV1', fontsize=11)
 	axs[0].set_title('Average FES', fontsize=11)
 
-	cp = axs[1].contourf(X, Y, sd_fes, levels=range(0, ofe_lim, 1), cmap='coolwarm', antialiased=False, alpha=0.8);
+	cp = axs[1].contourf(X, Y, sd_fes, levels=np.linspace(0, ofe_lim, 10), cmap='coolwarm', antialiased=False, alpha=0.8);
 	cbar = plt.colorbar(cp, ax=axs[1])
 	cbar.set_label("Variance of Average FES [kJ/mol]$^2$", rotation=270)
 	axs[1].set_ylabel('CV2', fontsize=11)

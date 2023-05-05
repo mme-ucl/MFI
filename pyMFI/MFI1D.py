@@ -296,7 +296,7 @@ def MFI_1D(HILLS="HILLS", position="position", bw=0.1, kT=1, min_grid=-2, max_gr
 
     # Definition Gamma Factor, allows to switch between WT and regular MetaD
     if WellTempered < 1: Gamma_Factor = 1
-    else: gamma = (HILLS[0, 4] - 1) / (HILLS[0, 4])
+    else: Gamma_Factor = (HILLS[0, 4] - 1) / (HILLS[0, 4])
         
     #Cycle over windows of constant bias (for each deposition of a gaussian bias)
     for i in range(total_number_of_hills):
@@ -413,33 +413,34 @@ def MFI_1D_fast(HILLS="HILLS", position="position", bw=1, kT=1, min_grid=-2, max
         ofe_history (list of size (1, error_pace)): running estimate of the global on the fly variance of the mean force
     """
     
-    grid = np.linspace(min_grid, max_grid, nbins)
-    grid_space = (max_grid - min_grid) / (nbins-1)   
-    grid_ext = 0.25 * (max_grid-min_grid)
-    grid_length = max_grid - min_grid
-    stride = int(len(position) / len(HILLS[:, 1]))
-    const = (1 / (bw * np.sqrt(2 * np.pi) * stride))
-    bw2 = bw ** 2
-    if nhills > 0: total_number_of_hills = nhills
-    else: total_number_of_hills = len(HILLS)
-    
-    # initialise force terms
-    Fbias = np.zeros(len(grid))
-    Ftot_num = np.zeros(len(grid))
-    Ftot_den = np.zeros(len(grid))
-    Ftot_den2 = np.zeros(len(grid))
-    ofv_num = np.zeros(len(grid))
+    for initialise in [1]:
+        grid = np.linspace(min_grid, max_grid, nbins)
+        grid_space = (max_grid - min_grid) / (nbins-1)   
+        grid_ext = 0.25 * (max_grid-min_grid)
+        grid_length = max_grid - min_grid
+        stride = int(len(position) / len(HILLS[:, 1]))
+        const = (1 / (bw * np.sqrt(2 * np.pi) * stride))
+        bw2 = bw ** 2
+        if nhills > 0: total_number_of_hills = nhills
+        else: total_number_of_hills = len(HILLS)
+        
+        # initialise force terms
+        Fbias = np.zeros(len(grid))
+        Ftot_num = np.zeros(len(grid))
+        Ftot_den = np.zeros(len(grid))
+        Ftot_den2 = np.zeros(len(grid))
+        ofv_num = np.zeros(len(grid))
 
-    #Calculate static force (form harmonic or wall potential)
-    if len(F_static) != nbins: F_static = np.zeros(nbins)
-    if hp_kappa > 0: F_static += find_hp_force(hp_centre, hp_kappa, grid, min_grid, max_grid, grid_space, periodic)
-    if lw_kappa > 0: F_static += find_lw_force(lw_centre, lw_kappa, grid, min_grid, max_grid, grid_space, periodic)
-    if uw_kappa > 0: F_static += find_uw_force(uw_centre, uw_kappa, grid, min_grid, max_grid, grid_space, periodic)
-    
+        #Calculate static force (form harmonic or wall potential)
+        if len(F_static) != nbins: F_static = np.zeros(nbins)
+        if hp_kappa > 0: F_static += find_hp_force(hp_centre, hp_kappa, grid, min_grid, max_grid, grid_space, periodic)
+        if lw_kappa > 0: F_static += find_lw_force(lw_centre, lw_kappa, grid, min_grid, max_grid, grid_space, periodic)
+        if uw_kappa > 0: F_static += find_uw_force(uw_centre, uw_kappa, grid, min_grid, max_grid, grid_space, periodic)
+        
 
-    # Definition Gamma Factor, allows to switch between WT and regular MetaD
-    if WellTempered < 1: Gamma_Factor = 1
-    else: Gamma_Factor = (HILLS[0, 4] - 1) / (HILLS[0, 4])
+        # Definition Gamma Factor, allows to switch between WT and regular MetaD
+        if WellTempered < 1: Gamma_Factor = 1
+        else: Gamma_Factor = (HILLS[0, 4] - 1) / (HILLS[0, 4])
             
     for i in range(total_number_of_hills):
         
@@ -467,8 +468,93 @@ def MFI_1D_fast(HILLS="HILLS", position="position", bw=1, kT=1, min_grid=-2, max
         
     return grid, Ftot_den, Ftot_den2, Ftot, ofv_num
 
+### FAST Algorithm to run 1D MFI
 @njit
-def patch_FES_AD_ofe(force_vector, grid, y, nbins):
+def MFI_1D_long(y, HILLS="HILLS", position="position", bw=1, kT=1, min_grid=-2, max_grid=2, nbins=201, error_pace=10,
+           WellTempered=1, nhills=-1, periodic=0, hp_centre=0.0, hp_kappa=0, lw_centre=0.0, lw_kappa=0,
+           uw_centre=0.0, uw_kappa=0, Ftot_den_limit = 1E-10, F_static = np.zeros(123), FES_cutoff=0, Ftot_den_cutoff=0.1, ofe_non_exploration_penalty=30, use_weighted_st_dev=True):
+
+    for initialise in [1]:
+        grid = np.linspace(min_grid, max_grid, nbins)
+        grid_space = (max_grid - min_grid) / (nbins-1)   
+        grid_ext = 0.25 * (max_grid-min_grid)
+        grid_length = max_grid - min_grid
+        stride = int(len(position) / len(HILLS[:, 1]))
+        const = (1 / (bw * np.sqrt(2 * np.pi) * stride))
+        bw2 = bw ** 2
+        if nhills > 0: total_number_of_hills = nhills
+        else: total_number_of_hills = len(HILLS)
+        
+        # initialise force terms
+        Fbias = np.zeros(len(grid))
+        Ftot_num = np.zeros(len(grid))
+        Ftot_den = np.zeros(len(grid))
+        Ftot_den2 = np.zeros(len(grid))
+        ofv_num = np.zeros(len(grid))
+        
+        error_history = []
+
+
+        #Calculate static force (form harmonic or wall potential)
+        if len(F_static) != nbins: F_static = np.zeros(nbins)
+        if hp_kappa > 0: F_static += find_hp_force(hp_centre, hp_kappa, grid, min_grid, max_grid, grid_space, periodic)
+        if lw_kappa > 0: F_static += find_lw_force(lw_centre, lw_kappa, grid, min_grid, max_grid, grid_space, periodic)
+        if uw_kappa > 0: F_static += find_uw_force(uw_centre, uw_kappa, grid, min_grid, max_grid, grid_space, periodic)
+    
+
+        # Definition Gamma Factor, allows to switch between WT and regular MetaD
+        if WellTempered < 1: Gamma_Factor = 1
+        else: Gamma_Factor = (HILLS[0, 4] - 1) / (HILLS[0, 4])
+            
+    for i in range(total_number_of_hills):
+        
+        #Get position data of window        
+        s = HILLS[i, 1]  # centre position of Gaussian
+        sigma_meta2 = HILLS[i, 2] ** 2  # width of Gaussian
+        height_meta = HILLS[i, 3] * Gamma_Factor  # Height of Gaussian
+        data = position[i * stride: (i + 1) * stride]  # positons of window of constant bias force.
+        periodic_hills = find_periodic_point_numpy(np.array([s]), min_grid, max_grid, periodic, grid_ext, grid_length)
+        periodic_positions = find_periodic_point_numpy(data, min_grid, max_grid, periodic, grid_ext, grid_length)
+
+        #Calculate forces of window
+        [pb_t, Fpbt, Fbias_window] = window_forces(periodic_positions, periodic_hills, grid, sigma_meta2, height_meta, kT, const, bw2, Ftot_den_limit)
+        Fbias += Fbias_window                   
+        dfds = np.where(pb_t > Ftot_den_limit, Fpbt / pb_t , 0) + Fbias - F_static
+        Ftot_num += np.multiply(pb_t, dfds)
+        
+        # Calculate total force
+        Ftot_den = Ftot_den + pb_t  # total probability density  
+        Ftot = np.where(Ftot_den > Ftot_den_limit, Ftot_num / Ftot_den, 0)
+
+        # terms for error calculation
+        Ftot_den2 += np.square(pb_t)  # sum of (probability densities)^2
+        ofv_num += np.multiply(pb_t, np.square(dfds))   # sum of (weighted mean force of window)^2
+        
+        
+        # Calculate error
+        if (i + 1) % int(total_number_of_hills / error_pace) == 0 or (i+1) == total_number_of_hills:
+            
+            Ftot_den_sq = np.square(Ftot_den)
+            Ftot_den_diff = (Ftot_den_sq-Ftot_den2)
+            ofv = np.where(Ftot_den > Ftot_den_limit, ofv_num / Ftot_den, 0) - np.square(Ftot)
+            if use_weighted_st_dev == True: ofv = np.multiply(ofv , np.where(Ftot_den_diff > 0, Ftot_den_sq / Ftot_den_diff, 0) )
+            else: ofv = np.multiply(ofv , np.where(Ftot_den_diff > 0, Ftot_den2 / Ftot_den_diff, 0) )
+            ofe = np.where(ofv > 10E-5 , np.sqrt(ofv), 0)
+            if Ftot_den_cutoff != 0: ofe = np.where(Ftot_den > Ftot_den_cutoff, ofe, ofe_non_exploration_penalty)
+            Aofe = np.sum(ofe) / np.count_nonzero(ofe)
+                                    
+            FES = intg_1D(Ftot, grid_space)
+            AD = np.absolute(FES-y)
+            if FES_cutoff != 0: AD = np.where(FES < FES_cutoff, AD, 0)
+            AAD = np.sum(AD) / np.count_nonzero(AD)            
+            error_history.append([Aofe, AAD])
+            
+
+    return grid, Ftot_den, Ftot, FES, ofe, AD, Aofe, AAD, error_history
+
+
+@njit
+def patch_FES_AD_ofe(force_vector, grid, y, nbins, PD_limit=1E-10):
     #initialisa terms
     PD_patch = np.zeros(nbins)
     PD2_patch = np.zeros(nbins)
@@ -482,7 +568,7 @@ def patch_FES_AD_ofe(force_vector, grid, y, nbins):
         F_patch += np.multiply(force_vector[i][0] ,force_vector[i][2])
         OFV_patch += force_vector[i][3]
         
-    F_patch = np.where(PD_patch > 0, F_patch / PD_patch, 0)
+    F_patch = np.where(PD_patch > PD_limit, F_patch / PD_patch, 0)
 
     #Calculate error
     PD_patch2 = np.square(PD_patch)
@@ -497,6 +583,46 @@ def patch_FES_AD_ofe(force_vector, grid, y, nbins):
     FES = intg_1D(F_patch, grid[1] - grid[0])        
     AD = np.absolute(FES - y)
     AAD = np.sum(AD) / nbins
+    
+    if AOFE != AOFE:
+        print("\n\n\n*************ATTENTION*****************\n THERE IS A --  NaN  --- SOMEWHERE IN THE OFE\n AOFE = " , AOFE,  "\n\n")
+    
+    return grid, PD_patch, F_patch, FES, AD, AAD, OFE, AOFE
+
+
+@njit
+def patch_FES_AD_ofe_cutoff(force_vector, grid, y, PD_limit=1E-10, FES_cutoff=0, PD_cutoff=0.1, ofe_non_exploration_penalty=30, use_weighted_st_dev=True):
+    #initialise terms
+    for _init_terms_ in range(1):
+        PD_patch = np.zeros_like(grid)
+        PD2_patch = np.zeros_like(grid)
+        F_patch = np.zeros_like(grid)
+        OFV_patch = np.zeros_like(grid)   
+    
+    #Patch force terms    
+    for i in range(len(force_vector)):
+        PD_patch += force_vector[i][0]
+        PD2_patch += force_vector[i][1]
+        F_patch += np.multiply(force_vector[i][0] ,force_vector[i][2])
+        OFV_patch += force_vector[i][3]
+        
+    F_patch = np.where(PD_patch > PD_limit, F_patch / PD_patch, 0)
+
+    #Calculate error
+    PD_patch2 = np.square(PD_patch)
+    PD_diff = PD_patch2 - PD2_patch
+    if use_weighted_st_dev == True: PD_ratio = np.where( PD_diff > 0, PD_patch2 / PD_diff, 0)    ## standard error of the weighted mean(keeps decreasing as more datapoints are added)
+    else: PD_ratio = np.where( PD_diff > 0, PD2_patch / PD_diff, 0)    ## weighted standard deviation (keeps converging as more datapoints are added)
+    OFV = np.multiply( np.where(PD_patch > PD_limit, OFV_patch / PD_patch, 0) - np.square(F_patch) , PD_ratio)
+    OFE = np.where(OFV > 1E-5, np.sqrt(OFV), 0)
+    if PD_cutoff != 0: OFE = np.where(PD_patch > PD_cutoff, OFE, ofe_non_exploration_penalty)
+    AOFE = np.sum(OFE) / np.count_nonzero(OFE)
+    
+    #Find FES and AAD
+    FES = intg_1D(F_patch, grid[1] - grid[0])        
+    AD = np.absolute(FES - y)
+    if FES_cutoff != 0: AD = np.where(FES < FES_cutoff, AD, 0)
+    AAD = np.sum(AD) / np.count_nonzero(AD)
     
     if AOFE != AOFE:
         print("\n\n\n*************ATTENTION*****************\n THERE IS A --  NaN  --- SOMEWHERE IN THE OFE\n AOFE = " , AOFE,  "\n\n")

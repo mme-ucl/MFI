@@ -262,7 +262,7 @@ periodic false""".format(simulation_steps,initial_position_x,initial_position_y)
 
     #Start simulation
     print("Running simulation...")
-    os.system("plumed pesmd < input")
+    os.system("plumed pesmd < input >/dev/null 2>&1")
 
 # #Exaple execution (run simulation in folder: test with location <path>:
 # path = "/home/antoniu/Desktop/Public_Notebooks/"
@@ -499,7 +499,7 @@ TEMP={} FILE=HILLS{}\n".format(tors_angle, gaus_width, gaus_height, biasfactor, 
     print("... Simulation finished.\n")
 
 
-def run_langevin1D_plumed_fes(simulation_steps, analytical_function = "7*x^4-23*x^2", periodic= "NO", temperature=1, time_step=0.005, initial_position=-1.0, sigma=0.1, height=0.1, biasfactor=10, fes_stride = 0, grid_min = -3, grid_max = 3, grid_bin = 301):
+def run_langevin1D_plumed_fes(simulation_steps, analytical_function = "7*x^4-23*x^2", periodic= "NO", temperature=1, time_step=0.005, initial_position=-1.0, gaus_width=0.1, gaus_height=1, biasfactor=10, fes_stride = 0, grid_min_plumed = -3, grid_max_plumed = 3, grid_bin_plumed = 301, grid_min_out = None, grid_max_out = None, grid_bin_out = None):
     """Function to run a langevin simulation in 1 dimension on analytical potential: y = 7*x^4-23*x^2, while also calculating the FES through plumed.
 
     Args:
@@ -512,9 +512,13 @@ def run_langevin1D_plumed_fes(simulation_steps, analytical_function = "7*x^4-23*
         grid_max (int, optional): Maximum value of grid where the bias is stored. Defaults to 3.
         grid_bin (int, optional): Number of distinct bins in grid. Defaults to 301.
     """    
-
+    
+    if grid_min_out == None: grid_min_out = grid_min_plumed
+    if grid_max_out == None: grid_max_out = grid_max_plumed
+    if grid_bin_out == None: grid_bin_out = grid_bin_plumed
+    
     if periodic == "YES":
-        periodic_boundaries = str(grid_min) + "," + str(grid_max)
+        periodic_boundaries = str(grid_min_plumed) + "," + str(grid_max_plumed)
     elif periodic == "NO":
         periodic_boundaries = "NO"
     else:
@@ -528,17 +532,18 @@ p: DISTANCE ATOMS=1,2 COMPONENTS
 ff: MATHEVAL ARG=p.x FUNC=({}) PERIODIC={}
 bb: BIASVALUE ARG=ff
 #Define Metadynamics potential
-METAD ARG=p.x PACE=100 SIGMA={} HEIGHT={} GRID_MIN={} GRID_MAX={} GRID_BIN={} BIASFACTOR={} TEMP=120 CALC_RCT
+metad: METAD ARG=p.x PACE=100 SIGMA={} HEIGHT={} GRID_MIN={} GRID_MAX={} GRID_BIN={} BIASFACTOR={} TEMP=120 CALC_RCT
 #Reweight Bias
-bias: REWEIGHT_METAD TEMP=120
+bias: REWEIGHT_BIAS ARG=metad.bias TEMP=120
 #Make Histogram
-hh: HISTOGRAM ARG=p.x GRID_MIN={} GRID_MAX={} GRID_BIN={} BANDWIDTH=0.01 LOGWEIGHTS=bias
+hh: HISTOGRAM ARG=p.x GRID_MIN={} GRID_MAX={} GRID_BIN={} BANDWIDTH=0.025 LOGWEIGHTS=bias
 #Convert Histogram to FES
 fes: CONVERT_TO_FES GRID=hh TEMP=120
 #Save Histogram and FES at the end. Save position every 10 time-steps    
 DUMPGRID GRID=fes FILE=fes.dat STRIDE={}
-PRINT FILE=position ARG=p.x STRIDE=10""".format(analytical_function, periodic_boundaries, sigma, height, grid_min, grid_max, grid_bin, biasfactor, grid_min, grid_max, grid_bin, fes_stride),file=f)
+PRINT FILE=position ARG=p.x STRIDE=10""".format(analytical_function, periodic_boundaries, gaus_width, gaus_height, grid_min_plumed, grid_max_plumed, grid_bin_plumed-1, biasfactor, grid_min_out, grid_max_out, grid_bin_out-1, fes_stride),file=f)
 
+    
     with open("input","w") as f:
         print("""temperature {}
 tstep {}
@@ -551,12 +556,12 @@ ipos {}""".format(temperature, time_step, simulation_steps, initial_position),fi
             f.write("periodic false")
         else:
             f.write("periodic on\n")
-            f.write("min {}\n".format(grid_min))
-            f.write("max {}".format(grid_max))
+            f.write("min {}\n".format(grid_min_plumed))
+            f.write("max {}".format(grid_max_plumed))
             
     #Start WT-Metadynamic simulation
-    print("Running simulation")
-    os.system("plumed pesmd < input")
+    # print("Running simulation")
+    os.system("plumed pesmd < input >/dev/null 2>&1")
 
 
 
@@ -568,21 +573,25 @@ ipos {}""".format(temperature, time_step, simulation_steps, initial_position),fi
 #             f.write("max {}".format(periodic_boundaries.split(",")[1]))
 
 
-def make_external_bias_1D(grid_old, FES, Ftot, grid_min_plumed, grid_max_plumed, FES_cutoff, file_name_extension=""):
+def make_external_bias_1D(grid_old, FES, Ftot, grid_min_plumed=None, grid_max_plumed=None, file_name_extension="", return_array=None):
     
+    #if grid_min_plumed or grid_max_plumed not defined, estimate it
+    if grid_min_plumed == None:
+        grid_min_plumed = grid_old[0] - (grid_old[-1] - grid_old[0]) / 2 
+    if grid_max_plumed == None:
+        grid_max_plumed = grid_old[-1] + (grid_old[-1] - grid_old[0]) / 2
+        
     #create extended grid so that it goes to reaches grid_min_plumed and grid_max_plumed
     grid_spacing = grid_old[1] - grid_old[0]
-    lower_new_values = int((grid_old[0] - grid_min_plumed)/grid_spacing) + 1
-    upper_new_values = int((grid_max_plumed - grid_old[-1])/grid_spacing) + 1
+    lower_new_values = int((grid_old[0] - grid_min_plumed)/grid_spacing) 
+    upper_new_values = int((grid_max_plumed - grid_old[-1])/grid_spacing) 
     new_end_values = (grid_old[0] - grid_spacing*lower_new_values, grid_old[-1] + grid_spacing*upper_new_values) 
-       
     grid_plumed = np.pad(grid_old, (lower_new_values, upper_new_values), mode="linear_ramp", end_values=new_end_values)
     nbins_plumed = len(grid_plumed)
     
     #Extend FES and Ftot using constant values
-    FES_plumed = np.where(FES > FES_cutoff, FES_cutoff, FES)
-    FES_plumed = np.pad(FES_plumed, (lower_new_values, upper_new_values), mode="constant", constant_values=FES_cutoff)
-    FES_plumed = -FES_plumed + FES_cutoff   
+    FES_plumed = np.pad(FES, (lower_new_values, upper_new_values), mode="constant", constant_values=(FES[0],FES[-1]))
+    FES_plumed = -FES_plumed + np.max(FES)
     Ftot_plumed = np.pad(-Ftot, (lower_new_values, upper_new_values), mode="constant")
     
     #Save to external_bias.dat file
@@ -590,4 +599,5 @@ def make_external_bias_1D(grid_old, FES, Ftot, grid_min_plumed, grid_max_plumed,
     external_bias_vector = np.array([grid_plumed, FES_plumed, Ftot_plumed]).T       
     np.savetxt("external_bias.dat" + file_name_extension , external_bias_vector, fmt="%.8f", delimiter="   ", header=head_text, comments="")
 
-    return [grid_plumed, FES_plumed, Ftot_plumed]
+    if return_array != None:
+        return [grid_plumed, FES_plumed, Ftot_plumed]
