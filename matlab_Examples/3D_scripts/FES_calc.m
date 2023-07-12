@@ -1,3 +1,9 @@
+%
+% Free Energy surface computed from independent replicas in a 3D CV space. 
+% For reference see: 
+% Marinova, V., Wood, G. P., Marziano, I., & Salvalaglio, M. (2022). Investigating the Role of Solvent in the Formation of Vacancies on Ibuprofen Crystal Facets. Crystal Growth & Design, 22(5), 3034-3041.
+%
+
 clc
 clear all
 close all
