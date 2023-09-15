@@ -7,7 +7,8 @@ from numba import jit, njit
 
 
 def load_HILLS(hills_name="HILLS"):
-    """Load 1-dimensional hills data (includes time, position_x, position_y, hills_parameters 
+    """Load 1-dimensional hills data (includes time, position_x, position_y, hills_parameters)
+                Adjustment 2 - Last hill is removed from output array, as no complete set of COLVAR data is available of that hill. 
 
     Args:
         hills_name (str, optional): Name of hills file. Defaults to "HILLS".
@@ -17,10 +18,10 @@ def load_HILLS(hills_name="HILLS"):
     """
     for file in glob.glob(hills_name):
         hills = np.loadtxt(file)
-        hills = hills[:-1]
+        hills = hills[:-1] # Last hill is removed from output array, as no complete set of COLVAR data is available of that hill. 
         hills0 = np.array(hills[0])
         hills0[3] = 0
-        hills = np.concatenate(([hills0], hills))
+        hills = np.concatenate(([hills0], hills)) # One dummy hills with zero height is introduced at the beginning of the output array, so that the forces of the first few positions are calculated without the effect of any bias hill.
     return hills
 
 
@@ -36,7 +37,7 @@ def load_position(position_name="position"):
     """
     for file1 in glob.glob(position_name):
         colvar = np.loadtxt(file1)
-    return colvar[:-1, 1]
+    return colvar[1:, 1]
 
 #define indexing
 @njit
@@ -54,20 +55,22 @@ def index(position, min_grid, grid_space):
     return int((position-min_grid)//grid_space) + 1
 
 
-def find_periodic_point(x_coord, min_grid, max_grid, periodic, grid_ext, grid_length):
-    """Finds periodic copies of input coordinate. 
+def find_periodic_point(x_coord, min_grid, max_grid, periodic, grid_ext):
+    """Finds periodic copies of input coordinates. First checks if systems is periodic. If not, returns input coordinate array. Next, it checks if each coordinate is within the boundary range (grid min/max +/- grid_ext). If it is, periodic copies will be made on the other side of the CV-domain. 
 
     Args:
         x_coord (float): CV-coordinate
         min_grid (float): minimum value of grid
         max_grid (float): maximum value of grid
         periodic (binary): information if system is periodic. value of 0 corresponds to non-periodic system; function will only return input coordinates. Value of 1 corresponds to periodic system; function will return input coordinates with periodic copies.
+        grid_ext (float): how far outside the domain periodic copies are searched for. E.g. if the domain is from -2 to +2 and the grid ext(end) is set to 1, then periodic copies are only found for input_coordiante < -2 + 1 or input_coordiante > +2 - 1.
 
 
     Returns:
-        list: list of input coord and possibly periodic copies
+        list: list of input coord and if applicable periodic copies
     """
     if periodic == 1:
+        grid_length = max_grid - min_grid
         coord_list = []
         #There are potentially 2 points, 1 original and 1 periodic copy.
         coord_list.append(x_coord)
@@ -80,13 +83,26 @@ def find_periodic_point(x_coord, min_grid, max_grid, periodic, grid_ext, grid_le
         return [x_coord]
     
 @jit
-def find_periodic_point_numpy(coord_array, min_grid, max_grid, periodic, grid_ext, grid_length):
+def find_periodic_point_numpy(coord_array, min_grid, max_grid, periodic, grid_ext):
+    """Finds periodic copies of input coordinates. First checks if systems is periodic. If not, returns input coordinate array. Next, it checks if each coordinate is within the boundary range (grid min/max +/- grid_ext). If it is, periodic copies will be made on the other side of the CV-domain. 
 
-    len_coord_array = len(coord_array)
+    Args:
+        coord_array (array): array of CV-coordinate s
+        min_grid (float): minimum value of grid
+        max_grid (float): maximum value of grid
+        periodic (binary): information if system is periodic. value of 0 corresponds to non-periodic system; function will only return input coordinates. Value of 1 corresponds to periodic system; function will return input coordinates with periodic copies.
+        grid_ext (float): how far outside the domain periodic copies are searched for. E.g. if the domain is from -2 to +2 and the grid ext(end) is set to 1, then periodic copies are only found for input_coordiante < -2 + 1 or input_coordiante > +2 - 1.
+
+
+    Returns:
+        list: list of input coord and if applicable periodic copies
+    """
 
     if periodic == 0:
         return coord_array
     elif periodic == 1:
+        grid_length = max_grid - min_grid
+        len_coord_array = len(coord_array)
         for i in range(len_coord_array):
             if coord_array[i] < min_grid+grid_ext:
                 coord_array = np.append(coord_array, coord_array[i] + grid_length)
@@ -95,7 +111,25 @@ def find_periodic_point_numpy(coord_array, min_grid, max_grid, periodic, grid_ex
         return coord_array  
     
 @jit
-def window_forces(periodic_positions, periodic_hills, grid, sigma_meta2, height_meta, kT, const, bw2, Ftot_den_limit):
+def window_forces(periodic_positions, periodic_hills, grid, sigma_meta2, height_meta, kT, const, bw2, Ftot_den_limit=1E-10):
+    """Takes in two arrays of positions. The periodic_positions are collected from the COLVAR file during a period of constant bias and calculates the force component associated with the probability density. periodic_hills are also positions collected from the HILLS file and calculates the force component resulting from the metadynamics bias. In a periodic system, positions have periodic copies if applicable. 
+
+    Args:
+        periodic_positions (array of shape (n,)): This array contains the positions from the COLVAR file, that were collected during a period of constant bias. n is the number of positions including their periodic copies if applicable. 
+        periodic_hills (array of shape (n,)): This array contains the position of the metadynamics hill (from the HILLS file), that was deposited at the beginning of the period of constant bias. If applicable the array also contains periodic copies. 
+        grid (array of shape (nbins,)): CV-array.
+        sigma_meta2 (float): width of metadynamics hill squared.
+        height_meta (float): height of metadynamics hill
+        kT (float): Temperature of the system.
+        const (float): constant factor used for the calculation of the kernel. This constant enables the patching of data with different values of bw and stride . const = (1 / (bw * np.sqrt(2 * np.pi) * stride))
+        bw2 (float): width of kernel density estimation (for the probability density) squared.
+        Ftot_den_limit (float, optional): Probability density limit below which data will be set to zero (this is done for numerical stability reasons. For default Ftot_den_limit, numerical difference is negligable). Defaults to 1E-10.
+
+    Returns:
+        pb_t (array of shape (nbins,)): Probability density of window
+        Fpbt (array of shape (nbins,)): Force component associated with the probability density of the time-window. 
+        Fbias_window (array of shape (nbins,)): Force component associated with the metadynamics hill deposited at the beginning of the time-window. 
+    """
     
     pb_t = np.zeros(len(grid))
     Fpbt = np.zeros(len(grid))
@@ -117,7 +151,7 @@ def window_forces(periodic_positions, periodic_hills, grid, sigma_meta2, height_
 
 @njit
 def find_hp_force(hp_centre, hp_kappa, grid, min_grid, max_grid, grid_space, periodic):
-    """Find 1D harmonic potential force. 
+    """Find 1D harmonic potential force equivalent to f = hp_kappa * (grid - hp_centre). 
 
     Args:
         hp_centre (float): position of harmonic potential
@@ -131,7 +165,9 @@ def find_hp_force(hp_centre, hp_kappa, grid, min_grid, max_grid, grid_space, per
     Returns:
         array: harmonic force array
     """
+    #First, find harmonic potential for non-periodic case
     F_harmonic = hp_kappa * (grid - hp_centre)
+    #Second, if periodic, make harmonic potential periodic
     if periodic == 1:
         grid_length = max_grid - min_grid
         grid_centre = min_grid + grid_length/2
@@ -146,7 +182,7 @@ def find_hp_force(hp_centre, hp_kappa, grid, min_grid, max_grid, grid_space, per
 
 @njit
 def find_lw_force(lw_centre, lw_kappa, grid, min_grid, max_grid, grid_space, periodic):
-    """_summary_
+    """Find lower half of 1D harmonic potential force equivalent to f = 2 * lw_kappa * (grid - lw_centre) for grid < lw_centre and f = 0 otherwise. This can change for periodic cases.
 
     Args:
         lw_centre (float): position of lower wall potential
@@ -160,7 +196,9 @@ def find_lw_force(lw_centre, lw_kappa, grid, min_grid, max_grid, grid_space, per
     Returns:
        array: lower wall force array
     """
+    #First, find harmonic potential for non-periodic case
     F_harmonic = np.where(grid < lw_centre, 2 * lw_kappa * (grid - lw_centre), 0)
+    #Second, if periodic, make harmonic potential periodic
     if periodic == 1:
         grid_length = max_grid - min_grid
         grid_centre = min_grid + grid_length/2
@@ -175,7 +213,7 @@ def find_lw_force(lw_centre, lw_kappa, grid, min_grid, max_grid, grid_space, per
 
 @njit
 def find_uw_force(uw_centre, uw_kappa, grid, min_grid, max_grid, grid_space, periodic):
-    """_summary_
+    """Find upper half of 1D harmonic potential force equivalent to f = 2 * uw_kappa * (grid - uw_centre) for grid > uw_centre and f = 0 otherwise. This can change for periodic cases.
 
     Args:
         uw_centre (float): position of upper wall potential
@@ -189,7 +227,9 @@ def find_uw_force(uw_centre, uw_kappa, grid, min_grid, max_grid, grid_space, per
     Returns:
         array: upper wall force array
     """
+    #First, find harmonic potential for non-periodic case
     F_harmonic = np.where(grid > uw_centre, uw_kappa * (grid - uw_centre), 0)
+    #Second, if periodic, make harmonic potential periodic
     if periodic == 1:
         grid_length = max_grid - min_grid
         grid_centre = min_grid + grid_length/2
@@ -227,9 +267,11 @@ def intg_1D(Force, dx):
 ### Algorithm to run 1D MFI
 # Run MFI algorithm with on the fly error calculation
 @njit
-def MFI_1D(HILLS="HILLS", position="position", bw=0.1, kT=1, min_grid=-2, max_grid=2, nbins=201, log_pace=10,
-           error_pace=200, WellTempered=1, nhills=-1, periodic=0, hp_centre=0.0, hp_kappa=0, lw_centre=0.0, lw_kappa=0,
-           uw_centre=0.0, uw_kappa=0, intermediate_fes_number = 0, Ftot_den_limit = 1E-10, FES_cutoff = 0, Ftot_den_cutoff = 0, F_static = np.zeros(123)):
+def MFI_1D(HILLS="HILLS", position="position", bw=0.1, kT=1, min_grid=-2, max_grid=2, nbins=201, 
+           log_pace=-1, error_pace=-1, WellTempered=1, nhills=-1, periodic=0, 
+           hp_centre=0.0, hp_kappa=0, lw_centre=0.0, lw_kappa=0, uw_centre=0.0, uw_kappa=0, F_static = np.zeros(123), 
+           Ftot_den_limit = 1E-10, FES_cutoff = 0, Ftot_den_cutoff = 0, save_intermediate_fes_error_cutoff = False, use_weighted_st_dev = True):
+    
     """Compute a time-independent estimate of the Mean Thermodynamic Force, i.e. the free energy gradient in 1D CV spaces.
 
     Args:
@@ -240,9 +282,10 @@ def MFI_1D(HILLS="HILLS", position="position", bw=0.1, kT=1, min_grid=-2, max_gr
         min_grid (int, optional): Lower bound of the force domain. Defaults to -2.
         max_grid (int, optional): Upper bound of the force domain. Defaults to 2.
         nbins (int, optional): number of bins in grid. Defaults to 101.
-        log_pace (int, optional): Pace for outputting progress and convergence. Defaults to 10.
-        error_pace (int, optional): Pace for the cutoffcalculation of the on-the-fly measure of global convergence. Defaults to 200.
+        log_pace (int, optional): Pace for outputting progress and convergence. Defaults to -1. When set to -1, progress will be outputted 5 times in total.
+        error_pace (int, optional): Pace for calculating the on-the-fly error for  estimating global convergence. Defaults to -1. When set to -1, on-the-fly error will be calculated 50 times.
         WellTempered (binary, optional): Is the simulation well tempered?. Defaults to 1.
+        nhills (int, optional): Number of HILLS to be analysed. When set to -1, all HILLS will be analysed. Defaults to -1.
         periodic (int, optional): Is the CV space periodic? 1 for yes. Defaults to 0.
         hp_centre (float, optional): position of harmonic potential. Defaults to 0.0.
         hp_kappa (int, optional): force_constant of harmonic potential. Defaults to 0.
@@ -250,42 +293,58 @@ def MFI_1D(HILLS="HILLS", position="position", bw=0.1, kT=1, min_grid=-2, max_gr
         lw_kappa (int, optional): force_constant of lower wall potential. Defaults to 0.
         uw_centre (float, optional): position of upper wall potential. Defaults to 0.0.
         uw_kappa (int, optional): force_constant of upper wall potential. Defaults to 0.
-        FES_cutoff (float, optional): Cutoff applied to FES and error calculation for FES values over the FES_cutoff. Defaults to 0. When FES_cutoff = 0, no cufoff is applied.
+        save_intermediate_fes_error_cutoff (bool, optional): If Ture, every time the error is calculated, the FES, variance, standard deviation and cutoff will be saved. Defaults to False.
+        Ftot_den_limit (float, optional): Probability density limit below which data will be set to zero (this is done for numerical stability reasons. For default Ftot_den_limit, numerical difference is negligable). Defaults to 1E-10.
+        FES_cutoff (float, optional): Cutoff applied to FES and error calculation for FES values over the FES_cutoff. All FES values above the FES_cutoff won't contribuite towards the error. Useful when high FES values have no physical meaning. When FES_cutoff = 0, no cufoff is applied.Defaults to 0. 
+        Ftot_den_cutoff (int, optional): Cutoff applied to FES and error calculation for Ftot_den (Probability density) values below the Ftot_den_cutoff. All FES values that are excluded by the cutoff won't contribuite towards the error. Useful when low Probability density values have little statistical significance or no physical meaning. When Ftot_den_cutoff = 0, no cufoff is applied. Defaults to 0.
+        F_static (array, optional): Option to provide a starting bias potential that remains constant through the algorithm. This could be a harmonic potential, an previously used MetaD potential or any other bias potential defined on the grid. Defaults to np.zeros(123), which will automatically set F_static to a zero-array with length=nbins.
+        use_weighted_st_dev (bool, optional): When set to True, the calculated error will be the weighted standard deviation ( var^0.5 ). When set to False, the calculated error will be the standard error ( (var/n_sample)^0.5 ). Defaults to True. (The standard devaition is expected to converge after enough time, while the standard error is expected to decrease as more datapoints are added.)
 
     Returns:
-        grid (array of size (1, nbins)): CV-array
-        Ftot_den (array of size (1, nbins)): Cumulative biased probability density
-        Ftot (array of size (1, nbins)): Mean Force
-        ofe (array of size (1, nbins)): on the fly estimate of the variance of the mean force
-        ofe_history (list of size (1, error_pace)): running estimate of the global on the fly variance of the mean force
+        grid (array of size (nbins,)): CV-array.
+        Ftot_den (array of size (nbins,)): Cumulative biased probability density.
+        Ftot_den2 (array of size (nbins,): Cumulative (biased probability density squared). Used for error calculation.
+        Ftot (array of size (nbins,)): Local Mean Force. When integrated will be the FES.
+        ofv_num (array of size (nbins,)): Numerator of "on-the-fly" variance (ofv). Used for error calculation.
+        FES (array of size (nbins,)): Free Energy Surface
+        ofv (array of size (nbins,)): "on-the-fly" variance
+        ofe (array of size (nbins,)): "on-the-fly" estimate of the standard deviation of the mean force
+        cutoff (binary array of size (nbins,)): If FES_cutoff and/or Ftot_den_cutoff are specified, grid values outside the cufoff will be zero and grid values inside the cutoff will be one. If FES_cutoff and Ftot_den_cutoff not active, cutoff will be an array of ones.
+        error_evol (array of size (4, total_number_of_hills//error_pace)): Evolution of error. First array is the collection of the global (average) "on-the-fly" variance, second array is the collection of the global (average) "on-the-fly" standard deviation, third array is the percentage of values within the specified cutoff, and the fourth array are the simulation times of the latter former arrays.
+        fes_error_cutoff_evol (array of size (4, total_number_of_hills//error_pace, nbins)): First array is the collection of FES, second array is the collection of local "on-the-fly" variance, third array is the collection of local "on-the-fly" standard deviation, and the fourth is the collection of the cutoffs. The elements of the collections were calculated at the simulation times of the fourth array in error_evol.
+        
+        
+
     """
     
+    #Specify grid
     grid = np.linspace(min_grid, max_grid, nbins)
     grid_space = (max_grid - min_grid) / (nbins-1)
     grid_ext = 0.25 * (max_grid-min_grid)
-    grid_length = max_grid - min_grid
+    
+    #Specift constants
     stride = int(len(position) / len(HILLS[:, 1]))
     const = (1 / (bw * np.sqrt(2 * np.pi) * stride))
     bw2 = bw ** 2
     if nhills > 0: total_number_of_hills = nhills
     else: total_number_of_hills = len(HILLS)
+    if log_pace < 0: log_pace = total_number_of_hills // 5
+    if error_pace < 0: error_pace = total_number_of_hills // 50
+    
     
     # initialise force terms
-    Fbias = np.zeros(len(grid))
-    Ftot_num = np.zeros(len(grid))
-    Ftot_den = np.zeros(len(grid))
-    Ftot_den2 = np.zeros(len(grid))
-    ofv_num = np.zeros(len(grid))
+    Fbias = np.zeros(nbins)
+    Ftot_num = np.zeros(nbins)
+    Ftot_den = np.zeros(nbins)
+    Ftot_den2 = np.zeros(nbins)
+    ofv_num = np.zeros(nbins)
     
-    #initialise error terms
-    error_history_collection = np.zeros((int(error_pace), 3))
+    #initialise other arrays and floats for intermediate results
+    if total_number_of_hills % error_pace == 0: error_evol = np.zeros((4, total_number_of_hills // error_pace))
+    else: error_evol = np.zeros((4, total_number_of_hills // error_pace +1))
+    if save_intermediate_fes_error_cutoff == True: fes_error_cutoff_evol = np.zeros((4, len(error_evol[0]), nbins))
+    else: fes_error_cutoff_evol = np.zeros((4, len(error_evol[0]), nbins))#np.zeros(1)
     error_count = 0
-    volume_history = np.zeros(int(error_pace))
-    
-    intermediate_fes_collection = np.zeros((int(intermediate_fes_number), nbins))
-    intermediate_cutoff_collection = np.zeros((int(intermediate_fes_number), nbins))
-    intermediate_time_collection = np.zeros(int(intermediate_fes_number))
-    intermediate_fes_count = 0
         
     #Calculate static force (form harmonic or wall potential)
     if len(F_static) != nbins: F_static = np.zeros(nbins)
@@ -306,8 +365,8 @@ def MFI_1D(HILLS="HILLS", position="position", bw=0.1, kT=1, min_grid=-2, max_gr
         sigma_meta2 = HILLS[i, 2] ** 2  # width of Gaussian
         height_meta = HILLS[i, 3] * Gamma_Factor  # Height of Gaussian
         data = position[i * stride: (i + 1) * stride]  # positons of window of constant bias force.
-        periodic_hills = find_periodic_point_numpy(np.array([s]), min_grid, max_grid, periodic, grid_ext, grid_length)
-        periodic_positions = find_periodic_point_numpy(data, min_grid, max_grid, periodic, grid_ext, grid_length)
+        periodic_hills = find_periodic_point_numpy(np.array([s]), min_grid, max_grid, periodic, grid_ext)
+        periodic_positions = find_periodic_point_numpy(data, min_grid, max_grid, periodic, grid_ext)
                 
         # Find forces of window
         [pb_t, Fpbt, Fbias_window] = window_forces(periodic_positions, periodic_hills, grid, sigma_meta2, height_meta, kT, const, bw2, Ftot_den_limit)
@@ -325,236 +384,181 @@ def MFI_1D(HILLS="HILLS", position="position", bw=0.1, kT=1, min_grid=-2, max_gr
   
 
         # Calculate error
-        if (i + 1) % int(total_number_of_hills / error_pace) == 0 or (i+1) == total_number_of_hills:
+        if (i + 1) % error_pace == 0 or (i+1) == total_number_of_hills:
             
-    
+            #Find FES and cutoff
+            FES = intg_1D(Ftot, grid_space)
             cutoff = np.ones(nbins, dtype=np.float64)
-            if FES_cutoff > 0:
-                FES = intg_1D(Ftot, grid_space)
-                cutoff = np.where(FES < FES_cutoff, 1.0, 0)
-            if Ftot_den_cutoff > 0:
-                cutoff = np.where(Ftot_den > Ftot_den_cutoff, 1.0, 0)
-
-            # print(np.shape(cutoff))
+            if FES_cutoff > 0: cutoff = np.where(FES < FES_cutoff, 1.0, 0)
+            if Ftot_den_cutoff > 0: cutoff = np.where(Ftot_den > Ftot_den_cutoff, 1.0, 0)
+                
+            # calculate error
             ofv = np.where(Ftot_den > Ftot_den_limit, ofv_num / Ftot_den, 0) - np.square(Ftot)
-            temp_diff = np.square(Ftot_den)-Ftot_den2
-            ofv *= np.where(temp_diff > 0, np.square(Ftot_den) / temp_diff, 0)
-            ofe = np.where(ofv != 0, np.sqrt(ofv), 0)  
-        
-            error_history_collection[error_count,0] = sum(ofv) / np.count_nonzero(ofv)
-            error_history_collection[error_count,1] = sum(ofe) / np.count_nonzero(ofe)
-            error_history_collection[error_count,2] = HILLS[i,0]
-            
-            absolute_explored_volume = np.count_nonzero(cutoff)
-            # volume_history[error_count] = nbins / absolute_explored_volume
+            Ftot_den_sq = np.square(Ftot_den)
+            Ftot_den_diff = Ftot_den_sq - Ftot_den2
+            if use_weighted_st_dev == True: ofv *= np.where(Ftot_den_diff > 0, Ftot_den_sq / Ftot_den_diff, 0)
+            else: ofv *= np.where(Ftot_den_diff > 0, Ftot_den2 / Ftot_den_diff, 0)
+            ofv_cut = np.multiply(ofv, cutoff)
+            ofe_cut = np.where(ofv_cut != 0, np.sqrt(ofv_cut), 0)  
 
+            #save global error evolution
+            error_evol[0,error_count] = sum(ofv_cut) / np.count_nonzero(ofv_cut)
+            error_evol[1,error_count] = sum(ofe_cut) / np.count_nonzero(ofe_cut)
+            error_evol[2,error_count] = np.count_nonzero(cutoff) / nbins
+            error_evol[3,error_count] = HILLS[i,0]
+ 
+            # print(np.shape(FES), np.shape())
+            
+            # save local fes, error and cutoff
+            if save_intermediate_fes_error_cutoff == True:
+                fes_error_cutoff_evol[0,error_count] = FES
+                fes_error_cutoff_evol[1,error_count] = ofv
+                fes_error_cutoff_evol[2,error_count] = np.where(ofv != 0, np.sqrt(ofv), 0) 
+                fes_error_cutoff_evol[3,error_count] = cutoff
+            
             error_count += 1
             
-            #window error            
-               
+            #window error             
+                  
         # Print progress               
-        if (i + 1) % int(total_number_of_hills / log_pace) == 0 or (i+1) == total_number_of_hills:
-            print((round((i + 1) / total_number_of_hills * 100, 0)) , "%   OFE =", round(error_history_collection[error_count-1,1], 4))
+        if (i + 1) % log_pace == 0 or (i+1) == total_number_of_hills:
+            print((round((i + 1) / total_number_of_hills * 100, 0)) , "%   OFE =", round(error_evol[1,error_count-1], 4))
                 
-        # #Calculate intermediate fes
-        if intermediate_fes_number > 1:
-            if (i+1) % (total_number_of_hills/intermediate_fes_number) == 0 or (i+1) == total_number_of_hills:
-                
-                FES = intg_1D(Ftot, grid_space)
-                
-                cutoff = np.ones(nbins, dtype=np.float64)
-                if FES_cutoff > 0:
-                    cutoff = np.where(FES < FES_cutoff, 1.0, 0)
-                if Ftot_den_cutoff > 0:
-                    cutoff = np.where(Ftot_den > Ftot_den_cutoff, 1.0, 0)
-            
-                intermediate_fes_collection[intermediate_fes_count] = FES
-                intermediate_cutoff_collection[intermediate_fes_count] = cutoff
-                intermediate_time_collection[intermediate_fes_count] = HILLS[i,0]
-                intermediate_fes_count += 1
 
+    ofe = np.where(ofv != 0, np.sqrt(ofv), 0)
     FES = intg_1D(Ftot, grid_space)
     
-    if intermediate_fes_number > 1: return grid, Ftot_den, Ftot_den2, Ftot, ofv_num, FES, ofv, ofe, cutoff, error_history_collection, volume_history, intermediate_fes_collection, intermediate_cutoff_collection, intermediate_time_collection
-    else: return grid, Ftot_den, Ftot_den2, Ftot, ofv_num, FES, ofv, ofe, cutoff, error_history_collection, volume_history, intermediate_fes_collection, intermediate_cutoff_collection, intermediate_time_collection
+    return grid, Ftot_den, Ftot_den2, Ftot, ofv_num, FES, ofv, ofe, cutoff, error_evol, fes_error_cutoff_evol
 
 
-### FAST Algorithm to run 1D MFI
 @njit
-def MFI_1D_fast(HILLS="HILLS", position="position", bw=1, kT=1, min_grid=-2, max_grid=2, nbins=201,
-           WellTempered=1, nhills=-1, periodic=0, hp_centre=0.0, hp_kappa=0, lw_centre=0.0, lw_kappa=0,
-           uw_centre=0.0, uw_kappa=0, Ftot_den_limit = 1E-10, F_static = np.zeros(123)):
-    """Compute a time-independent estimate of the Mean Thermodynamic Force, i.e. the free energy gradient in 1D CV spaces.
+def patch_forces_ofe(force_vector, PD_limit=1E-10, use_weighted_st_dev=True, ofe_progression=False):
+    
+    """Takes in an array of force terms, patches them together and calculates the error. The force vector has to be in the format [Ftot_den, Ftot_den2, Ftot, ofv_num]. 
 
     Args:
-        HILLS (str): HILLS array. Defaults to "HILLS".
-        position (str): CV/position array. Defaults to "position".
-        bw (float, optional): bandwidth for the construction of the KDE estimate of the biased probability density. Defaults to 1.
-        kT (float, optional): kT. Defaults to 1.
-        min_grid (int, optional): Lower bound of the force domain. Defaults to -2.
-        max_grid (int, optional): Upper bound of the force domain. Defaults to 2.
-        nbins (int, optional): number of bins in grid. Defaults to 101.
-        log_pace (int, optional): Pace for outputting progress and convergence. Defaults to 10.
-        error_pace (int, optional): Pace for the cutoffcalculation of the on-the-fly measure of global convergence. Defaults to 200.
-        WellTempered (binary, optional): Is the simulation well tempered?. Defaults to 1.
-        periodic (int, optional): Is the CV space periodic? 1 for yes. Defaults to 0.
-        hp_centre (float, optional): position of harmonic potential. Defaults to 0.0.
-        hp_kappa (int, optional): force_constant of harmonic potential. Defaults to 0.
-        lw_centre (float, optional): position of lower wall potential. Defaults to 0.0.
-        lw_kappa (int, optional): force_constant of lower wall potential. Defaults to 0.
-        uw_centre (float, optional): position of upper wall potential. Defaults to 0.0.
-        uw_kappa (int, optional): force_constant of upper wall potential. Defaults to 0.
+        force_vector (array of shape (n,4, nbins)) where n is the number of independent force terms: The force terms are tipically outputted from the MFI_1D functions. They should be in the format: [Ftot_den (Probability density), Ftot_den2, Ftot (Mean Force), ofv_num (numerator of on the fly variance)]. 
+        PD_limit (flaot, optional): Probability density values below the PD_limit will be approximated to be 0, to ensure the numerical stability of the algorithm. Defaults to 1E-10.
+        ofe_non_exploration_penalty (flaot, optional): On-the-fly error values that that are ouside of the PD_cutoff will have a error equal to the ofe_non_exploration_penalty. Absolute deviation values that that are ouside of the PD_cutoff will have a error equal to the ofe_non_exploration_penalty/10. Defaults to 100.
+        use_weighted_st_dev (bool, optional): When set to True, the calculated error will be the weighted standard deviation ( var^0.5 ). When set to False, the calculated error will be the standard error ( (var/n_sample)^0.5 ). Defaults to True. (The standard devaition is expected to converge after enough time, while the standard error is expected to decrease as more datapoints are added.).
+        ofe_progression (bool, optional): If True, the error progression will be returned. If false, error progression will be an array will all elements being the final error. Default set to False.
 
     Returns:
-        grid (array of size (1, nbins)): CV-array
-        Ftot_den (array of size (1, nbins)): Cumulative biased probability density
-        Ftot (array of size (1, nbins)): Mean Force
-        ofe (array of size (1, nbins)): on the fly estimate of the variance of the mean force
-        ofe_history (list of size (1, error_pace)): running estimate of the global on the fly variance of the mean force
+        grid (array of size (nbins,)): CV-array.
+        PD_patch (array of size (nbins,)): Patched Probability density
+        F_patch (array of size (nbins,)): Patched Mean Force
+        FES (array of size (nbins,)): Free Energy Surface from patched Mean Force
+        AD (array of size (nbins,)): Absulute Deviation from FES to reference surface
+        AAD (float): Average Absulute Deviation from FES to reference surface
+        OFE (array of size (nbins,)): On-the-fly error. Statistical error of the mean force
+        AOFE (float): Average on-the-fly error.
+    """
+
+    #initialisa terms
+    nbins = len(force_vector[0][0])
+    PD_patch = np.zeros(nbins)
+    PD2_patch = np.zeros(nbins)
+    F_patch = np.zeros(nbins)
+    OFV_num_patch = np.zeros(nbins)   
+    
+    Aofe_progression = np.zeros(len(force_vector))
+    
+    if ofe_progression == False:
+    
+        #Patch force terms    
+        for i in range(len(force_vector)):
+            PD_patch += force_vector[i][0]
+            PD2_patch += force_vector[i][1]
+            F_patch += np.multiply(force_vector[i][0] ,force_vector[i][2])
+            OFV_num_patch += force_vector[i][3]
+            
+        F_patch = np.where(PD_patch > PD_limit, F_patch / PD_patch, 0)
+        F = F_patch
+
+        #Calculate error
+        PD_patch2 = np.square(PD_patch)
+        PD_diff = PD_patch2 - PD2_patch
+        if use_weighted_st_dev == True: PD_ratio = np.where( PD_diff > 0, PD_patch2 / PD_diff, 0)   
+        else: PD_ratio = np.where( PD_diff > 0, PD2_patch / PD_diff, 0)  
+        OFV = np.multiply( np.where(PD_patch > 0, OFV_num_patch / PD_patch, 0) - np.square(F_patch) , PD_ratio)
+        OFE = np.where(OFV > 1E-5, np.sqrt(OFV), 0)
+        AOFE = np.sum(OFE) / nbins
+        Aofe_progression = np.ones_like(Aofe_progression) * AOFE
+        
+    if ofe_progression == True:
+
+        #Patch force terms    
+        for i in range(len(force_vector)):
+            PD_patch += force_vector[i][0]
+            PD2_patch += force_vector[i][1]
+            F_patch += np.multiply(force_vector[i][0] ,force_vector[i][2])
+            OFV_num_patch += force_vector[i][3]
+            
+            F = np.where(PD_patch > PD_limit, F_patch / PD_patch, 0)
+
+            #Calculate error
+            PD_patch2 = np.square(PD_patch)
+            PD_diff = PD_patch2 - PD2_patch
+            if use_weighted_st_dev == True: PD_ratio = np.where( PD_diff > 0, PD_patch2 / PD_diff, 0)   
+            else: PD_ratio = np.where( PD_diff > 0, PD2_patch / PD_diff, 0)  
+            OFV = np.multiply( np.where(PD_patch > 0, OFV_num_patch / PD_patch, 0) - np.square(F) , PD_ratio)
+            OFE = np.where(OFV > 1E-5, np.sqrt(OFV), 0)
+            AOFE = np.sum(OFE) / nbins
+            Aofe_progression[i] = AOFE
+    
+    F_patch = F    
+        
+    
+    return PD_patch, PD2_patch, F_patch, OFV_num_patch, OFE, Aofe_progression
+
+
+
+
+
+"""Takes in an array of force terms, patches them together and calculates the error. The force vector has to be in the format [Ftot_den, Ftot_den2, Ftot, ofv_num]. 
+
+    Args:
+        force_vector (array of shape (n,4, nbins)) where n is the number of independent force terms: The force terms are tipically outputted from the MFI_1D functions. They should be in the format: [Ftot_den (Probability density), Ftot_den2, Ftot (Mean Force), ofv_num (numerator of on the fly variance)]. 
+        PD_limit (flaot, optional): Probability density values below the PD_limit will be approximated to be 0, to ensure the numerical stability of the algorithm. Defaults to 1E-10.
+        ofe_non_exploration_penalty (flaot, optional): On-the-fly error values that that are ouside of the PD_cutoff will have a error equal to the ofe_non_exploration_penalty. Absolute deviation values that that are ouside of the PD_cutoff will have a error equal to the ofe_non_exploration_penalty/10. Defaults to 100.
+        use_weighted_st_dev (bool, optional): When set to True, the calculated error will be the weighted standard deviation ( var^0.5 ). When set to False, the calculated error will be the standard error ( (var/n_sample)^0.5 ). Defaults to True. (The standard devaition is expected to converge after enough time, while the standard error is expected to decrease as more datapoints are added.).
+        ofe_progression (bool, optional): If True, the error progression will be returned. If false, error progression will be an array will all elements being the final error. Default set to False.
+
+    Returns:
+        grid (array of size (nbins,)): CV-array.
+        PD_patch (array of size (nbins,)): Patched Probability density
+        F_patch (array of size (nbins,)): Patched Mean Force
+        FES (array of size (nbins,)): Free Energy Surface from patched Mean Force
+        AD (array of size (nbins,)): Absulute Deviation from FES to reference surface
+        AAD (float): Average Absulute Deviation from FES to reference surface
+        OFE (array of size (nbins,)): On-the-fly error. Statistical error of the mean force
+        AOFE (float): Average on-the-fly error.
+"""
+    
+
+@njit
+def patch_FES_AD_ofe(force_vector, grid, y, nbins, PD_limit=1E-10, use_weighted_st_dev=True):
+    """Takes in an array of force terms, patches them together and calculates the error, FES and average deviation. The force vector has to be in the format [Ftot_den, Ftot_den2, Ftot, ofv_num]. 
+
+    Args:
+        force_vector (array of shape (n,4, nbins)) where n is the number of independent force terms: The force terms are tipically outputted from the MFI_1D functions. They should be in the format: [Ftot_den (Probability density), Ftot_den2, Ftot (Mean Force), ofv_num (numerator of on the fly variance)]. 
+        grid (array of shape (nbins, )): Grid that CV-space is defined on.
+        y (array of shape (nbins, )): Reference surface that is used to calculate the absolute devaition.
+        nhills (int, optional): Number of HILLS to be analysed. When set to -1, all HILLS will be analysed. Defaults to -1.
+        PD_limit (flaot, optional): Probability density values below the PD_limit will be approximated to be 0, to ensure the numerical stability of the algorithm. Defaults to 1E-10.
+        use_weighted_st_dev (bool, optional): When set to True, the calculated error will be the weighted standard deviation ( var^0.5 ). When set to False, the calculated error will be the standard error ( (var/n_sample)^0.5 ). Defaults to True. (The standard devaition is expected to converge after enough time, while the standard error is expected to decrease as more datapoints are added.).
+
+    Returns:
+        grid (array of size (nbins,)): CV-array.
+        PD_patch (array of size (nbins,)): Patched Probability density
+        F_patch (array of size (nbins,)): Patched Mean Force
+        FES (array of size (nbins,)): Free Energy Surface from patched Mean Force
+        AD (array of size (nbins,)): Absulute Deviation from FES to reference surface
+        AAD (float): Average Absulute Deviation from FES to reference surface
+        OFE (array of size (nbins,)): On-the-fly error. Statistical error of the mean force
+        AOFE (float): Average on-the-fly error.
     """
     
-    for initialise in [1]:
-        grid = np.linspace(min_grid, max_grid, nbins)
-        grid_space = (max_grid - min_grid) / (nbins-1)   
-        grid_ext = 0.25 * (max_grid-min_grid)
-        grid_length = max_grid - min_grid
-        stride = int(len(position) / len(HILLS[:, 1]))
-        const = (1 / (bw * np.sqrt(2 * np.pi) * stride))
-        bw2 = bw ** 2
-        if nhills > 0: total_number_of_hills = nhills
-        else: total_number_of_hills = len(HILLS)
-        
-        # initialise force terms
-        Fbias = np.zeros(len(grid))
-        Ftot_num = np.zeros(len(grid))
-        Ftot_den = np.zeros(len(grid))
-        Ftot_den2 = np.zeros(len(grid))
-        ofv_num = np.zeros(len(grid))
-
-        #Calculate static force (form harmonic or wall potential)
-        if len(F_static) != nbins: F_static = np.zeros(nbins)
-        if hp_kappa > 0: F_static += find_hp_force(hp_centre, hp_kappa, grid, min_grid, max_grid, grid_space, periodic)
-        if lw_kappa > 0: F_static += find_lw_force(lw_centre, lw_kappa, grid, min_grid, max_grid, grid_space, periodic)
-        if uw_kappa > 0: F_static += find_uw_force(uw_centre, uw_kappa, grid, min_grid, max_grid, grid_space, periodic)
-        
-
-        # Definition Gamma Factor, allows to switch between WT and regular MetaD
-        if WellTempered < 1: Gamma_Factor = 1
-        else: Gamma_Factor = (HILLS[0, 4] - 1) / (HILLS[0, 4])
-            
-    for i in range(total_number_of_hills):
-        
-        #Get position data of window        
-        s = HILLS[i, 1]  # centre position of Gaussian
-        sigma_meta2 = HILLS[i, 2] ** 2  # width of Gaussian
-        height_meta = HILLS[i, 3] * Gamma_Factor  # Height of Gaussian
-        data = position[i * stride: (i + 1) * stride]  # positons of window of constant bias force.
-        periodic_hills = find_periodic_point_numpy(np.array([s]), min_grid, max_grid, periodic, grid_ext, grid_length)
-        periodic_positions = find_periodic_point_numpy(data, min_grid, max_grid, periodic, grid_ext, grid_length)
-
-        #Calculate forces of window
-        [pb_t, Fpbt, Fbias_window] = window_forces(periodic_positions, periodic_hills, grid, sigma_meta2, height_meta, kT, const, bw2, Ftot_den_limit)
-        Fbias += Fbias_window                   
-        dfds = np.where(pb_t > Ftot_den_limit, Fpbt / pb_t , 0) + Fbias - F_static
-        Ftot_num += np.multiply(pb_t, dfds)
-        
-        # Calculate total force
-        Ftot_den = Ftot_den + pb_t  # total probability density  
-        Ftot = np.where(Ftot_den > Ftot_den_limit, Ftot_num / Ftot_den, 0)
-
-        # terms for error calculation
-        Ftot_den2 += np.square(pb_t)  # sum of (probability densities)^2
-        ofv_num += np.multiply(pb_t, np.square(dfds))   # sum of (weighted mean force of window)^2
-        
-    return grid, Ftot_den, Ftot_den2, Ftot, ofv_num
-
-### FAST Algorithm to run 1D MFI
-@njit
-def MFI_1D_long(y, HILLS="HILLS", position="position", bw=1, kT=1, min_grid=-2, max_grid=2, nbins=201, error_pace=10,
-           WellTempered=1, nhills=-1, periodic=0, hp_centre=0.0, hp_kappa=0, lw_centre=0.0, lw_kappa=0,
-           uw_centre=0.0, uw_kappa=0, Ftot_den_limit = 1E-10, F_static = np.zeros(123), FES_cutoff=0, Ftot_den_cutoff=0.1, ofe_non_exploration_penalty=30, use_weighted_st_dev=True):
-
-    for initialise in [1]:
-        grid = np.linspace(min_grid, max_grid, nbins)
-        grid_space = (max_grid - min_grid) / (nbins-1)   
-        grid_ext = 0.25 * (max_grid-min_grid)
-        grid_length = max_grid - min_grid
-        stride = int(len(position) / len(HILLS[:, 1]))
-        const = (1 / (bw * np.sqrt(2 * np.pi) * stride))
-        bw2 = bw ** 2
-        if nhills > 0: total_number_of_hills = nhills
-        else: total_number_of_hills = len(HILLS)
-        
-        # initialise force terms
-        Fbias = np.zeros(len(grid))
-        Ftot_num = np.zeros(len(grid))
-        Ftot_den = np.zeros(len(grid))
-        Ftot_den2 = np.zeros(len(grid))
-        ofv_num = np.zeros(len(grid))
-        
-        error_history = []
-
-
-        #Calculate static force (form harmonic or wall potential)
-        if len(F_static) != nbins: F_static = np.zeros(nbins)
-        if hp_kappa > 0: F_static += find_hp_force(hp_centre, hp_kappa, grid, min_grid, max_grid, grid_space, periodic)
-        if lw_kappa > 0: F_static += find_lw_force(lw_centre, lw_kappa, grid, min_grid, max_grid, grid_space, periodic)
-        if uw_kappa > 0: F_static += find_uw_force(uw_centre, uw_kappa, grid, min_grid, max_grid, grid_space, periodic)
-    
-
-        # Definition Gamma Factor, allows to switch between WT and regular MetaD
-        if WellTempered < 1: Gamma_Factor = 1
-        else: Gamma_Factor = (HILLS[0, 4] - 1) / (HILLS[0, 4])
-            
-    for i in range(total_number_of_hills):
-        
-        #Get position data of window        
-        s = HILLS[i, 1]  # centre position of Gaussian
-        sigma_meta2 = HILLS[i, 2] ** 2  # width of Gaussian
-        height_meta = HILLS[i, 3] * Gamma_Factor  # Height of Gaussian
-        data = position[i * stride: (i + 1) * stride]  # positons of window of constant bias force.
-        periodic_hills = find_periodic_point_numpy(np.array([s]), min_grid, max_grid, periodic, grid_ext, grid_length)
-        periodic_positions = find_periodic_point_numpy(data, min_grid, max_grid, periodic, grid_ext, grid_length)
-
-        #Calculate forces of window
-        [pb_t, Fpbt, Fbias_window] = window_forces(periodic_positions, periodic_hills, grid, sigma_meta2, height_meta, kT, const, bw2, Ftot_den_limit)
-        Fbias += Fbias_window                   
-        dfds = np.where(pb_t > Ftot_den_limit, Fpbt / pb_t , 0) + Fbias - F_static
-        Ftot_num += np.multiply(pb_t, dfds)
-        
-        # Calculate total force
-        Ftot_den = Ftot_den + pb_t  # total probability density  
-        Ftot = np.where(Ftot_den > Ftot_den_limit, Ftot_num / Ftot_den, 0)
-
-        # terms for error calculation
-        Ftot_den2 += np.square(pb_t)  # sum of (probability densities)^2
-        ofv_num += np.multiply(pb_t, np.square(dfds))   # sum of (weighted mean force of window)^2
-        
-        
-        # Calculate error
-        if (i + 1) % int(total_number_of_hills / error_pace) == 0 or (i+1) == total_number_of_hills:
-            
-            Ftot_den_sq = np.square(Ftot_den)
-            Ftot_den_diff = (Ftot_den_sq-Ftot_den2)
-            ofv = np.where(Ftot_den > Ftot_den_limit, ofv_num / Ftot_den, 0) - np.square(Ftot)
-            if use_weighted_st_dev == True: ofv = np.multiply(ofv , np.where(Ftot_den_diff > 0, Ftot_den_sq / Ftot_den_diff, 0) )
-            else: ofv = np.multiply(ofv , np.where(Ftot_den_diff > 0, Ftot_den2 / Ftot_den_diff, 0) )
-            ofe = np.where(ofv > 10E-5 , np.sqrt(ofv), 0)
-            if Ftot_den_cutoff != 0: ofe = np.where(Ftot_den > Ftot_den_cutoff, ofe, ofe_non_exploration_penalty)
-            Aofe = np.sum(ofe) / np.count_nonzero(ofe)
-                                    
-            FES = intg_1D(Ftot, grid_space)
-            AD = np.absolute(FES-y)
-            if FES_cutoff != 0: AD = np.where(FES < FES_cutoff, AD, 0)
-            AAD = np.sum(AD) / np.count_nonzero(AD)            
-            error_history.append([Aofe, AAD])
-            
-
-    return grid, Ftot_den, Ftot, FES, ofe, AD, Aofe, AAD, error_history
-
-
-@njit
-def patch_FES_AD_ofe(force_vector, grid, y, nbins, PD_limit=1E-10):
     #initialisa terms
     PD_patch = np.zeros(nbins)
     PD2_patch = np.zeros(nbins)
@@ -573,8 +577,8 @@ def patch_FES_AD_ofe(force_vector, grid, y, nbins, PD_limit=1E-10):
     #Calculate error
     PD_patch2 = np.square(PD_patch)
     PD_diff = PD_patch2 - PD2_patch
-    PD_ratio = np.where( PD_diff > 0, PD2_patch / PD_diff, 0)    ### for stdev --->>> np.where( PD_diff > 0, PD2_patch / PD_diff)
-    # PD_ratio = np.where( PD_diff > 0, PD_patch2 / PD_diff, 0)    ### for stdev --->>> np.where( PD_diff > 0, PD2_patch / PD_diff)
+    if use_weighted_st_dev == True: PD_ratio = np.where( PD_diff > 0, PD_patch2 / PD_diff, 0)    ### for stdev --->>> np.where( PD_diff > 0, PD2_patch / PD_diff)
+    else: PD_ratio = np.where( PD_diff > 0, PD2_patch / PD_diff, 0)    ### for stdev --->>> np.where( PD_diff > 0, PD2_patch / PD_diff)
     OFV = np.multiply( np.where(PD_patch > 0, OFV_patch / PD_patch, 0) - np.square(F_patch) , PD_ratio)
     OFE = np.where(OFV > 1E-5, np.sqrt(OFV), 0)
     AOFE = np.sum(OFE) / nbins
@@ -591,7 +595,31 @@ def patch_FES_AD_ofe(force_vector, grid, y, nbins, PD_limit=1E-10):
 
 
 @njit
-def patch_FES_AD_ofe_cutoff(force_vector, grid, y, PD_limit=1E-10, FES_cutoff=0, PD_cutoff=0.1, ofe_non_exploration_penalty=30, use_weighted_st_dev=True):
+def patch_FES_AD_ofe_cutoff(force_vector, grid, y, PD_limit=1E-10, PD_cutoff=0.1, ofe_non_exploration_penalty=100, use_weighted_st_dev=True):
+    """Takes in an array of force terms and patches them togehter, calculates the FES, the absolute deviation to a reference surface, the statistical error (on the fly error) and a cutoff array. 
+    
+    The force vector should be in the format: [force_term_1, force_term_2, ... ,force_term_n] and 
+    
+    Args:
+        force_vector (array of shape (n,4, nbins)) where n is the number of independent force terms: The force terms are tipically outputted from the MFI_1D functions. They should be in the format: [Ftot_den (Probability density), Ftot_den2, Ftot (Mean Force), ofv_num (numerator of on the fly variance)]. 
+        grid (array of shape (nbins, )): Grid that CV-space is defined on.
+        y (array of shape (nbins, )): Reference surface that is used to calculate the absolute devaition.
+        PD_limit (flaot, optional): Probability density values below the PD_limit will be approximated to be 0, to ensure the numerical stability of the algorithm. Defaults to 1E-10.
+        PD_cutoff (flaot, optional): Probability density limit used to determine the cutoff. Values below the PD_limit will be cut-off. Defaults to 0.1.
+        ofe_non_exploration_penalty (flaot, optional): On-the-fly error values that that are ouside of the PD_cutoff will have a error equal to the ofe_non_exploration_penalty. Absolute deviation values that that are ouside of the PD_cutoff will have a error equal to the ofe_non_exploration_penalty/10. Defaults to 100.
+        use_weighted_st_dev (bool, optional): When set to True, the calculated error will be the weighted standard deviation ( var^0.5 ). When set to False, the calculated error will be the standard error ( (var/n_sample)^0.5 ). Defaults to True. (The standard devaition is expected to converge after enough time, while the standard error is expected to decrease as more datapoints are added.).
+
+    Returns:
+        grid (array of size (nbins,)): CV-array.
+        PD_patch (array of size (nbins,)): Patched Probability density
+        F_patch (array of size (nbins,)): Patched Mean Force
+        FES (array of size (nbins,)): Free Energy Surface from patched Mean Force
+        AD (array of size (nbins,)): Absulute Deviation from FES to reference surface
+        AAD (float): Average Absulute Deviation from FES to reference surface
+        OFE (array of size (nbins,)): On-the-fly error. Statistical error of the mean force
+        AOFE (float): Average on-the-fly error.
+    """
+    
     #initialise terms
     for _init_terms_ in range(1):
         PD_patch = np.zeros_like(grid)
@@ -621,7 +649,7 @@ def patch_FES_AD_ofe_cutoff(force_vector, grid, y, PD_limit=1E-10, FES_cutoff=0,
     #Find FES and AAD
     FES = intg_1D(F_patch, grid[1] - grid[0])        
     AD = np.absolute(FES - y)
-    if FES_cutoff != 0: AD = np.where(FES < FES_cutoff, AD, 0)
+    if PD_cutoff != 0: AD = np.where(PD_patch > PD_cutoff, AD, ofe_non_exploration_penalty/10)
     AAD = np.sum(AD) / np.count_nonzero(AD)
     
     if AOFE != AOFE:
@@ -629,7 +657,7 @@ def patch_FES_AD_ofe_cutoff(force_vector, grid, y, PD_limit=1E-10, FES_cutoff=0,
     
     return grid, PD_patch, F_patch, FES, AD, AAD, OFE, AOFE
 
-
+@njit
 def patch_forces(force_vector):
     """Takes in a collection of force and probability density and patches them.
     Args:
@@ -642,13 +670,33 @@ def patch_forces(force_vector):
     F_patch = np.zeros(np.shape(force_vector[0][0]))
     for i in range(len(force_vector)):
         PD_patch += force_vector[i][0]
-        F_patch += force_vector[i][0] * force_vector[i][1]
-    F_patch = np.divide(F_patch, PD_patch, out=np.zeros_like(F_patch), where=PD_patch > 0.000001)
+        F_patch += np.multiply(force_vector[i][0] , force_vector[i][1])
+    F_patch = np.where(PD_patch > 1E-10, F_patch / PD_patch, 0)
 
     return [PD_patch, F_patch]
 
 
-def patch_FES_ofe(force_vector, grid, nbins):
+
+def patch_FES_ofe(force_vector, grid, nbins, use_weighted_st_dev=True):
+    
+    """Takes in an array of force terms, patches them together and calculates the error and FES. The force vector has to be in the format [Ftot_den, Ftot_den2, Ftot, ofv_num]. 
+    
+    Args:
+        force_vector (array of shape (n,4, nbins)) where n is the number of independent force terms: The force terms are tipically outputted from the MFI_1D functions. They should be in the format: [Ftot_den (Probability density), Ftot_den2, Ftot (Mean Force), ofv_num (numerator of on the fly variance)]. 
+        grid (array of shape (nbins, )): Grid that CV-space is defined on.
+        nhills (int, optional): Number of HILLS to be analysed. When set to -1, all HILLS will be analysed. Defaults to -1.
+        PD_limit (flaot, optional): Probability density values below the PD_limit will be approximated to be 0, to ensure the numerical stability of the algorithm. Defaults to 1E-10.
+        use_weighted_st_dev (bool, optional): When set to True, the calculated error will be the weighted standard deviation ( var^0.5 ). When set to False, the calculated error will be the standard error ( (var/n_sample)^0.5 ). Defaults to True. (The standard devaition is expected to converge after enough time, while the standard error is expected to decrease as more datapoints are added.).
+
+    Returns:
+        grid (array of size (nbins,)): CV-array.
+        PD_patch (array of size (nbins,)): Patched Probability density
+        F_patch (array of size (nbins,)): Patched Mean Force
+        FES (array of size (nbins,)): Free Energy Surface from patched Mean Force
+        OFE (array of size (nbins,)): On-the-fly error. Statistical error of the mean force
+        AOFE (float): Average on-the-fly error.
+    """
+    
     #initialisa terms
     PD_patch = np.zeros(nbins)
     PD2_patch = np.zeros(nbins)
@@ -664,7 +712,8 @@ def patch_FES_ofe(force_vector, grid, nbins):
     F_patch = np.divide(F_patch, PD_patch, out=np.zeros_like(F_patch), where=PD_patch > 0)
 
     #Calculate error
-    PD_ratio = np.divide(PD2_patch, (PD_patch ** 2 - PD2_patch), out=np.zeros_like(PD_patch), where=(PD_patch ** 2 - PD2_patch) > 0)
+    if use_weighted_st_dev == True: PD_ratio = np.divide(PD_patch ** 2 , (PD_patch ** 2 - PD2_patch), out=np.zeros_like(PD_patch), where=(PD_patch ** 2 - PD2_patch) > 0)
+    else: PD_ratio = np.divide(PD2_patch, (PD_patch ** 2 - PD2_patch), out=np.zeros_like(PD_patch), where=(PD_patch ** 2 - PD2_patch) > 0)
     OFV = (np.divide(OFV_patch, PD_patch, out=np.zeros_like(OFV_patch), where=PD_patch > 0) - F_patch ** 2) * PD_ratio
     OFE = np.where(OFV > 10E-10, np.sqrt(OFV), 0)
     AOFE = sum(OFE) / nbins
@@ -699,122 +748,108 @@ def patch_FES_ofe(force_vector, grid, nbins):
     return [grid, PD_patch, F_patch, FES, OFE, AOFE]
 
 
-def bootstrap_forw_back(grid, forward_force, backward_force, n_bootstrap):
+@njit
+def bootstrap_forw_back(grid, forward_force, backward_force, n_bootstrap, set_fes_minima=None):
     """Algorithm to determine bootstrap error
 
     Args:
-        grid (array): CV grid positions
+        grid (array of shape (nbins,)): CV grid positions
         forward_force (list): collection of force terms (n * [Ftot_den, Ftot]) from forward transition
         backward_force (list): collection of force terms (n * [Ftot_den, Ftot]) from backward transition
         n_bootstrap (int): bootstrap itterations
 
     Returns:
-        [FES_avr, sd_fes, variance_prog, stdev_prog, var_fes_prog, sd_fes_prog ]
+        FES_avr (array of shape (nbins,)): Average of all FES generated during the bootstrap algorithm.
+        sd_fes (array of shape (nbins,)): Standard deviation of all FES generated during the bootstrap algorithm.
+        sd_fes_prog (array of shape (n_bootstrap,)): Global average of the standard deviation after each bootstrap itteration. When this array converges, enough itterations have been performed. If it does not converge, move itterations are necessary.
     """
-   
-    #Define terms that will be updated itteratively
-    Ftot_inter = np.zeros(len(grid))
-    Ftot_sum = np.zeros(len(grid))
-    Ftot_den_sum = np.zeros(len(grid))
-    Ftot_den2_sum = np.zeros(len(grid))
-    FES_sum = np.zeros(len(grid))
-    FES2_sum = np.zeros(len(grid))
 
-    #store var and sd progression here
-    variance_prog = []
-    stdev_prog = []
-    var_fes_prog  = []
-    sd_fes_prog = []
-
-    #Save patch force terms and FES
-    force_patch_collection = []
-    FES_collection = []
+    #Define constants and lists
+    nbins = len(grid)
+    n_forces = len(forward_force)
+    sd_fes_prog = np.zeros(n_bootstrap)    
+    FES_avr = np.zeros(nbins)
+    M2 = np.zeros(nbins)
 
     #Patch forces
-    [Ftot_den, Ftot] = patch_forces(np.concatenate((forward_force, backward_force)))
-
-    #save non-random probability density
-    Ftot_den_base = np.array(Ftot_den)
-
+    [Ftot_den, Ftot] = patch_forces(np.concatenate((forward_force, backward_force)))        
 
     for itteration in range(n_bootstrap):
 
-        #Randomly choose 49 forward forces and backward forces
-        force = []    
-        for i in range(len(forward_force)):
-            force.append(forward_force[random.randint(0,len(forward_force)-1)])
-            force.append(backward_force[random.randint(0,len(forward_force)-1)])
-
-                
+        #Randomly choose forward forces and backward forces and save to force array
+        force = np.zeros((int(n_forces * 2), 2, nbins)) 
+        random_sample_index =  np.random.choice(n_forces-1, size=(2, n_forces))
+        force[:n_forces] = forward_force[random_sample_index[0]]
+        force[n_forces:] = backward_force[random_sample_index[1]]
                 
         #patch forces to find average Ftot_den, Ftot and FES
         [Ftot_den, Ftot] = patch_forces(force)
-        FES = intg_1D(F_patch, grid[1]-grid[0])
-        FES = FES - FES[0]
+        FES = intg_1D(Ftot, grid[1]-grid[0])
+        if set_fes_minima == "first_value":  FES = FES - FES[0]
+        else: FES = FES - min(FES)
 
-        #Save terms
-        force_patch_collection.append([Ftot_den, Ftot])
-        FES_collection.append(FES)
-
-        #calculate sums for variance
-        Ftot_inter += Ftot_den * Ftot**2
-        Ftot_sum += Ftot
-        Ftot_den_sum += Ftot_den
-        Ftot_den2_sum += Ftot_den**2
+        # calculate standard devaition using Welford’s method
+        delta = FES - FES_avr
+        FES_avr += delta/(itteration+1)
+        delta2 = FES - FES_avr
+        M2 += delta*delta2
+        sd_fes = np.sqrt(M2 / (itteration))
+        sd_fes_prog[itteration] = sum(sd_fes)/nbins
         
-        FES_sum += FES
-        FES2_sum += FES**2
 
-        if itteration > 0:
-            
-            #calculate force variance
-            Ftot_avr = Ftot_sum / (itteration+1)
-            Ftot2_weighted = np.divide(Ftot_inter, Ftot_den_sum, out=np.zeros_like(Ftot_inter), where=Ftot_den_base>10)
-            Ftot_den_ratio = np.divide(Ftot_den_sum ** 2, (Ftot_den_sum ** 2 - Ftot_den2_sum), out=np.zeros_like(Ftot_den_sum), where=Ftot_den_base > 10)
-            variance = (Ftot2_weighted - Ftot_avr**2) * Ftot_den_ratio
-            n_eff = np.divide(Ftot_den_sum ** 2, Ftot_den2_sum, out=np.zeros_like(Ftot_den), where=Ftot_den_base>10)
-            stdev = np.where(Ftot_den_base > 10,  np.sqrt(variance / n_eff ), 0)
+        # print progress
+        if (itteration+1) % 50 == 0: print("Itteration:", itteration+1, "- sd:", round(sd_fes_prog[itteration],5) )
+       
+    return [FES_avr, sd_fes, sd_fes_prog]
+
+
+@njit
+def bootstrap_1D(grid, force_array, n_bootstrap, set_fes_minima=None):
+    """Algorithm to determine bootstrap error
+
+    Args:
+        grid (array of shape (nbins,)): CV grid positions
+        force_array (list): collection of force terms (n * [Ftot_den, Ftot]).
+        n_bootstrap (int): bootstrap itterations
+
+    Returns:
+        FES_avr (array of shape (nbins,)): Average of all FES generated during the bootstrap algorithm.
+        sd_fes (array of shape (nbins,)): Standard deviation of all FES generated during the bootstrap algorithm.
+        sd_fes_prog (array of shape (n_bootstrap,)): Global average of the standard deviation after each bootstrap itteration. When this array converges, enough itterations have been performed. If it does not converge, move itterations are necessary.
+    """
+    
+    #Define constants and lists
+    nbins = len(grid)
+    n_forces = len(force_array)
+    sd_fes_prog = np.zeros(n_bootstrap)    
+    FES_avr = np.zeros(nbins)
+    M2 = np.zeros(nbins)
+
+    for itteration in range(n_bootstrap):
         
-            #calculate FES variance
-            FES_avr = FES_sum/ (itteration+1)
-            var_fes = np.zeros(len(grid))
-            for i in range(len(FES_collection)): 
-                var_fes += (FES_collection[i] - FES_avr)**2
-            var_fes = 1/(len(FES_collection)-1) * var_fes
-            sd_fes = np.sqrt(var_fes)
-            
-            #save variance
-            variance_prog.append(sum(variance)/len(grid))
-            stdev_prog.append(sum(stdev)/len(grid))
-            var_fes_prog.append(sum(var_fes)/len(grid))
-            sd_fes_prog.append(sum(sd_fes)/len(grid))
+        #Randomly choose forward forces and backward forces and save to force array
+        force = np.zeros((int(n_forces ), 2, nbins)) 
+        random_sample_index =  np.random.choice(n_forces-1, size=n_forces)      
+        force = force_array[random_sample_index]
+     
+        #patch forces to find average Ftot_den, Ftot and FES
+        [Ftot_den, Ftot] = patch_forces(force)
+        FES = intg_1D(Ftot, grid[1]-grid[0])
+        if set_fes_minima == "first_value":  FES = FES - FES[0]
+        else: FES = FES - min(FES)
         
+        # calculate standard devaition using Welford’s method
+        delta = FES - FES_avr
+        FES_avr += delta/(itteration+1)
+        delta2 = FES - FES_avr
+        M2 += delta*delta2
+        sd_fes = np.sqrt(M2 / (itteration))
+        sd_fes_prog[itteration] = sum(sd_fes)/nbins
         
-        #print progress
-        if (itteration+1) % 50 == 0:
-            print(itteration+1, ": var:", round(variance_prog[-1],5), "     sd:", round(stdev_prog[-1],5), "      FES: var:", round(var_fes_prog[-1],3), "     sd:", round(sd_fes_prog[-1],3) )
-            
-    return [FES_avr, sd_fes, variance_prog, stdev_prog, var_fes_prog, sd_fes_prog ]
-
-
-
-# Integrate Ftot, obtain FES
-# import scipy.integrate as integrate
-
-# def intg_1D_old(x, F):
-#     """Integration of 1D gradient using finite difference method (simpson's method).
-
-#     Args:
-#         x (array): grid
-#         F (array): Mean force
-
-#     Returns:
-#         FES (array): Free energy surface
-#     """
-#     fes = []
-#     for j in range(len(x)): fes.append(integrate.simps(F[:j + 1], x[:j + 1]))
-#     fes = fes - min(fes)
-#     return fes
+        # print progress
+        if (itteration+1) % 50 == 0: print("Itteration:", itteration+1, "- sd:", round(sd_fes_prog[itteration],5) )
+       
+    return [FES_avr, sd_fes, sd_fes_prog]
 
 
 def plot_recap(X, FES, Ftot_den, ofe, ofe_history, time_history, FES_lim=40, ofe_lim = 10, error_log_scale = 1):
@@ -826,7 +861,7 @@ def plot_recap(X, FES, Ftot_den, ofe, ofe_history, time_history, FES_lim=40, ofe
         Ftot_den (array): _description_
         ofe (array): Cumulative biased probability density
         ofe_history (list): on the fly estimate of the local convergence
-        time_history (_type_): _description_
+        time_history (list): List of time or simulation number corresponding to error history.
         FES_lim (int, optional): Upper energy value in FES plot. Defaults to 40.
         ofe_lim (int, optional): Upper error value in FES plot. Defaults to 10.
         error_log_scale (boolean, optional): Option to make error_conversion plot with a log scale. 1 for log scale. Defaults to 1.
@@ -864,7 +899,7 @@ def plot_recap(X, FES, Ftot_den, ofe, ofe_history, time_history, FES_lim=40, ofe
     # axs[1, 0].set_yscale('log')
 
 
-    axs[1, 1].plot([time/1000 for time in time_history], ofe_history);
+    axs[1, 1].plot(time_history, ofe_history);
     # axs[1, 1].plot([time/1000 for time in time_history], np.zeros(len(ofe_history)), color="grey", alpha=0.3);
     axs[1, 1].set_ylabel('Average Mean Force Error [kJ/(mol*nm)]')
     axs[1, 1].set_xlabel('Simulation time')
@@ -873,9 +908,6 @@ def plot_recap(X, FES, Ftot_den, ofe, ofe_history, time_history, FES_lim=40, ofe
     # axs[1, 1].set_ylim([-0.5, max(ofe_history)])
 
     fig.tight_layout()    
-
-
-
 
 
 def save_npy(object, file_name):
@@ -926,6 +958,14 @@ def load_pkl(name):
 
 
 def zero_to_nan(input_array):
+    """Turns all zero elements of an array into numpy NaN (Not a Number)
+
+    Args:
+        input_array (array of size (x,)): Input array.
+
+    Returns:
+        output_array (array of size (x,)): Input array with zero elements turned to Nan.
+    """    
     output_array = np.zeros_like(input_array)
     for ii in range(len(input_array)):
         if input_array[ii] == 0: output_array[ii] = np.nan

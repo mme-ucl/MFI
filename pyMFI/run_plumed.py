@@ -573,26 +573,70 @@ ipos {}""".format(temperature, time_step, simulation_steps, initial_position),fi
 #             f.write("max {}".format(periodic_boundaries.split(",")[1]))
 
 
-def make_external_bias_1D(grid_old, FES, Ftot, grid_min_plumed=None, grid_max_plumed=None, file_name_extension="", return_array=None):
+def make_external_bias_1D(grid_old, FES, Ftot, grid_min_plumed=None, grid_max_plumed=None, nbins_plumed=None, file_name_extension="", return_array=None):
     
     #if grid_min_plumed or grid_max_plumed not defined, estimate it
     if grid_min_plumed == None:
-        grid_min_plumed = grid_old[0] - (grid_old[-1] - grid_old[0]) / 2 
+        grid_min_plumed = grid_old[0] - 2
     if grid_max_plumed == None:
-        grid_max_plumed = grid_old[-1] + (grid_old[-1] - grid_old[0]) / 2
+        grid_max_plumed = grid_old[-1] + 2
+    if nbins_plumed == None:
+        nbins_plumed = len(grid_old)*2 - 1       
         
-    #create extended grid so that it goes to reaches grid_min_plumed and grid_max_plumed
-    grid_spacing = grid_old[1] - grid_old[0]
-    lower_new_values = int((grid_old[0] - grid_min_plumed)/grid_spacing) 
-    upper_new_values = int((grid_max_plumed - grid_old[-1])/grid_spacing) 
-    new_end_values = (grid_old[0] - grid_spacing*lower_new_values, grid_old[-1] + grid_spacing*upper_new_values) 
-    grid_plumed = np.pad(grid_old, (lower_new_values, upper_new_values), mode="linear_ramp", end_values=new_end_values)
-    nbins_plumed = len(grid_plumed)
+    grid_plumed = np.linspace(grid_min_plumed, grid_max_plumed, nbins_plumed )
     
-    #Extend FES and Ftot using constant values
-    FES_plumed = np.pad(FES, (lower_new_values, upper_new_values), mode="constant", constant_values=(FES[0],FES[-1]))
-    FES_plumed = -FES_plumed + np.max(FES)
-    Ftot_plumed = np.pad(-Ftot, (lower_new_values, upper_new_values), mode="constant")
+    #create extended grid so that it goes to reaches grid_min_plumed and grid_max_plumed
+    # grid_spacing = grid_old[1] - grid_old[0]
+    # lower_new_values = int((grid_old[0] - grid_min_plumed)/grid_spacing) 
+    # upper_new_values = int((grid_max_plumed - grid_old[-1])/grid_spacing) 
+    # new_end_values = (grid_old[0] - grid_spacing*lower_new_values, grid_old[-1] + grid_spacing*upper_new_values) 
+    # grid_plumed = np.pad(grid_old, (lower_new_values, upper_new_values), mode="linear_ramp", end_values=new_end_values)
+    # nbins_plumed = len(grid_plumed)
+    
+    #create new grid for plumed
+
+    #interpolate FES and Ftot on new grid
+    FES_plumed = np.interp(grid_plumed, grid_old, FES)
+    Ftot_plumed = np.interp(grid_plumed, grid_old, Ftot)
+
+    # option 3: constant fes and ftot at wall cut
+    # wall_cut = 40
+    # for i in range(len(grid_old)):
+    #     if FES[i] < wall_cut: 
+    #         lower_index = i
+    #         break
+        
+    # for i in range(len(grid_old)):
+    #     if FES[-i] < wall_cut: 
+    #         upper_index = -i
+    #         break
+        
+    # FES_plumed[grid_plumed < grid_old[lower_index]] = FES[lower_index]
+    # FES_plumed[grid_plumed > grid_old[upper_index]] = FES[upper_index]
+    # Ftot_plumed[grid_plumed < grid_old[lower_index]] = 0
+    # Ftot_plumed[grid_plumed > grid_old[upper_index]] = 0  
+    # Ftot_old = np.copy(Ftot)
+    # Ftot_old[grid_old < grid_old[lower_index]] = 0
+    # Ftot_old[grid_old > grid_old[upper_index]] = 0             
+  
+        
+        
+    #  option 2: constant fes and ftot at edge of grid_old
+    FES_plumed[grid_plumed < grid_old[0]] = FES[0]
+    FES_plumed[grid_plumed > grid_old[-1]] = FES[-1]
+    Ftot_plumed[grid_plumed < grid_old[0]] = 0
+    Ftot_plumed[grid_plumed > grid_old[-1]] = 0
+    # Ftot_old = np.copy(Ftot)
+    # Ftot_old[grid_old < grid_old[lower_index]] = 0
+    # Ftot_old[grid_old > grid_old[upper_index]] = 0       
+    
+    FES_plumed = -FES_plumed - np.min(-FES_plumed)
+    Ftot_plumed = - Ftot_plumed
+    
+    # option 1: pad FES and Ftot using constant values
+    # FES_plumed = np.pad(FES, (lower_new_values, upper_new_values), mode="constant", constant_values=(FES[0],FES[-1]))
+    # FES_plumed = -FES_plumed - np.min(-FES_plumed)
+    # Ftot_plumed = np.pad(-Ftot, (lower_new_values, upper_new_values), mode="constant")
     
     #Save to external_bias.dat file
     head_text = "#! FIELDS p.x external.bias der_p.x\n#! SET min_p.x " + str(grid_min_plumed) + "\n#! SET max_p.x " + str(grid_max_plumed) + "\n#! SET nbins_p.x " + str(nbins_plumed-1) + "\n#! SET periodic_p.x false"
