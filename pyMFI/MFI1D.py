@@ -511,29 +511,6 @@ def patch_forces_ofe(force_vector, PD_limit=1E-10, use_weighted_st_dev=True, ofe
     
     return PD_patch, PD2_patch, F_patch, OFV_num_patch, OFE, Aofe_progression
 
-
-
-
-
-"""Takes in an array of force terms, patches them together and calculates the error. The force vector has to be in the format [Ftot_den, Ftot_den2, Ftot, ofv_num]. 
-
-    Args:
-        force_vector (array of shape (n,4, nbins)) where n is the number of independent force terms: The force terms are tipically outputted from the MFI_1D functions. They should be in the format: [Ftot_den (Probability density), Ftot_den2, Ftot (Mean Force), ofv_num (numerator of on the fly variance)]. 
-        PD_limit (flaot, optional): Probability density values below the PD_limit will be approximated to be 0, to ensure the numerical stability of the algorithm. Defaults to 1E-10.
-        ofe_non_exploration_penalty (flaot, optional): On-the-fly error values that that are ouside of the PD_cutoff will have a error equal to the ofe_non_exploration_penalty. Absolute deviation values that that are ouside of the PD_cutoff will have a error equal to the ofe_non_exploration_penalty/10. Defaults to 100.
-        use_weighted_st_dev (bool, optional): When set to True, the calculated error will be the weighted standard deviation ( var^0.5 ). When set to False, the calculated error will be the standard error ( (var/n_sample)^0.5 ). Defaults to True. (The standard devaition is expected to converge after enough time, while the standard error is expected to decrease as more datapoints are added.).
-        ofe_progression (bool, optional): If True, the error progression will be returned. If false, error progression will be an array will all elements being the final error. Default set to False.
-
-    Returns:
-        grid (array of size (nbins,)): CV-array.
-        PD_patch (array of size (nbins,)): Patched Probability density
-        F_patch (array of size (nbins,)): Patched Mean Force
-        FES (array of size (nbins,)): Free Energy Surface from patched Mean Force
-        AD (array of size (nbins,)): Absulute Deviation from FES to reference surface
-        AAD (float): Average Absulute Deviation from FES to reference surface
-        OFE (array of size (nbins,)): On-the-fly error. Statistical error of the mean force
-        AOFE (float): Average on-the-fly error.
-"""
     
 
 @njit

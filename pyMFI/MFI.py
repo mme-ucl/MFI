@@ -1,7 +1,7 @@
 import glob
 import matplotlib.pyplot as plt
-#from numba import jit 
-#from numba import njit
+from numba import jit 
+from numba import njit
 import numpy as np
 import pickle
 import random
@@ -261,8 +261,8 @@ def find_uw_force(uw_centre_x, uw_centre_y, uw_kappa_x, uw_kappa_y, X , Y, min_g
 
 def MFI_2D(HILLS="HILLS", position_x="position_x", position_y="position_y", bw=1, kT=1,
 			min_grid=np.array((-np.pi, -np.pi)), max_grid=np.array((np.pi, np.pi)), nbins=np.array((200, 200)),
-			log_pace=10, error_pace=1, base_terms = 0, window_corners=[], WellTempered=1, nhills=-1, periodic=0, 
-			FES_cutoff = -1, FFT_integration = 0, Ftot_den_limit = 1E-10, Ftot_den_cutoff = 0.1, use_weighted_st_dev = True,
+			log_pace=-1, error_pace=-1, base_terms = 0, window_corners=[], WellTempered=1, nhills=-1, periodic=0, 
+			FES_cutoff = -1, Ftot_den_limit = 1E-10, Ftot_den_cutoff = 0.1, use_weighted_st_dev = True,
 			hp_centre_x=0.0, hp_centre_y=0.0, hp_kappa_x=0, hp_kappa_y=0,
 			lw_centre_x=0.0, lw_centre_y=0.0, lw_kappa_x=0, lw_kappa_y=0,
 			uw_centre_x=0.0, uw_centre_y=0.0, uw_kappa_x=0, uw_kappa_y=0, F_static_x = np.zeros((123,96)), F_static_y = np.zeros((123,96))):
@@ -319,8 +319,6 @@ def MFI_2D(HILLS="HILLS", position_x="position_x", position_y="position_y", bw=1
 		ofv_y: array of size (nbins[0], nbins[1]) - intermediate component in the calculation of the CV2 "on the fly variance" ( sum of: pb_t * dfds_y ** 2)
 	"""
 
-	# if FES_cutoff > 0 and FFT_integration == 0: print("I will integrate the FES every ",str(error_pace)," steps. This may take a while." )
-
 	gridx = np.linspace(min_grid[0], max_grid[0], nbins[0])
 	gridy = np.linspace(min_grid[1], max_grid[1], nbins[1])
 	grid_space = np.array(((max_grid[0] - min_grid[0]) / (nbins[0]-1), (max_grid[1] - min_grid[1]) / (nbins[1]-1)))
@@ -329,10 +327,16 @@ def MFI_2D(HILLS="HILLS", position_x="position_x", position_y="position_y", bw=1
 	const = (1 / (bw * np.sqrt(2 * np.pi) * stride))
 	bw2 = bw ** 2
 
+
 	# Optional - analyse only nhills, if nhills is set
 	if nhills > 0: total_number_of_hills = nhills
 	else: total_number_of_hills = len(HILLS)
-
+	if log_pace == -1: log_pace = int(total_number_of_hills / 5)
+	elif log_pace < 0: log_pace = total_number_of_hills
+	if error_pace == -1: error_pace = int(total_number_of_hills / 100)
+	elif error_pace == -2: error_pace = int(total_number_of_hills / 10)
+	elif error_pace < 0: error_pace = total_number_of_hills
+ 
 	# Initialize force terms
 	Fbias_x = np.zeros(nbins)
 	Fbias_y = np.zeros(nbins)
@@ -446,8 +450,7 @@ def MFI_2D(HILLS="HILLS", position_x="position_x", position_y="position_y", bw=1
 			#if there is a FES_cutoff, calculate fes ## Use with care, it costs a lot. 
 			if FES_cutoff > 0: 
 				if (i + 1) % int(error_pace) == 0 or (i+1) == total_number_of_hills:
-					if periodic == 1 or FFT_integration == 1: [X, Y, FES] = FFT_intg_2D(Ftot_x_temp, Ftot_y_temp, min_grid=min_grid, max_grid=max_grid)
-					else: [X, Y, FES] = intgrad2(Ftot_x_temp, Ftot_y_temp, min_grid=min_grid, max_grid=max_grid)
+					[X, Y, FES] = FFT_intg_2D(Ftot_x_temp, Ftot_y_temp, min_grid=min_grid, max_grid=max_grid, periodic=periodic)
 					cutoff = np.where(FES <= np.ones_like(FES) * FES_cutoff, 1, 0)
 			else: cutoff = np.where(Ftot_den_temp >= np.ones_like(Ftot_den_temp) * Ftot_den_cutoff, 1, 0)
 			
@@ -497,6 +500,9 @@ def mean_force_variance(Ftot_den, Ftot_den2, Ftot_x, Ftot_y, ofv_num_x, ofv_num_
 	ofv_x = np.multiply(np.divide(ofv_num_x , Ftot_den, out=np.zeros_like(Ftot_den), where=Ftot_den > 0) - np.square(Ftot_x) , bessel_corr )
 	ofv_y = np.multiply(np.divide(ofv_num_y , Ftot_den, out=np.zeros_like(Ftot_den), where=Ftot_den > 0) - np.square(Ftot_y) , bessel_corr )
 	
+	ofv_x = np.where(ofv_x < 0, 0, ofv_x)
+	ofv_y = np.where(ofv_y < 0, 0, ofv_y)
+ 
 	ofv = np.sqrt(np.square(ofv_x) + np.square(ofv_y))	
  
 	ofe_x = np.sqrt(ofv_x)
@@ -552,7 +558,7 @@ def patch_to_base_variance(master0, master, Ftot_den_limit=1E-10, use_weighted_s
 
 
 ### Integration using Fast Fourier Transform (FFT integration) in 2D
-def FFT_intg_2D(FX, FY, min_grid=np.array((-np.pi, -np.pi)), max_grid=np.array((np.pi, np.pi)), nbins=0):
+def FFT_intg_2D(FX, FY, min_grid=np.array((-np.pi, -np.pi)), max_grid=np.array((np.pi, np.pi)), nbins=0, periodic=0):
 	"""2D integration of force gradient (FX, FY) to find FES using Fast Fourier Transform.
 
 	Args:
@@ -560,7 +566,7 @@ def FFT_intg_2D(FX, FY, min_grid=np.array((-np.pi, -np.pi)), max_grid=np.array((
 		FY (array of size (nbins[0], nbins[1])): CV1 component of the Mean Force.
 		min_grid (array, optional): Lower bound of the simulation domain. Defaults to np.array((-np.pi, -np.pi)).
 		min_grid (array, optional): Upper bound of the simulation domain. Defaults to np.array((np.pi, np.pi)).
-		nbins (int, optional): number of bins in CV1,CV2. Defaults to 0. When nbins=0, nbins will take the shape of FX.
+		nbins (int, optional): number of bins in CV2,CV1. Defaults to 0. When nbins=0, nbins will take the shape of FX.
 
 	Returns:
 		X: array of size (nbins[0], nbins[1]) - CV1 meshgrid positions
@@ -569,15 +575,22 @@ def FFT_intg_2D(FX, FY, min_grid=np.array((-np.pi, -np.pi)), max_grid=np.array((
 	"""
 	if hasattr(nbins, "__len__") == False: nbins = np.shape(FX)        
 	
-	gridx = np.linspace(min_grid[0], max_grid[0], nbins[0])
-	gridy = np.linspace(min_grid[1], max_grid[1], nbins[1])
-	grid_spacex = (max_grid[0] - min_grid[0]) / (nbins[0] - 1)
-	grid_spacey = (max_grid[1] - min_grid[1]) / (nbins[1] - 1)
+	gridx = np.linspace(min_grid[0], max_grid[0], nbins[1])
+	gridy = np.linspace(min_grid[1], max_grid[1], nbins[0])
+	grid_spacex = (max_grid[0] - min_grid[0]) / (nbins[1] - 1)
+	grid_spacey = (max_grid[1] - min_grid[1]) / (nbins[0] - 1)
 	X, Y = np.meshgrid(gridx, gridy)
+  
+	#If system is non-periodic, make (anti-)symmetic copies so that the system appears symmetric/
+	if periodic == 0:
+		nbins = np.array((nbins[0]*2, nbins[1]*2))
+		FX = np.block([[-FX[:,::-1],FX],[-FX[::-1,::-1],FX[::-1,:]]])
+		FY = np.block([[FY[:,::-1],FY],[-FY[::-1,::-1],-FY[::-1,:]]])
 
 	# Calculate frequency
-	freq_1dx = np.fft.fftfreq(nbins[0], grid_spacex)
-	freq_1dy = np.fft.fftfreq(nbins[1], grid_spacey)
+	freq_1dx = np.fft.fftfreq(nbins[1], grid_spacex)
+	freq_1dy = np.fft.fftfreq(nbins[0], grid_spacey)
+ 
 	freq_x, freq_y = np.meshgrid(freq_1dx, freq_1dy)
 	freq_hypot = np.hypot(freq_x, freq_y)
 	freq_sq = np.where(freq_hypot != 0, freq_hypot ** 2, 1E-10)
@@ -589,6 +602,10 @@ def FFT_intg_2D(FX, FY, min_grid=np.array((-np.pi, -np.pi)), max_grid=np.array((
 	fes_y = np.real(np.fft.ifft2(fourier_y))
 	# Construct whole FES
 	fes = fes_x + fes_y
+	
+	#if non-periodic, cut FES back to original domain.
+	if periodic == 0: fes = fes[:int(nbins[0]/2),int(nbins[1]/2):]
+
 	fes = fes - np.min(fes)
 	return [X, Y, fes]
 
@@ -651,12 +668,13 @@ def intgrad2(fx, fy, nx=0, ny=0, intconst=0, per1 = False, per2 = False, min_gri
 		fhat (ny by nx array): integrated free energy surface
 	"""
 
+	#create grid and grid constants
 	if nx == 0: nx = np.shape(fx)[1]    
 	if ny == 0: ny = np.shape(fx)[0]
 	if hasattr(nbins, "__len__") == False: nbins = np.shape(fx) 
 	
-	gridx = np.linspace(min_grid[0], max_grid[0], nbins[0])
-	gridy = np.linspace(min_grid[1], max_grid[1], nbins[1])
+	gridx = np.linspace(min_grid[0], max_grid[0], nbins[1])
+	gridy = np.linspace(min_grid[1], max_grid[1], nbins[0])
 	dx = abs(gridx[1] - gridx[0])
 	dy = abs(gridy[1] - gridy[0])
 	X, Y = np.meshgrid(gridx, gridy)
@@ -755,13 +773,15 @@ def intgrad2(fx, fy, nx=0, ny=0, intconst=0, per1 = False, per2 = False, min_gri
 	Af[0][2]=1
 	Af[1][:]=0
 	rhs[0] = intconst
-	
+ 
+
 	#Solve
 	A=sps.csc_matrix((Af[:,2],(Af[:,0],Af[:,1])),shape=(2*ny*nx,ny*nx))
-	fhat=spsl.lsmr(A,rhs)
+ 
+	fhat=spsl.lsmr(A,rhs) #slowest step
+	# fhat=spsl.lsmr(A,rhs, atol=1e-03, btol=1e-03)
 	fhat=fhat[0]
 	fhat = np.reshape(fhat,nbins) 
-	#print(fhat.shape)   
 	fhat = fhat - np.min(fhat)    
 
 	return [X, Y, fhat]
@@ -909,17 +929,22 @@ def plot_patch_2D(X, Y, FES, TOTAL_DENSITY, lim=50):
 	axs[1].set_title('Total Biased Probability Density', fontsize=11)
 
 
-def bootstrap_2D_new(X, Y, force_array, n_bootstrap, FES_cutoff = 0, FFT_integration=0, min_grid=np.array((-3, -3)), max_grid=np.array((3, 3))):
-	"""Algorithm to determine bootstrap error
+def bootstrap_2D_new(X, Y, force_array, n_bootstrap, FES_cutoff = 0, periodic=0, log_pace=0):
+	"""Algorithm to determine bootstrap error of FES. Takes in a list of force terms, and with each bootstrap itteration random force terms are picked, patched together and the FES is determinded. Over the itterations, the a standard deviation map and the averaged st.dev. is computed. When all iterations are completed, the average of all FESs, the final averaged st.dev. map and the progression of the averaged st.dev. is returned.
 
 	Args:
-		X: array of size (nbins[0], nbins[1]) - CV1 grid positions
-		Y: array of size (nbins[0], nbins[1]) - CV2 grid positions
+		X: array of size (nbins[0], nbins[1]): CV1 grid positions
+		Y: array of size (nbins[0], nbins[1]): CV2 grid positions
 		forces_all (list): collection of force terms (n * [Ftot_den, Ftot_x, Ftot_y])
 		n_bootstrap (int): bootstrap iterations
+		FES_cutoff (float): Only st.dev. values that correspond to a FES value below the FES_cutoff will be considered, while the others will just be turned to zero. Default FES_cutoff is 0, and no cutoff is applied. 	
+		periodic (bool): Will specify if the system is periodic (periodic=1) or non-periodic (periodic=0). This is relevant to choose the appropiate integration method. Default is set to zero (non-periodic).
+		log_pace (int): Specifies the pace at which the average st.dev is printed. With a value of 100, st.dev is printed is printed every 100 iterations. With a value of 0, st.dev is printed is only printed at the end. With a value of -1, it will be printed 5 times in total. Default is set to 0. 
 
 	Returns:
-		[FES_avr, var_fes, sd_fes, variance_prog, stdev_prog, var_fes_prog, sd_fes_prog ]
+		FES_avr: array of size (nbins[0], nbins[1]) - Average of all FES calculated. The minima will be set automatically to zero.
+		sd_fes: array of size (nbins[0], nbins[1]) - Standard deviation map of all FES generated.
+		sd_fes_prog: array of size (n_bootstrap,) - Array of the average st.dev. calculated at each iteration.
 	"""
    
     #Define constants and lists
@@ -928,6 +953,11 @@ def bootstrap_2D_new(X, Y, force_array, n_bootstrap, FES_cutoff = 0, FFT_integra
 	sd_fes_prog = np.zeros(n_bootstrap)    
 	FES_avr= np.zeros_like(X)
 	M2 = np.zeros_like(X)
+	min_grid=np.array((np.min(X), np.min(Y)))
+	max_grid=np.array((np.max(X), np.max(Y)))
+	if log_pace == -1: log_pace = int(n_bootstrap/5)
+	if log_pace == 0: log_pace = n_bootstrap
+
 
 	for iteration in range(n_bootstrap):
         
@@ -939,26 +969,25 @@ def bootstrap_2D_new(X, Y, force_array, n_bootstrap, FES_cutoff = 0, FFT_integra
 		#Patch forces
 		[Ftot_den, Ftot_x, Ftot_y] = patch_2D_simple(force, nbins=nbins)
   
-		#Calculate FES. if there is a FES_cutoff, find cutoff. 
-		if FFT_integration == 1: [X, Y, FES] = FFT_intg_2D(Ftot_x, Ftot_y, min_grid=min_grid, max_grid=max_grid)
-		else: [X, Y, FES] = intgrad2(Ftot_x, Ftot_y, min_grid=min_grid, max_grid=max_grid)
+		#Calculate FES
+		[X, Y, FES] = FFT_intg_2D(Ftot_x, Ftot_y, min_grid=min_grid, max_grid=max_grid, periodic=periodic)
   
         # calculate standard devaition using Welford’s method
 		delta = FES - FES_avr
-		FES_avr += delta/(iteration+1)
-		delta2 = FES - FES_avr
-		M2 += delta*delta2
+		FES_avr += (delta)/(iteration+1)
+		M2 += delta*(FES - FES_avr)
 		if iteration > 0:
 			sd_fes = np.sqrt(M2 / (iteration))
-			sd_fes_prog[iteration] = np.sum(sd_fes)/(nbins[0]*nbins[1])
+			if FES_cutoff > 0: sd_fes = np.where(FES < FES_cutoff, sd_fes, 0) #Apply FES cut-off if specified
+			sd_fes_prog[iteration] = np.sum(sd_fes)/(np.count_nonzero(sd_fes))
 
 		
 		#print progress
-		if (iteration+1) % (n_bootstrap/5) == 0:
-			# print(iteration+1, "Ftot: sd=", round(stdev_prog[-1],5), "      FES: var=", round(var_fes_prog[-1],3), "     sd=", round(sd_fes_prog[-1],3) )
-			print("Itteration:", iteration+1, " |  sd=", round(sd_fes_prog[iteration],3) )
-			
-	# return [FES_avr, cutoff, var_fes, sd_fes, variance_prog, stdev_prog, var_fes_prog, sd_fes_prog ]
+		if (iteration+1) % (log_pace) == 0 or (iteration+1) == n_bootstrap:
+			print("Itteration: |" + str(iteration+1) + "/" + str(n_bootstrap) + "|  sd=", round(sd_fes_prog[iteration],3) )
+
+	FES_avr = FES_avr - np.min(FES_avr)			
+
 	return [FES_avr, sd_fes, sd_fes_prog]
 
 
@@ -987,16 +1016,16 @@ def plot_bootstrap(X, Y, FES, sd_fes, sd_fes_prog, FES_lim=11, ofe_lim=11, FES_s
 
 	cp = axs[1].contourf(X, Y, sd_fes, levels=np.linspace(0, ofe_lim, 10), cmap='coolwarm', antialiased=False, alpha=0.8);
 	cbar = plt.colorbar(cp, ax=axs[1])
-	cbar.set_label("Variance of Average FES [kJ/mol]$^2$", rotation=270)
+	cbar.set_label("Standard Deviation of Average FES [kJ/mol]$^2$", rotation=270)
 	axs[1].set_ylabel('CV2', fontsize=11)
 	axs[1].set_xlabel('CV1', fontsize=11)
-	axs[1].set_title('Bootstrap Variance of FES', fontsize=11)
+	axs[1].set_title('Bootstrap Standard Deviation of FES', fontsize=11)
 
 
 	axs[2].plot( range(len(sd_fes_prog)), sd_fes_prog);
-	axs[2].set_ylabel('Average Variance of Average FES [kJ/mol]$^2$', fontsize=11)
+	axs[2].set_ylabel('Average Standard Deviation of Average FES [kJ/mol]$^2$', fontsize=11)
 	axs[2].set_xlabel('Bootstrap iterations', fontsize=11)
-	axs[2].set_title('Global Convergence of Bootstrap Variance', fontsize=11)
+	axs[2].set_title('Global Convergence of Bootstrap Standard Deviation', fontsize=11)
 
 	plt.rcParams["figure.figsize"] = (5,4)
 
