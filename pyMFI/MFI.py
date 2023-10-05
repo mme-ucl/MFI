@@ -457,12 +457,12 @@ def MFI_2D(HILLS="HILLS", position_x="position_x", position_y="position_y", bw_x
 				ofe_cut_window = reduce_to_window(ofe, min_grid, grid_space, x_min=window_corners[0], x_max=window_corners[1], y_min=window_corners[2], y_max=window_corners[3]) 
 				ofe_history_window.append(np.sum(ofe_cut_window) / (np.count_nonzero(ofe_cut_window)))
 
-		print_progress(i,total_number_of_hills,variable_name='Average Mean Force Error',variable=ofe_history[-1])        
+		if len(ofe_history) > 0: print_progress(i+1,total_number_of_hills,variable_name='Average Mean Force Error',variable=round(ofe_history[-1],3))        
 		#print progress
-#		if (i + 1) % log_pace == 0:
-#			print("|" + str(i + 1) + "/" + str(total_number_of_hills) + "|==> Average Mean Force Error: " + str(ofe_history[-1]), end='\x1b[1K\r')
-#			if len(window_corners) == 4: print("    ||    Error in window", ofe_history_window[-1])
-#			else: print("")
+		# if (i + 1) % log_pace == 0:
+		# 	print("|" + str(i + 1) + "/" + str(total_number_of_hills) + "|==> Average Mean Force Error: " + str(ofe_history[-1]), end='\x1b[1K\r')
+		# 	if len(window_corners) == 4: print("    ||    Error in window", ofe_history_window[-1])
+		# 	else: print("")
 			
 	if len(window_corners) == 4: return [X, Y, Ftot_den, Ftot_x, Ftot_y, ofv, ofe, cutoff, volume_history, ofe_history, ofe_history_window, time_history, Ftot_den2, ofv_num_x, ofv_num_y]
   
@@ -886,9 +886,9 @@ def patch_2D_simple(master_array):
 
 
 	for i in range(len(master_array)):
-		FP += master_array[i][2]
-		FX += master_array[i][2] * master_array[i][3]
-		FY += master_array[i][2] * master_array[i][4]
+		FP += master_array[i][0]
+		FX += master_array[i][0] * master_array[i][1]
+		FY += master_array[i][0] * master_array[i][2]
 
 	FX = np.divide(FX, FP, out=np.zeros_like(FX), where=FP != 0)
 	FY = np.divide(FY, FP, out=np.zeros_like(FY), where=FP != 0)
@@ -917,6 +917,59 @@ def plot_patch_2D(X, Y, FES, TOTAL_DENSITY, lim=50):
 	axs[1].set_ylabel('CV2', fontsize=11)
 	axs[1].set_xlabel('CV1', fontsize=11)
 	axs[1].set_title('Total Biased Probability Density', fontsize=11)
+
+def bootstrap_2D_new(X, Y, force_array, n_bootstrap, FES_cutoff = 0, min_grid=np.array((-3, -3)), max_grid=np.array((3, 3)), periodic_x=0, periodic_y=0):
+	"""Algorithm to determine bootstrap error
+
+	Args:
+		X: array of size (nbins[0], nbins[1]) - CV1 grid positions
+		Y: array of size (nbins[0], nbins[1]) - CV2 grid positions
+		forces_all (list): collection of force terms (n * [Ftot_den, Ftot_x, Ftot_y])
+		n_bootstrap (int): bootstrap iterations
+
+	Returns:
+		[FES_avr, var_fes, sd_fes, variance_prog, stdev_prog, var_fes_prog, sd_fes_prog ]
+	"""
+   
+    #Define constants and lists
+	nbins = np.shape(X)
+	n_forces = len(force_array)
+	sd_fes_prog = np.zeros(n_bootstrap)    
+	FES_avr= np.zeros_like(X)
+	M2 = np.zeros_like(X)
+
+	for iteration in range(n_bootstrap):
+        
+        #Randomly choose forward forces and backward forces and save to force array
+		force = np.zeros((int(n_forces ), 2, nbins[0], nbins[1])) 
+		random_sample_index =  np.random.choice(n_forces-1, size=n_forces)      
+		force = force_array[random_sample_index]
+  
+		#Patch forces
+		[Ftot_den, Ftot_x, Ftot_y] = patch_2D_simple(force)
+  
+		#Calculate FES. if there is a FES_cutoff, find cutoff. 
+		[X, Y, FES] = FFT_intg_2D(Ftot_x, Ftot_y, min_grid=min_grid, max_grid=max_grid, periodic_x=periodic_x, periodic_y=periodic_y)
+  
+        # calculate standard devaition using Welford’s method
+		delta = FES - FES_avr
+		FES_avr += delta/(iteration+1)
+		delta2 = FES - FES_avr
+		M2 += delta*delta2
+		if iteration > 0:
+			sd_fes = np.sqrt(M2 / (iteration))
+			sd_fes_prog[iteration] = np.sum(sd_fes)/(nbins[0]*nbins[1])
+
+		
+			#print progress
+			print_progress(iteration+1,n_bootstrap,variable_name='Bootstrap Average Standard Deviation',variable=round(sd_fes_prog[iteration],3))        
+
+		# if (iteration+1) % (n_bootstrap/5) == 0:
+		# 	# print(iteration+1, "Ftot: sd=", round(stdev_prog[-1],5), "      FES: var=", round(var_fes_prog[-1],3), "     sd=", round(sd_fes_prog[-1],3) )
+		# 	print("Itteration:", iteration+1, " |  sd=", round(sd_fes_prog[iteration],3) )
+			
+	# return [FES_avr, cutoff, var_fes, sd_fes, variance_prog, stdev_prog, var_fes_prog, sd_fes_prog ]
+	return [FES_avr, sd_fes, sd_fes_prog]
 
 
 def bootstrap_2D(X, Y, forces_all, n_bootstrap, FES_cutoff = 0, FFT_integration=0, min_grid=np.array((-3, -3)), max_grid=np.array((3, 3))):
