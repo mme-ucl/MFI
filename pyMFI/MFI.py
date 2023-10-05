@@ -40,7 +40,7 @@ def load_position_2D(position_name="position"):
 		position_y = colvar[:-1, 2]
 	return [position_x, position_y]
 
-def find_periodic_point(x_coord, y_coord, min_grid, max_grid, periodic):
+def find_periodic_point(x_coord, y_coord, min_grid, max_grid, periodic_x, periodic_y):
 	"""Finds periodic copies of input coordinates. First checks if systems is periodic. If not, returns input coordinate array. Next, it checks if each coordinate is within the boundary range (grid min/max +/- grid_ext). If it is, periodic copies will be made on the other side of the CV-domain. 
 	
 	Args:
@@ -48,7 +48,8 @@ def find_periodic_point(x_coord, y_coord, min_grid, max_grid, periodic):
 		y_coord (float): CV2-coordinate
 		min_grid (list): list of CV1-minimum value of grid and CV2-minimum value of grid
 		max_grid (list): list of CV1-maximum value of grid and CV2-maximum value of grid
-		periodic (binary): information if system is periodic. value of 0 corresponds to non-periodic system; function will only return input coordinates. Value of 1 corresponds to periodic system; function will return input coordinates with periodic copies.
+		periodic_x (binary): Specifies if CV1 is periodic. value of 0 corresponds to non-periodic CV1; function will only return input coordinates. Value of 1 corresponds to periodic CV1; function will return input coordinates with periodic copies if appilcable.
+		periodic_y (binary): Specifies if CV2 is periodic. value of 0 corresponds to non-periodic CV2; function will only return input coordinates. Value of 1 corresponds to periodic CV2; function will return input coordinates with periodic copies if appilcable.
 	Returns:
 		list: list of [x-coord, y-coord] pairs
 	"""
@@ -56,39 +57,38 @@ def find_periodic_point(x_coord, y_coord, min_grid, max_grid, periodic):
 	coord_list = []
 	coord_list.append([x_coord, y_coord])
 	
-	if periodic == 1:
+	if periodic_x == 1 or periodic_y == 1:
 		# Use periodic extension for defining PBC
-		periodic_extension = periodic * 1 / 2
-		grid_ext = (1 / 2) * periodic_extension * (max_grid - min_grid)
+		grid_length = max_grid - min_grid
+		grid_ext = (1 / 4) * grid_length
 
 		# There are potentially 4 points, 1 original and 3 periodic copies, or less.
-
 		copy_record = [0, 0, 0, 0]
 		# check for x-copy
-		if x_coord < min_grid[0] + grid_ext[0]:
-			coord_list.append([x_coord + 2 * np.pi, y_coord])
+		if x_coord < min_grid[0] + grid_ext[0] and periodic_x == 1:
+			coord_list.append([x_coord + grid_length[0], y_coord])
 			copy_record[0] = 1
-		elif x_coord > max_grid[0] - grid_ext[0]:
-			coord_list.append([x_coord - 2 * np.pi, y_coord])
+		elif x_coord > max_grid[0] - grid_ext[0] and periodic_x == 1:
+			coord_list.append([x_coord - grid_length[0], y_coord])
 			copy_record[1] = 1
 		# check for y-copy
-		if y_coord < min_grid[1] + grid_ext[1]:
-			coord_list.append([x_coord, y_coord + 2 * np.pi])
+		if y_coord < min_grid[1] + grid_ext[1] and periodic_y == 1:
+			coord_list.append([x_coord, y_coord + grid_length[1]])
 			copy_record[2] = 1
-		elif y_coord > max_grid[1] - grid_ext[1]:
-			coord_list.append([x_coord, y_coord - 2 * np.pi])
+		elif y_coord > max_grid[1] - grid_ext[1] and periodic_y == 1:
+			coord_list.append([x_coord, y_coord - grid_length[1]])
 			copy_record[3] = 1
 		# check for xy-copy
 		if sum(copy_record) == 2:
 			if copy_record[0] == 1 and copy_record[2] == 1:
-				coord_list.append([x_coord + 2 * np.pi, y_coord + 2 * np.pi])
+				coord_list.append([x_coord + grid_length[0], y_coord + grid_length[1]])
 			elif copy_record[1] == 1 and copy_record[2] == 1:
-				coord_list.append([x_coord - 2 * np.pi, y_coord + 2 * np.pi])
+				coord_list.append([x_coord - grid_length[0], y_coord + grid_length[1]])
 			elif copy_record[0] == 1 and copy_record[3] == 1:
-				coord_list.append([x_coord + 2 * np.pi, y_coord - 2 * np.pi])
+				coord_list.append([x_coord + grid_length[0], y_coord - grid_length[1]])
 			elif copy_record[1] == 1 and copy_record[3] == 1:
-				coord_list.append([x_coord - 2 * np.pi, y_coord - 2 * np.pi])        
-
+				coord_list.append([x_coord - grid_length[0], y_coord - grid_length[1]])       
+    
 	return coord_list
 
 
@@ -122,7 +122,7 @@ def reduce_to_window(input_array, min_grid, grid_space, x_min=-0.5, x_max=0.5, y
 	"""
 	return input_array[index(y_min, min_grid[1], grid_space[1]): index(y_max, min_grid[1], grid_space[1]), index(x_min, min_grid[0], grid_space[0]): index(x_max, min_grid[0], grid_space[0])]
 
-def find_hp_force(hp_centre_x, hp_centre_y, hp_kappa_x, hp_kappa_y, X , Y, min_grid, max_grid, grid_space, periodic):
+def find_hp_force(hp_centre_x, hp_centre_y, hp_kappa_x, hp_kappa_y, X , Y, min_grid, max_grid, grid_space, periodic_x, periodic_y):
 	"""Find 2D harmonic potential force. 
 
 	Args:
@@ -135,7 +135,8 @@ def find_hp_force(hp_centre_x, hp_centre_y, hp_kappa_x, hp_kappa_y, X , Y, min_g
 		min_grid (list): list of CV1-minimum value of grid and CV2-minimum value of grid
 		max_grid (list): list of CV1-maximum value of grid and CV2-maximum value of grid
 		grid_space (list): list of CV1-grid spacing and CV2-grid spacing
-		periodic (binary): information if system is periodic. value of 0 corresponds to non-periodic system. Value of 1 corresponds to periodic system.
+		periodic_x (binary): Specifies if CV1 is periodic. value of 0 corresponds to non-periodic CV1. Value of 1 corresponds to periodic CV1.
+		periodic_y (binary): Specifies if CV2 is periodic. value of 0 corresponds to non-periodic CV2. Value of 1 corresponds to periodic CV2.
 
 	Returns:
 		F_harmonic_x (array): harmonic force in CV1 direction.
@@ -143,7 +144,7 @@ def find_hp_force(hp_centre_x, hp_centre_y, hp_kappa_x, hp_kappa_y, X , Y, min_g
 	"""
 	#Calculate x-force
 	F_harmonic_x = hp_kappa_x * (X - hp_centre_x)
-	if periodic == 1:
+	if periodic_x == 1:
 		grid_length = max_grid[0] - min_grid[0]
 		grid_centre = min_grid[0] + grid_length/2
 		if hp_centre_x < grid_centre:
@@ -154,7 +155,7 @@ def find_hp_force(hp_centre_x, hp_centre_y, hp_kappa_x, hp_kappa_y, X , Y, min_g
 			F_harmonic_x[:, :index_period] = hp_kappa_x * (X[:, :index_period] - hp_centre_x + grid_length)
 	#Calculate y-force
 	F_harmonic_y = hp_kappa_y * (Y - hp_centre_y)
-	if periodic == 1:
+	if periodic_y == 1:
 		grid_length = max_grid[0] - min_grid[0]
 		grid_centre = min_grid[0] + grid_length / 2
 		if hp_centre_y < grid_centre:
@@ -167,7 +168,7 @@ def find_hp_force(hp_centre_x, hp_centre_y, hp_kappa_x, hp_kappa_y, X , Y, min_g
 	return [F_harmonic_x, F_harmonic_y]
 
 
-def find_lw_force(lw_centre_x, lw_centre_y, lw_kappa_x, lw_kappa_y, X , Y, min_grid, max_grid, grid_space, periodic):
+def find_lw_force(lw_centre_x, lw_centre_y, lw_kappa_x, lw_kappa_y, X , Y, min_grid, max_grid, grid_space, periodic_x, periodic_y):
 	"""Find lower half of 2D harmonic potential force equivalent to f = 2 * lw_kappa * (grid - lw_centre) for grid < lw_centre and f = 0 otherwise. This can change for periodic cases.
 
 	Args:
@@ -180,7 +181,8 @@ def find_lw_force(lw_centre_x, lw_centre_y, lw_kappa_x, lw_kappa_y, X , Y, min_g
 		min_grid (list): list of CV1-minimum value of grid and CV2-minimum value of grid
 		max_grid (list): list of CV1-maximum value of grid and CV2-maximum value of grid
 		grid_space (list): list of CV1-grid spacing and CV2-grid spacing
-		periodic (binary): information if system is periodic. value of 0 corresponds to non-periodic system. Value of 1 corresponds to periodic system.
+		periodic_x (binary): Specifies if CV1 is periodic. value of 0 corresponds to non-periodic CV1. Value of 1 corresponds to periodic CV1.
+		periodic_y (binary): Specifies if CV2 is periodic. value of 0 corresponds to non-periodic CV2. Value of 1 corresponds to periodic CV2.
 
 	Returns:
 		F_wall_x (array): lower wall potential force in CV1 direction.
@@ -189,7 +191,7 @@ def find_lw_force(lw_centre_x, lw_centre_y, lw_kappa_x, lw_kappa_y, X , Y, min_g
  
 	#Calculate x-force
 	F_wall_x = np.where(X < lw_centre_x, 2 * lw_kappa_x * (X - lw_centre_x), 0)
-	if periodic == 1:
+	if periodic_x == 1:
 		grid_length = max_grid[0] - min_grid[0]
 		grid_centre = min_grid[0] + grid_length/2
 		if lw_centre_x < grid_centre:
@@ -201,7 +203,7 @@ def find_lw_force(lw_centre_x, lw_centre_y, lw_kappa_x, lw_kappa_y, X , Y, min_g
 
 	#Calculate y-force
 	F_wall_y = np.where(Y < lw_centre_y, 2 * lw_kappa_y * (Y - lw_centre_y), 0)
-	if periodic == 1:
+	if periodic_y == 1:
 		grid_length = max_grid[1] - min_grid[1]
 		grid_centre = min_grid[1] + grid_length/2
 		if lw_centre_y < grid_centre:
@@ -213,7 +215,7 @@ def find_lw_force(lw_centre_x, lw_centre_y, lw_kappa_x, lw_kappa_y, X , Y, min_g
 	return [F_wall_x, F_wall_y]
 
 
-def find_uw_force(uw_centre_x, uw_centre_y, uw_kappa_x, uw_kappa_y, X , Y, min_grid, max_grid, grid_space, periodic):
+def find_uw_force(uw_centre_x, uw_centre_y, uw_kappa_x, uw_kappa_y, X , Y, min_grid, max_grid, grid_space, periodic_x, periodic_y):
 	"""Find upper half of 2D harmonic potential force equivalent to f = 2 * uw_kappa * (grid - uw_centre) for grid > uw_centre and f = 0 otherwise. This can change for periodic cases.
 
 	Args:
@@ -226,7 +228,8 @@ def find_uw_force(uw_centre_x, uw_centre_y, uw_kappa_x, uw_kappa_y, X , Y, min_g
 		min_grid (list): list of CV1-minimum value of grid and CV2-minimum value of grid
 		max_grid (list): list of CV1-maximum value of grid and CV2-maximum value of grid
 		grid_space (list): list of CV1-grid spacing and CV2-grid spacing
-		periodic (binary): information if system is periodic. value of 0 corresponds to non-periodic system. Value of 1 corresponds to periodic system.
+		periodic_x (binary): Specifies if CV1 is periodic. value of 0 corresponds to non-periodic CV1. Value of 1 corresponds to periodic CV1.
+		periodic_y (binary): Specifies if CV2 is periodic. value of 0 corresponds to non-periodic CV2. Value of 1 corresponds to periodic CV2.
 
 	Returns:
 		F_wall_x (array): upper wall potential force in CV1 direction.
@@ -235,7 +238,7 @@ def find_uw_force(uw_centre_x, uw_centre_y, uw_kappa_x, uw_kappa_y, X , Y, min_g
 
 	#Calculate x-force
 	F_wall_x = np.where(X > uw_centre_x, 2 * uw_kappa_x * (X - uw_centre_x), 0)
-	if periodic == 1:
+	if periodic_x == 1:
 		grid_length = max_grid[0] - min_grid[0]
 		grid_centre = min_grid[0] + grid_length/2
 		if uw_centre_x < grid_centre:
@@ -246,7 +249,7 @@ def find_uw_force(uw_centre_x, uw_centre_y, uw_kappa_x, uw_kappa_y, X , Y, min_g
 			F_wall_x[:, :index_period] = 2 * uw_kappa_x * (X[:, :index_period] - uw_centre_x + grid_length)   
 	#Calculate y-force
 	F_wall_y = np.where(Y > uw_centre_y, 2 * uw_kappa_y * (Y - uw_centre_y), 0)
-	if periodic == 1:
+	if periodic_y == 1:
 		if uw_centre_y < grid_centre:
 			index_period = index(uw_centre_y + grid_length/2, min_grid[1], grid_space)
 			F_wall_y[index_period:, :] = 0
@@ -259,9 +262,9 @@ def find_uw_force(uw_centre_x, uw_centre_y, uw_kappa_x, uw_kappa_y, X , Y, min_g
 
 ### Main Mean Force Integration
 
-def MFI_2D(HILLS="HILLS", position_x="position_x", position_y="position_y", bw=1, kT=1,
+def MFI_2D(HILLS="HILLS", position_x="position_x", position_y="position_y", bw_x=0.1, bw_y=0.1, kT=1,
 			min_grid=np.array((-np.pi, -np.pi)), max_grid=np.array((np.pi, np.pi)), nbins=np.array((200, 200)),
-			log_pace=-1, error_pace=-1, base_terms = 0, window_corners=[], WellTempered=1, nhills=-1, periodic=0, 
+			log_pace=-1, error_pace=-1, base_terms = 0, window_corners=[], WellTempered=1, nhills=-1, periodic_x=0, periodic_y=0, 
 			FES_cutoff = -1, Ftot_den_limit = 1E-10, Ftot_den_cutoff = 0.1, use_weighted_st_dev = True,
 			hp_centre_x=0.0, hp_centre_y=0.0, hp_kappa_x=0, hp_kappa_y=0,
 			lw_centre_x=0.0, lw_centre_y=0.0, lw_kappa_x=0, lw_kappa_y=0,
@@ -276,7 +279,7 @@ def MFI_2D(HILLS="HILLS", position_x="position_x", position_y="position_y", bw=1
 		kT (int, optional): Scalar, kT. Defaults to 1.
 		min_grid (array, optional): Lower bound of the force domain. Defaults to np.array((-np.pi, -np.pi)).
 		max_grid (array, optional): Upper bound of the force domain. Defaults to np.array((np.pi, np.pi)).
-		nbins (array, optional): number of bins in CV1,CV2. Defaults to np.array((200,200)).
+		nbins (array, optional): number of bins in CV2,CV1. First enrty is the number of bins in CV2 and the second entry is the number of bins in CV1! Defaults to np.array((200,200)). 
 		log_pace (int, optional): Progress and convergence are outputted every log_pace steps. Defaults to 10.
 		error_pace (int, optional): Pace for the calculation of the on-the-fly measure of global convergence. Defaults to 1, change it to a higher value if FES_cutoff>0 is used. 
 		base_terms (int or list, optional): When set to 0, inactive. When activated, "on the fly" variance is calculated as a patch to base (previous) simulation. To activate, put force terms of base simulation ([Ftot_den, Ftot_den2, Ftot_x, Ftot_y, ofv_x, ofv_y]). Defaults to 0.
@@ -319,13 +322,16 @@ def MFI_2D(HILLS="HILLS", position_x="position_x", position_y="position_y", bw=1
 		ofv_y: array of size (nbins[0], nbins[1]) - intermediate component in the calculation of the CV2 "on the fly variance" ( sum of: pb_t * dfds_y ** 2)
 	"""
 
-	gridx = np.linspace(min_grid[0], max_grid[0], nbins[0])
-	gridy = np.linspace(min_grid[1], max_grid[1], nbins[1])
-	grid_space = np.array(((max_grid[0] - min_grid[0]) / (nbins[0]-1), (max_grid[1] - min_grid[1]) / (nbins[1]-1)))
+	gridx = np.linspace(min_grid[0], max_grid[0], nbins[1])
+	gridy = np.linspace(min_grid[1], max_grid[1], nbins[0])
+	grid_space = np.array(((max_grid[0] - min_grid[0]) / (nbins[1]-1), (max_grid[1] - min_grid[1]) / (nbins[0]-1)))
 	X, Y = np.meshgrid(gridx, gridy)
 	stride = int(len(position_x) / len(HILLS))
-	const = (1 / (bw * np.sqrt(2 * np.pi) * stride))
-	bw2 = bw ** 2
+	bw_xy = np.sqrt(bw_x * bw_y)
+	bw_xy2  = bw_xy ** 2
+	bw_x2 = bw_x ** 2
+	bw_y2 = bw_y ** 2
+	const = (1 / (bw_xy * np.sqrt(2 * np.pi) * stride))
 
 
 	# Optional - analyse only nhills, if nhills is set
@@ -356,15 +362,15 @@ def MFI_2D(HILLS="HILLS", position_x="position_x", position_y="position_y", bw=1
 	F_static_x = np.zeros(nbins)
 	F_static_y = np.zeros(nbins)
 	if hp_kappa_x > 0 or hp_kappa_y > 0:
-		[Force_x, Force_y] = find_hp_force(hp_centre_x, hp_centre_y, hp_kappa_x, hp_kappa_y, X , Y, min_grid, max_grid, grid_space, periodic)
+		[Force_x, Force_y] = find_hp_force(hp_centre_x, hp_centre_y, hp_kappa_x, hp_kappa_y, X , Y, min_grid, max_grid, grid_space, periodic_x, periodic_y)
 		F_static_x += Force_x
 		F_static_y += Force_y
 	if lw_kappa_x > 0 or lw_kappa_y > 0:
-		[Force_x, Force_y] = find_lw_force(lw_centre_x, lw_centre_y, lw_kappa_x, lw_kappa_y, X , Y, periodic)
+		[Force_x, Force_y] = find_lw_force(lw_centre_x, lw_centre_y, lw_kappa_x, lw_kappa_y, X , Y, periodic_x, periodic_y)
 		F_static_x += Force_x
 		F_static_y += Force_y
 	if uw_kappa_x > 0 or uw_kappa_y > 0:
-		[Force_x, Force_y] = find_uw_force(uw_centre_x, uw_centre_y, uw_kappa_x, uw_kappa_y, X , Y, periodic)
+		[Force_x, Force_y] = find_uw_force(uw_centre_x, uw_centre_y, uw_kappa_x, uw_kappa_y, X , Y, periodic_x, periodic_y)
 		F_static_x += Force_x
 		F_static_y += Force_y
 
@@ -379,9 +385,6 @@ def MFI_2D(HILLS="HILLS", position_x="position_x", position_y="position_y", bw=1
 		
 	for i in range(total_number_of_hills):
 		
-		#Probability density limit, below which (fes or error) values aren't considered.
-		# Ftot_den_limit = (i+1)*stride * 10**-5
-		
 		# Build metadynamics potential
 		s_x = HILLS[i, 1]  # centre x-position of Gaussian
 		s_y = HILLS[i, 2]  # centre y-position of Gaussian
@@ -389,7 +392,7 @@ def MFI_2D(HILLS="HILLS", position_x="position_x", position_y="position_y", bw=1
 		sigma_meta2_y = HILLS[i, 4] ** 2  # width of Gaussian
 		height_meta = HILLS[i, 5] * Gamma_Factor  # Height of Gaussian
 
-		periodic_images = find_periodic_point(s_x, s_y, min_grid, max_grid, periodic)
+		periodic_images = find_periodic_point(s_x, s_y, min_grid, max_grid, periodic_x, periodic_y)
 		for j in range(len(periodic_images)):
 			kernelmeta_x = np.exp( - np.square(gridx - periodic_images[j][0]) / (2 * sigma_meta2_x)) * height_meta
 			kernelmeta_y = np.exp( - np.square(gridy - periodic_images[j][1]) / (2 * sigma_meta2_y))
@@ -406,12 +409,12 @@ def MFI_2D(HILLS="HILLS", position_x="position_x", position_y="position_y", bw=1
 		data_y = position_y[i * stride: (i + 1) * stride]
 
 		for j in range(stride):
-			periodic_images = find_periodic_point(data_x[j], data_y[j], min_grid, max_grid, periodic)
+			periodic_images = find_periodic_point(data_x[j], data_y[j], min_grid, max_grid, periodic_x, periodic_y)
 			for k in range(len(periodic_images)):
-				kernel_x = np.exp( - np.square(gridx - periodic_images[k][0]) / (2 * bw2)) * const #add constant here for less computations
-				kernel_y = np.exp( - np.square(gridy - periodic_images[k][1]) / (2 * bw2))
+				kernel_x = np.exp( - np.square(gridx - periodic_images[k][0]) / (2 * bw_x2)) * const #add constant here for less computations
+				kernel_y = np.exp( - np.square(gridy - periodic_images[k][1]) / (2 * bw_y2))
 				kernel = np.outer(kernel_y, kernel_x)
-				kernel_x *= kT / bw2 #add constant here for less computations
+				kernel_x *= kT / bw_xy2 #add constant here for less computations
 	
 				pb_t += kernel
 				Fpbt_x += np.outer(kernel_y, np.multiply(kernel_x, (gridx - periodic_images[k][0])) )
@@ -450,7 +453,7 @@ def MFI_2D(HILLS="HILLS", position_x="position_x", position_y="position_y", bw=1
 			#if there is a FES_cutoff, calculate fes ## Use with care, it costs a lot. 
 			if FES_cutoff > 0: 
 				if (i + 1) % int(error_pace) == 0 or (i+1) == total_number_of_hills:
-					[X, Y, FES] = FFT_intg_2D(Ftot_x_temp, Ftot_y_temp, min_grid=min_grid, max_grid=max_grid, periodic=periodic)
+					[X, Y, FES] = FFT_intg_2D(Ftot_x_temp, Ftot_y_temp, min_grid=min_grid, max_grid=max_grid, periodic_x=periodic_x, periodic_y=periodic_y)
 					cutoff = np.where(FES <= np.ones_like(FES) * FES_cutoff, 1, 0)
 			else: cutoff = np.where(Ftot_den_temp >= np.ones_like(Ftot_den_temp) * Ftot_den_cutoff, 1, 0)
 			
@@ -558,7 +561,7 @@ def patch_to_base_variance(master0, master, Ftot_den_limit=1E-10, use_weighted_s
 
 
 ### Integration using Fast Fourier Transform (FFT integration) in 2D
-def FFT_intg_2D(FX, FY, min_grid=np.array((-np.pi, -np.pi)), max_grid=np.array((np.pi, np.pi)), nbins=0, periodic=0):
+def FFT_intg_2D(FX, FY, min_grid=np.array((-np.pi, -np.pi)), max_grid=np.array((np.pi, np.pi)), nbins=0, periodic_x=0, periodic_y=0):
 	"""2D integration of force gradient (FX, FY) to find FES using Fast Fourier Transform.
 
 	Args:
@@ -582,19 +585,24 @@ def FFT_intg_2D(FX, FY, min_grid=np.array((-np.pi, -np.pi)), max_grid=np.array((
 	X, Y = np.meshgrid(gridx, gridy)
   
 	#If system is non-periodic, make (anti-)symmetic copies so that the system appears symmetric/
-	if periodic == 0:
-		nbins = np.array((nbins[0]*2, nbins[1]*2))
-		FX = np.block([[-FX[:,::-1],FX],[-FX[::-1,::-1],FX[::-1,:]]])
-		FY = np.block([[FY[:,::-1],FY],[-FY[::-1,::-1],-FY[::-1,:]]])
+	if periodic_x == 0:
+		nbins = np.array((nbins[0], nbins[1]*2))
+		FX = np.block([[-FX[:,::-1],FX]])
+		FY = np.block([[FY[:,::-1],FY]])		
+	if periodic_y == 0:
+		nbins = np.array((nbins[0]*2, nbins[1]))
+		FX = np.block([[FX],[FX[::-1,:]]])
+		FY = np.block([[FY],[-FY[::-1,:]]])
+
 
 	# Calculate frequency
 	freq_1dx = np.fft.fftfreq(nbins[1], grid_spacex)
 	freq_1dy = np.fft.fftfreq(nbins[0], grid_spacey)
- 
 	freq_x, freq_y = np.meshgrid(freq_1dx, freq_1dy)
 	freq_hypot = np.hypot(freq_x, freq_y)
 	freq_sq = np.where(freq_hypot != 0, freq_hypot ** 2, 1E-10)
-	# FFTransform and integration
+	
+ 	# FFTransform and integration
 	fourier_x = (np.fft.fft2(FX) * freq_x) / (2 * np.pi * 1j * freq_sq)
 	fourier_y = (np.fft.fft2(FY) * freq_y) / (2 * np.pi * 1j * freq_sq)
 	# Reverse FFT
@@ -603,8 +611,9 @@ def FFT_intg_2D(FX, FY, min_grid=np.array((-np.pi, -np.pi)), max_grid=np.array((
 	# Construct whole FES
 	fes = fes_x + fes_y
 	
-	#if non-periodic, cut FES back to original domain.
-	if periodic == 0: fes = fes[:int(nbins[0]/2),int(nbins[1]/2):]
+	# #if non-periodic, cut FES back to original domain.
+	if periodic_x == 0: fes = fes[:,int(nbins[1]/2):]
+	if periodic_y == 0: fes = fes[:int(nbins[0]/2),:]
 
 	fes = fes - np.min(fes)
 	return [X, Y, fes]
@@ -841,7 +850,7 @@ def plot_recap_2D(X, Y, FES, TOTAL_DENSITY, CONVMAP, CONV_history, CONV_history_
 
 
 # Patch independent simulations
-def patch_2D(master_array, nbins=np.array((200, 200))):
+def patch_2D(master_array):
 	"""Takes in a collection of force terms and patches them togehter to return the patched force terms
 
 	Args:
@@ -851,6 +860,7 @@ def patch_2D(master_array, nbins=np.array((200, 200))):
 	Returns:
 		Patched force terms (list) -> ([Ftot_den, Ftot_den2, Ftot_x, Ftot_y, ofv_x, ofv_y])
 	"""
+	nbins = np.shape(master_array[0][0])
 	FP = np.zeros(nbins)
 	FP2 = np.zeros(nbins)
 	FX = np.zeros(nbins)
@@ -880,7 +890,7 @@ def patch_2D(master_array, nbins=np.array((200, 200))):
 	return [FP, FP2, FX, FY, OFV_X, OFV_Y]
 
 # Patch independent simulations
-def patch_2D_simple(master_array, nbins=np.array((200, 200))):
+def patch_2D_simple(master_array):
 	"""Takes in a collection of force and patches only the probability density and mean forces
 
 	Args:
@@ -890,6 +900,7 @@ def patch_2D_simple(master_array, nbins=np.array((200, 200))):
 	Returns:
 		Patched probability density and mean forces (list) -> ([Ftot_den, Ftot_x, Ftot_y])
 	"""
+	nbins = np.shape(master_array[0][0])
 	FP = np.zeros(nbins)
 	FX = np.zeros(nbins)
 	FY = np.zeros(nbins)
