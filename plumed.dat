@@ -1,5 +1,0 @@
-p: DISTANCE ATOMS=1,2 COMPONENTS
-ff: MATHEVAL ARG=p.x,p.y PERIODIC=NO FUNC=(-2*exp(-(x/8)^2-((y-2)/0.4)^2)-exp(-(x/0.4)^2-((y-3.5)/2)^2)-2.5*exp(-(x/2)^2-((y-6)/2)^2)-1.5*exp(-((x+2)/0.4)^2-((y-7)/0.4)^2)+exp(-y+1)^2+exp(y-8)^2)
-bb: BIASVALUE ARG=ff
-METAD ARG=p.x,p.y SIGMA=0.1,0.1 HEIGHT=1 BIASFACTOR=50 GRID_MIN=-3.141592653589793,-2 GRID_MAX=3.141592653589793,12 GRID_BIN=200,200 PACE=100 TEMP=120 FILE=HILLS_test_per
-PRINT FILE=position_test_per ARG=p.x,p.y STRIDE=10

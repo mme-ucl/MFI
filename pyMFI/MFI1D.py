@@ -270,7 +270,7 @@ def intg_1D(Force, dx):
 def MFI_1D(HILLS="HILLS", position="position", bw=0.1, kT=1, min_grid=-2, max_grid=2, nbins=201, 
            log_pace=-1, error_pace=-1, WellTempered=1, nhills=-1, periodic=0, 
            hp_centre=0.0, hp_kappa=0, lw_centre=0.0, lw_kappa=0, uw_centre=0.0, uw_kappa=0, F_static = np.zeros(123), 
-           Ftot_den_limit = 1E-10, FES_cutoff = 0, Ftot_den_cutoff = 0, save_intermediate_fes_error_cutoff = False, use_weighted_st_dev = True):
+           Ftot_den_limit = 1E-10, FES_cutoff = 0, Ftot_den_cutoff = 0, non_exploration_penalty = 0, save_intermediate_fes_error_cutoff = False, use_weighted_st_dev = True):
     
     """Compute a time-independent estimate of the Mean Thermodynamic Force, i.e. the free energy gradient in 1D CV spaces.
 
@@ -297,6 +297,7 @@ def MFI_1D(HILLS="HILLS", position="position", bw=0.1, kT=1, min_grid=-2, max_gr
         Ftot_den_limit (float, optional): Probability density limit below which data will be set to zero (this is done for numerical stability reasons. For default Ftot_den_limit, numerical difference is negligable). Defaults to 1E-10.
         FES_cutoff (float, optional): Cutoff applied to FES and error calculation for FES values over the FES_cutoff. All FES values above the FES_cutoff won't contribuite towards the error. Useful when high FES values have no physical meaning. When FES_cutoff = 0, no cufoff is applied.Defaults to 0. 
         Ftot_den_cutoff (int, optional): Cutoff applied to FES and error calculation for Ftot_den (Probability density) values below the Ftot_den_cutoff. All FES values that are excluded by the cutoff won't contribuite towards the error. Useful when low Probability density values have little statistical significance or no physical meaning. When Ftot_den_cutoff = 0, no cufoff is applied. Defaults to 0.
+		non_exploration_penalty (float, optional): Turns zero-value error to the non_exploration_penalty value. This should be used in combination with the cutoff. If some part of CV space hasn't been explored, or has a FES value that is irrelevanlty high, the cutoff will set the error of that region to zero. If the non_exploration_penalty is larger than zero, the error of that region will take the value of the non_exploration_penalty instead of zero. Default is set to 0.
         F_static (array, optional): Option to provide a starting bias potential that remains constant through the algorithm. This could be a harmonic potential, an previously used MetaD potential or any other bias potential defined on the grid. Defaults to np.zeros(123), which will automatically set F_static to a zero-array with length=nbins.
         use_weighted_st_dev (bool, optional): When set to True, the calculated error will be the weighted standard deviation ( var^0.5 ). When set to False, the calculated error will be the standard error ( (var/n_sample)^0.5 ). Defaults to True. (The standard devaition is expected to converge after enough time, while the standard error is expected to decrease as more datapoints are added.)
 
@@ -386,11 +387,12 @@ def MFI_1D(HILLS="HILLS", position="position", bw=0.1, kT=1, min_grid=-2, max_gr
         # Calculate error
         if (i + 1) % error_pace == 0 or (i+1) == total_number_of_hills:
             
-            #Find FES and cutoff
-            FES = intg_1D(Ftot, grid_space)
+            #If applicable, find FES and cutoff
             cutoff = np.ones(nbins, dtype=np.float64)
+            if FES_cutoff > 0 or save_intermediate_fes_error_cutoff == True: FES = intg_1D(Ftot, grid_space)
             if FES_cutoff > 0: cutoff = np.where(FES < FES_cutoff, 1.0, 0)
             if Ftot_den_cutoff > 0: cutoff = np.where(Ftot_den > Ftot_den_cutoff, 1.0, 0)
+            
                 
             # calculate error
             ofv = np.where(Ftot_den > Ftot_den_limit, ofv_num / Ftot_den, 0) - np.square(Ftot)
@@ -398,12 +400,13 @@ def MFI_1D(HILLS="HILLS", position="position", bw=0.1, kT=1, min_grid=-2, max_gr
             Ftot_den_diff = Ftot_den_sq - Ftot_den2
             if use_weighted_st_dev == True: ofv *= np.where(Ftot_den_diff > 0, Ftot_den_sq / Ftot_den_diff, 0)
             else: ofv *= np.where(Ftot_den_diff > 0, Ftot_den2 / Ftot_den_diff, 0)
-            ofv_cut = np.multiply(ofv, cutoff)
-            ofe_cut = np.where(ofv_cut != 0, np.sqrt(ofv_cut), 0)  
+            ofv = np.multiply(ofv, cutoff)
+            if non_exploration_penalty > 0: ofv = np.where(cutoff > 0.5, ofv, non_exploration_penalty**2) 
+            ofe = np.where(ofv > 0, np.sqrt(ofv), 0)  
 
             #save global error evolution
-            error_evol[0,error_count] = sum(ofv_cut) / np.count_nonzero(ofv_cut)
-            error_evol[1,error_count] = sum(ofe_cut) / np.count_nonzero(ofe_cut)
+            error_evol[0,error_count] = sum(ofv) / np.count_nonzero(ofv)
+            error_evol[1,error_count] = sum(ofe) / np.count_nonzero(ofe)
             error_evol[2,error_count] = np.count_nonzero(cutoff) / nbins
             error_evol[3,error_count] = HILLS[i,0]
  
@@ -420,7 +423,7 @@ def MFI_1D(HILLS="HILLS", position="position", bw=0.1, kT=1, min_grid=-2, max_gr
             
             #window error             
                   
-        # Print progress               
+             
         if (i + 1) % log_pace == 0 or (i+1) == total_number_of_hills:
             print((round((i + 1) / total_number_of_hills * 100, 0)) , "%   OFE =", round(error_evol[1,error_count-1], 4))
                 
@@ -948,3 +951,10 @@ def zero_to_nan(input_array):
         if input_array[ii] == 0: output_array[ii] = np.nan
         else: output_array[ii] = input_array[ii]
     return output_array
+
+
+def print_progress(iteration, total, bar_length=50, variable_name='progress variable' , variable=0):
+    progress = (iteration / total)
+    arrow = '*' * int(round(bar_length * progress))
+    spaces = ' ' * (bar_length - len(arrow))
+    print(f'\r|{arrow}{spaces}| {int(progress * 100)}% | {variable_name}: {variable}', end='', flush=True)

@@ -278,7 +278,6 @@ def MFI_2D(HILLS="HILLS", position_x="position_x", position_y="position_y", bw_x
 		min_grid (array, optional): Lower bound of the force domain. Defaults to np.array((-np.pi, -np.pi)).
 		max_grid (array, optional): Upper bound of the force domain. Defaults to np.array((np.pi, np.pi)).
 		nbins (array, optional): number of bins in CV1,CV2. Defaults to np.array((200,200)).
-		log_pace (int, optional): Progress and convergence are outputted every log_pace steps. Defaults to 10.
 		error_pace (int, optional): Pace for the calculation of the on-the-fly measure of global convergence. Defaults to 1, change it to a higher value if FES_cutoff>0 is used. 
 		base_terms (int or list, optional): When set to 0, inactive. When activated, "on the fly" variance is calculated as a patch to base (previous) simulation. To activate, put force terms of base simulation ([Ftot_den, Ftot_den2, Ftot_x, Ftot_y, ofv_x, ofv_y]). Defaults to 0.
 		window_corners (list, optional): When set to [], inactive. When activated, error is ALSO calculated for mean force in the window. To activate, put the min and max values of the window ([min_x, max_x, min_y, max_y]). Defaults to [].
@@ -320,8 +319,8 @@ def MFI_2D(HILLS="HILLS", position_x="position_x", position_y="position_y", bw_x
 		ofv_y: array of size (nbins[0], nbins[1]) - intermediate component in the calculation of the CV2 "on the fly variance" ( sum of: pb_t * dfds_y ** 2)
 	"""
 
-	gridx = np.linspace(min_grid[0], max_grid[0], nbins[0])
-	gridy = np.linspace(min_grid[1], max_grid[1], nbins[1])
+	gridx = np.linspace(min_grid[0], max_grid[0], nbins[1])
+	gridy = np.linspace(min_grid[1], max_grid[1], nbins[0])
 	grid_space = np.array(((max_grid[0] - min_grid[0]) / (nbins[0]-1), (max_grid[1] - min_grid[1]) / (nbins[1]-1)))
 	X, Y = np.meshgrid(gridx, gridy)
 	stride = int(len(position_x) / len(HILLS))
@@ -403,8 +402,8 @@ def MFI_2D(HILLS="HILLS", position_x="position_x", position_y="position_y", bw_x
 			print(np.shape(kernelmeta_y), np.shape(kernelmeta_x), np.shape(gridx))
 			print(np.shape(Fbias_x), np.shape(np.multiply(kernelmeta_x, (gridx - periodic_images[j][0]))), np.shape(np.outer(np.multiply(kernelmeta_x, (gridx - periodic_images[j][0])) / sigma_meta2_x, kernelmeta_y )))
    
-			Fbias_x += np.outer(np.multiply(kernelmeta_x, (gridx - periodic_images[j][0])) / sigma_meta2_x, kernelmeta_y )
-			Fbias_y += np.outer(kernelmeta_x, np.multiply(kernelmeta_y, (gridy - periodic_images[j][1])) / sigma_meta2_y )
+			Fbias_x += np.outer(kernelmeta_y, np.multiply(kernelmeta_x, (gridx - periodic_images[j][0])) / sigma_meta2_x )
+			Fbias_y += np.outer(np.multiply(kernelmeta_y, (gridy - periodic_images[j][1])) / sigma_meta2_y, kernelmeta_x )
 
 		# Estimate the biased proabability density p_t ^ b(s)
 		pb_t = np.zeros(nbins)
@@ -422,8 +421,8 @@ def MFI_2D(HILLS="HILLS", position_x="position_x", position_y="position_y", bw_x
 				kernel = np.outer(kernel_y, kernel_x)
 				kernel_x *= kT / bw_xy2 #add constant here for less computations
 
-				print(np.shape(pb_t), np.shape(pb_t))
-				print(np.shape(Fbias_x), np.shape(np.multiply(kernelmeta_x, (gridx - periodic_images[j][0]))), np.shape(np.outer(np.multiply(kernelmeta_x, (gridx - periodic_images[j][0])) / sigma_meta2_x, kernelmeta_y )))
+				# print(np.shape(pb_t), np.shape(pb_t))
+				# print(np.shape(Fbias_x), np.shape(np.multiply(kernelmeta_x, (gridx - periodic_images[j][0]))), np.shape(np.outer(np.multiply(kernelmeta_x, (gridx - periodic_images[j][0])) / sigma_meta2_x, kernelmeta_y )))
 
 				pb_t += kernel
 				Fpbt_x += np.outer(kernel_y, np.multiply(kernel_x, (gridx - periodic_images[k][0])) )
