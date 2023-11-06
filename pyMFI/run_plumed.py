@@ -19,7 +19,7 @@ def run_langevin1D(simulation_steps,
     Args:
         simulation_steps (int): Number of steps in simulation
         analytical_function (str, optional): The analytical function to be analysed. Defaults to "7*x^4-23*x^2".
-        periodic_boundaries (str, optional): Information wheather boundary conditions are periodic ("ON") or not ("NO"). Defaults to "NO".
+        periodic (str, optional): Information wheather boundary conditions are periodic ("ON") or not ("NO"). Defaults to "NO".
         initial_position (float, optional): Initial position of simulation. Defaults to 0.0.
         temperature (int, optional): Temperature of simulation (units in kT). Defaults to 1.
         time_step (float, optional): Length of one time step (units in ps). Defaults to 0.005.
@@ -37,6 +37,7 @@ def run_langevin1D(simulation_steps,
         lw_kappa (int, optional): force_constant of lower wall potential. Defaults to 0.
         uw_centre (float, optional): position of upper wall potential. Defaults to 0.0.
         uw_kappa (int, optional): force_constant of upper wall potential. Defaults to 0.
+        external_bias_file (str, optional): File name or file path of external bias. Default is "", so no file will be loaded.
     """
 
 
@@ -102,8 +103,7 @@ TEMP={} \n".format(gaus_width, gaus_height, biasfactor, grid_min, grid_max, grid
 def run_langevin2D(simulation_steps,
                    analytical_function="7*x^4-23*x^2+7*y^4-23*y^2", periodic_f="NO",
                    initial_position_x=0.0, initial_position_y=0.0, temperature=1, time_step=0.005,
-                   grid_min_x=-3.0, grid_max_x=3.0, grid_min_y=-3.0, grid_max_y=3.0, grid_bin_x=200,
-                   grid_bin_y=200,
+                   grid_min_x=-3.0, grid_max_x=3.0, grid_min_y=-3.0, grid_max_y=3.0, grid_bin_x=200, grid_bin_y=200,
                    gaus_width_x=0.1, gaus_width_y=0.1, gaus_height=1, biasfactor=10, gaus_pace=100,
                    hp_centre_x=0.0, hp_centre_y=0.0, hp_kappa_x=0, hp_kappa_y=0,
                    lw_centre_x=0.0, lw_centre_y=0.0, lw_kappa_x=0, lw_kappa_y=0,
@@ -201,7 +201,7 @@ def run_2D_Invernizzi(simulation_steps=10, sigma=0.1, height=0.5, biasfactor=10,
                    hp_centre_x=0.0, hp_centre_y=0.0, hp_kappa_x=0, hp_kappa_y=0,
                    lw_centre_x=0.0, lw_centre_y=0.0, lw_kappa_x=0, lw_kappa_y=0,
                    uw_centre_x=0.0, uw_centre_y=0.0, uw_kappa_x=0, uw_kappa_y=0,
-                   gaus_pace=500, position_pace=0, file_extension=""):
+                   gaus_pace=500, position_pace=0, file_extension="", external_bias_file=""):
     """Function to run a langevin simulation (in 2D) on the Invernizzi potential. Analytical form is approx.: 1.35*x^4+1.90*x^3*y+3.93*x^2*y^2-6.44*x^2-1.90*x*y^3+5.59*x*y+1.33*x+1.35*y^4-5.56*y^2+0.90*y+18.56.
 
     Args:
@@ -246,7 +246,10 @@ METAD ARG=p.x,p.y PACE={} SIGMA={},{} HEIGHT={} GRID_MIN=-4,-4 GRID_MAX=4,4 GRID
         # Upper wall bias. To activate, the force constant (kappa) needs to be a positive number
         if uw_kappa_x > 0 or uw_kappa_y > 0:
             f.write("UPPER_WALLS ARG=p.x,p.y AT={},{} KAPPA={},{} LABEL=upperwall \n".format(uw_centre_x, uw_centre_y, uw_kappa_x, uw_kappa_y))
-
+            
+        if external_bias_file != "":
+            f.write("EXTERNAL ARG=p.x,p.y FILE={} LABEL=external \n".format(external_bias_file))
+            
         # Print position of system. If position_pace = 0, it will be position_pace = gaus_pace/10
         if position_pace == 0: position_pace = int(gaus_pace / 10)
         f.write("PRINT FILE=positioninve_{} ARG=p.x,p.y STRIDE={}".format(file_extension , position_pace))
@@ -263,6 +266,15 @@ periodic false""".format(simulation_steps,initial_position_x,initial_position_y)
     #Start simulation
     print("Running simulation...")
     os.system("plumed pesmd < input >/dev/null 2>&1")
+    
+    # subprocess.run(['plumed', 'pesmd', '<', 'input'], input='input', text=True, check=True)
+    
+    # process_run_simulation = subprocess.Popen(["plumed", "pesmd", "<", "input"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    # process_run_simulation.wait()
+    # output_process_run_simulation, errors_process_run_simulation = process_run_simulation.communicate()
+    # if "Error" in errors_process_run_simulation:
+    #     print("There is an error message")
+    #     print(errors_process_run_simulation)
 
 # #Exaple execution (run simulation in folder: test with location <path>:
 # path = "/home/antoniu/Desktop/Public_Notebooks/"

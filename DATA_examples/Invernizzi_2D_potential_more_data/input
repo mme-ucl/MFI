@@ -3,5 +3,5 @@ tstep 0.005
 friction 10
 dimension 2
 nstep 250000
-ipos -1.2,-1.2
+ipos 0.09999999999999998,1.1
 periodic false
