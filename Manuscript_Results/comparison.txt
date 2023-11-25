@@ -1,0 +1,215 @@
+1c1
+< def MFI_2D(HILLS="HILLS", position_x="position_x", position_y="position_y", bw=np.array((0.1,0.1)), kT=1,
+---
+> def MFI_2D(HILLS="HILLS", position_x="position_x", position_y="position_y", bw = np.array((0.1,0.1)), kT=1,
+4c4
+< 			Ftot_den_limit = 1E-10, FES_cutoff = -1, Ftot_den_cutoff = 0.1, non_exploration_penalty = 0, use_weighted_st_dev = True,
+---
+> 			Ftot_den_limit = 1E-10, FES_cutoff = -1, Ftot_den_cutoff = 0.1, non_exploration_pentaly=-1, use_weighted_st_dev = True,
+7c7
+< 			uw_centre_x=0.0, uw_centre_y=0.0, uw_kappa_x=0, uw_kappa_y=0, F_static_x = np.zeros((1,1)), F_static_y = np.zeros((1,1))):
+---
+> 			uw_centre_x=0.0, uw_centre_y=0.0, uw_kappa_x=0, uw_kappa_y=0, ref_fes = np.zeros((200,200))):
+11,15c11,15
+< 		HILLS (array): HILLS array. The colums have format: [time [ps], position_x [nm], position_y [nm], MetaD_sigma_x [nm], MetaD_sigma_y [nm], MetaD_height [nm], MetaD_biasfactor]
+< 		position_x (array): CV1 array. Defaults to "position_x".
+< 		position_y (array): CV2 array. Defaults to "position_y".
+< 		bw (list or array of shape (2,), optional): Scalar, bandwidth for the construction of the KDE estimate of the biased probability density. First entry is the bandwidth for CV1 and second entry is the bandwidth for CV2. Defaults to np.array((0.1,0.1)).
+< 		kT (float, optional): Boltzmann constant multiplied with temperature (reduced format, 120K -> 1).
+---
+> 		HILLS (str): HILLS array. Defaults to "HILLS".
+> 		position_x (str): CV1 array. Defaults to "position_x".
+> 		position_y (str): CV2 array. Defaults to "position_y".
+> 		bw (int, optional): Scalar, bandwidth for the construction of the KDE estimate of the biased probability density. Defaults to 1.
+> 		kT (int, optional): Scalar, kT. Defaults to 1.
+18c18
+< 		nbins (array, optional): number of bins in CV1,CV2. First enrty is the number of bins in CV1 and the second entry is the number of bins in CV2! Defaults to np.array((200,200)). 
+---
+> 		nbins (array, optional): number of bins in CV2,CV1. First enrty is the number of bins in CV2 and the second entry is the number of bins in CV1! Defaults to np.array((200,200)). 
+22c22
+< 		WellTempered (binary, optional): Is the simulation well tempered? 1 for yes and 0 for no. Defaults to 1.
+---
+> 		WellTempered (binary, optional): Is the simulation well tempered? . Defaults to 1.
+24c24
+< 		periodic (list or array of shape (2,), optional): Specifies if system is periodic. First entry sepcifies if CV1 is periodic. Second entry sepcifies if CV2 is periodic. value of 0 corresponds to non-periodic CV1. Value of 1 corresponds to periodic CV1. Defaults to np.array((0,0)).
+---
+> 		periodic (int, optional): Is the CV space periodic? 1 for yes. Defaults to 0.
+29d28
+< 		use_weighted_st_dev (bool, optional): When set to True, the calculated error will be the weighted standard deviation ( var^0.5 ). When set to False, the calculated error will be the standard error ( (var/n_sample)^0.5 ). Defaults to True. (The standard devaition is expected to converge after enough time, while the standard error is expected to decrease as more datapoints are added.)
+42d40
+<         F_static (array, optional): Option to provide a starting bias potential that remains constant through the algorithm. This could be a harmonic potential, an previously used MetaD potential or any other bias potential defined on the grid. Defaults to np.zeros((1,1)), which will automatically set F_static to a zero-array with shape=nbins.
+44d41
+< 
+46,63c43,54
+<  
+< 		list: [X, Y, Ftot_den, Ftot_x, Ftot_y, ofv, ofe, cutoff, volume_history, ofe_history, time_history, Ftot_den2, ofv_num_x, ofv_num_y]
+< 		
+< 		X (array of size (nbins[1], nbins[0])): CV1 grid positions\n
+< 		Y (array of size (nbins[1], nbins[0])): CV2 grid positions\n
+< 		Ftot_den (array of size (nbins[1], nbins[0])): Cumulative biased probability density, equivalent to an unbiased histogram of samples in CV space.\n
+< 		Ftot_x (array of size (nbins[1], nbins[0])): CV1 component of the Mean Force.\n
+< 		Ftot_y (array of size (nbins[1], nbins[0])): CV2 component of the Mean Force.\n
+< 		ofv (array of size (nbins[1], nbins[0])): on the fly variance estimate of the local convergence\n
+< 		ofe (array of size (nbins[1], nbins[0])): on the fly error estimate of the local convergence\n
+< 		cutoff (array of size (nbins[1], nbins[0])): Array of ones and zeros. By default array of only ones. When the FES or probablity density (Ftot_den) values are outside their respective cutoff, the corresponding cutoff value will be a zero.\n
+< 		volume_history (list of size (nbins[1], nbins[0])): List of scalars indicating the explored volume, as a percentage of the ones in the cutoff array.\n
+< 		ofe_history (list of size (total_number_of_hills/error_pace,)): Running estimate of the global convergence of the mean force by calculating the statistical error of the mean force. Error calculated and added to list with error_pace.\n
+< 		ofe_history_window (optional)(list of size (total_number_of_hills/error_pace)): running estimate of the ofe within the "window" (specified and activated by using the input window_corners).\n
+< 		time_history (list of size (total_number_of_hills/error_pace,)): time array of volume_history, ofe_history and ofe_history_window if applicable.\n
+< 		Ftot_den2 (array of size (nbins[1], nbins[0])): Cumulative squared biased probability density\n
+< 		ofv_x (array of size (nbins[1], nbins[0])): intermediate component in the calculation of the CV1 "on the fly variance" ( sum of: pb_t * dfds_x ** 2)\n
+< 		ofv_y (array of size (nbins[1], nbins[0])): intermediate component in the calculation of the CV2 "on the fly variance" ( sum of: pb_t * dfds_y ** 2)
+---
+> 		X: array of size (nbins[0], nbins[1]) - CV1 grid positions
+> 		Y: array of size (nbins[0], nbins[1]) - CV2 grid positions
+> 		Ftot_den: array of size (nbins[0], nbins[1]) - Cumulative biased probability density, equivalent to an unbiased histogram of samples in CV space.
+> 		Ftot_x:  array of size (nbins[0], nbins[1]) - CV1 component of the Mean Force.
+> 		Ftot_y:  array of size (nbins[0], nbins[1]) - CV2 component of the Mean Force.
+> 		ofe:  array of size (nbins[0], nbins[1]) - on the fly estimate of the local convergence
+> 		ofe_history: array of size (1, total_number_of_hills) - running estimate of the global convergence of the mean force.
+> 		(option with window corner activated: ofe_history_window: array of size (1, total_number_of_hills) - running estimate of the "window" convergence of the mean force.)
+> 		ofe_history_time: array of size (1, total_number_of_hills) - time array of ofe_history
+> 		Ftot_den2: array of size (nbins[0], nbins[1]) - Cumulative squared biased probability density
+> 		ofv_x: array of size (nbins[0], nbins[1]) - intermediate component in the calculation of the CV1 "on the fly variance" ( sum of: pb_t * dfds_x ** 2)
+> 		ofv_y: array of size (nbins[0], nbins[1]) - intermediate component in the calculation of the CV2 "on the fly variance" ( sum of: pb_t * dfds_y ** 2)
+66,68c57,59
+< 	gridx = np.linspace(min_grid[0], max_grid[0], nbins[0])
+< 	gridy = np.linspace(min_grid[1], max_grid[1], nbins[1])
+< 	grid_space = np.array(((max_grid[0] - min_grid[0]) / (nbins[0]-1), (max_grid[1] - min_grid[1]) / (nbins[1]-1)))
+---
+> 	gridx = np.linspace(min_grid[0], max_grid[0], nbins[1])
+> 	gridy = np.linspace(min_grid[1], max_grid[1], nbins[0])
+> 	grid_space = np.array(((max_grid[0] - min_grid[0]) / (nbins[1]-1), (max_grid[1] - min_grid[1]) / (nbins[0]-1)))
+71,72c62,64
+< 	bw_xy2  = bw[0] * bw[1]
+< 	bw_x2 = bw[1] ** 2
+---
+> 	bw_xy = np.sqrt(bw[0] * bw[1])
+> 	bw_xy2  = bw_xy ** 2
+> 	bw_x2 = bw[0] ** 2
+74c66
+< 	const = (1 / (np.sqrt(bw[0] * bw[1]) * np.sqrt(2 * np.pi) * stride))
+---
+> 	const = (1 / (bw_xy * np.sqrt(2 * np.pi) * stride))
+76,77d67
+< 	print(np.shape(X))
+< 
+87,95c77,85
+< 	Fbias_x = np.zeros(nbins[::-1])
+< 	Fbias_y = np.zeros(nbins[::-1])
+< 	Ftot_num_x = np.zeros(nbins[::-1])
+< 	Ftot_num_y = np.zeros(nbins[::-1])
+< 	Ftot_den = np.zeros(nbins[::-1])
+< 	Ftot_den2 = np.zeros(nbins[::-1])
+< 	ofv_num_x = np.zeros(nbins[::-1])
+< 	ofv_num_y = np.zeros(nbins[::-1])
+< 	cutoff = np.ones(nbins[::-1])
+---
+> 	Fbias_x = np.zeros(nbins)
+> 	Fbias_y = np.zeros(nbins)
+> 	Ftot_num_x = np.zeros(nbins)
+> 	Ftot_num_y = np.zeros(nbins)
+> 	Ftot_den = np.zeros(nbins)
+> 	Ftot_den2 = np.zeros(nbins)
+> 	ofv_num_x = np.zeros(nbins)
+> 	ofv_num_y = np.zeros(nbins)
+> 	cutoff = np.ones(nbins)
+97a88
+> 	aad_history = []
+98a90,91
+> 	all_ofe = []
+> 	all_aad = []
+102,103c95,96
+< 	if np.shape(F_static_x) != (nbins[1], nbins[0]): F_static_x = np.zeros(nbins[::-1])
+< 	if np.shape(F_static_y) != (nbins[1], nbins[0]): F_static_y = np.zeros(nbins[::-1])
+---
+> 	F_static_x = np.zeros(nbins)
+> 	F_static_y = np.zeros(nbins)
+105c98
+< 		[Force_x, Force_y] = find_hp_force(hp_centre_x, hp_centre_y, hp_kappa_x, hp_kappa_y, X , Y, min_grid, max_grid, grid_space, periodic)
+---
+> 		[Force_x, Force_y] = MFI.find_hp_force(hp_centre_x, hp_centre_y, hp_kappa_x, hp_kappa_y, X , Y, min_grid, max_grid, grid_space, periodic)
+109c102
+< 		[Force_x, Force_y] = find_lw_force(lw_centre_x, lw_centre_y, lw_kappa_x, lw_kappa_y, X , Y, periodic)
+---
+> 		[Force_x, Force_y] = MFI.find_lw_force(lw_centre_x, lw_centre_y, lw_kappa_x, lw_kappa_y, X , Y, periodic)
+113c106
+< 		[Force_x, Force_y] = find_uw_force(uw_centre_x, uw_centre_y, uw_kappa_x, uw_kappa_y, X , Y, periodic)
+---
+> 		[Force_x, Force_y] = MFI.find_uw_force(uw_centre_x, uw_centre_y, uw_kappa_x, uw_kappa_y, X , Y, periodic)
+130c123
+< 		periodic_images = find_periodic_point(s_x, s_y, min_grid, max_grid, periodic)
+---
+> 		periodic_images = MFI.find_periodic_point(s_x, s_y, min_grid, max_grid, periodic)
+138,140c131,133
+< 		pb_t = np.zeros(nbins[::-1])
+< 		Fpbt_x = np.zeros(nbins[::-1])
+< 		Fpbt_y = np.zeros(nbins[::-1])
+---
+> 		pb_t = np.zeros(nbins)
+> 		Fpbt_x = np.zeros(nbins)
+> 		Fpbt_y = np.zeros(nbins)
+146c139
+< 			periodic_images = find_periodic_point(data_x[j], data_y[j], min_grid, max_grid, periodic)
+---
+> 			periodic_images = MFI.find_periodic_point(data_x[j], data_y[j], min_grid, max_grid, periodic)
+181c174
+< 				[ofv, ofe] = mean_force_variance(Ftot_den, Ftot_den2, Ftot_x, Ftot_y, ofv_num_x, ofv_num_y, use_weighted_st_dev=use_weighted_st_dev)
+---
+> 				[ofv, ofe] = MFI.mean_force_variance(Ftot_den, Ftot_den2, Ftot_x, Ftot_y, ofv_num_x, ofv_num_y, use_weighted_st_dev=use_weighted_st_dev)
+184c177
+< 				[Ftot_den_tot, Ftot_x_tot, Ftot_y_tot, ofv, ofe] = patch_to_base_variance(base_terms, [Ftot_den, Ftot_den2, Ftot_x, Ftot_y, ofv_num_x, ofv_num_y], use_weighted_st_dev=use_weighted_st_dev)
+---
+> 				[Ftot_den_tot, Ftot_x_tot, Ftot_y_tot, ofv, ofe] = MFI.patch_to_base_variance(base_terms, [Ftot_den, Ftot_den2, Ftot_x, Ftot_y, ofv_num_x, ofv_num_y])
+187,189c180,184
+< 			if Ftot_den_cutoff > 0 or hasattr(FES_cutoff, "__len__"): cutoff = get_cutoff(Ftot_den_tot, Ftot_den_cutoff=Ftot_den_cutoff, FX=Ftot_x_tot, FY=Ftot_y_tot, FES_cutoff=FES_cutoff)			
+< 			if non_exploration_penalty > 0: ofe = np.where(cutoff > 0.5, ofe, non_exploration_penalty)
+< 			else: ofe = np.where(cutoff > 0.5, ofe, 0) 
+---
+> 			if Ftot_den_cutoff > 0 or hasattr(FES_cutoff, "__len__"): cutoff = MFI.get_cutoff(Ftot_den_tot, Ftot_den_cutoff=Ftot_den_cutoff, FX=Ftot_x_tot, FY=Ftot_y_tot, FES_cutoff=FES_cutoff)			
+> 			if non_exploration_pentaly > 0: ofe = np.where(cutoff > 0.5, ofe, non_exploration_pentaly)
+> 			else: ofe *= cutoff
+>    
+> 			# ofe = np.where(ref_fes < 19, ofe, 0)
+192a188
+> 			# if i ==0: print("ofe is cut where inve_Pot < 19")
+194c190
+< 			if non_exploration_penalty <= 0: ofe_history.append( np.sum(ofe) / absolute_explored_volume)
+---
+> 			if non_exploration_pentaly <= 0: ofe_history.append( np.sum(ofe) / absolute_explored_volume)
+198c194
+< 				ofe_cut_window = reduce_to_window(ofe, min_grid, grid_space, x_min=window_corners[0], x_max=window_corners[1], y_min=window_corners[2], y_max=window_corners[3]) 
+---
+> 				ofe_cut_window = MFI.reduce_to_window(ofe, min_grid, grid_space, x_min=window_corners[0], x_max=window_corners[1], y_min=window_corners[2], y_max=window_corners[3]) 
+199a196,205
+>     
+>     
+> 			#Find Absolute devaition
+> 			[X, Y, FES] = MFI.FFT_intg_2D(Ftot_x_tot, Ftot_y_tot, min_grid=min_grid, max_grid=max_grid)
+> 			AD = abs(ref_fes - FES)
+> 			ADc = AD * cutoff
+> 			# ADc = np.where(ref_fes < 19, ADc, 0)
+> 			AAD = np.sum(AD)/(FES.shape[0]*FES.shape[0])
+> 			AADc = np.sum(ADc)/(np.count_nonzero(ADc))
+> 			aad_history.append([AAD,AADc])
+200a207,213
+> 			for ii in range(len(ofe)):
+> 				for jj in range(len(ofe[0])):
+>         
+> 					if ofe[ii][jj] != 0: 
+> 						all_ofe.append(ofe[ii][jj])
+> 						all_aad.append(ADc[ii][jj])
+> 
+202c215
+< 			print_progress(i+1,total_number_of_hills,variable_name='Average Mean Force Error',variable=round(ofe_history[-1],3))        
+---
+> 			MFI.print_progress(i+1,total_number_of_hills,variable_name='Average Mean Force Error',variable=round(ofe_history[-1],3))        
+208c221,225
+< 	else: return [X, Y, Ftot_den, Ftot_x, Ftot_y, ofv, ofe, cutoff, volume_history, ofe_history, time_history, Ftot_den2, ofv_num_x, ofv_num_y]
+\ No newline at end of file
+---
+> 	else: return [X, Y, Ftot_den, Ftot_x, Ftot_y, ofv, ofe, cutoff, volume_history, ofe_history, aad_history, time_history, Ftot_den2, ofv_num_x, ofv_num_y, all_ofe, all_aad]
+> 
+> 
+> 
+> 

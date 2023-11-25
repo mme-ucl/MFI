@@ -2,7 +2,6 @@ import glob
 import matplotlib.pyplot as plt
 import numpy as np
 import pickle
-import random
 from numba import jit, njit
 
 
@@ -262,7 +261,7 @@ def intg_1D(Force, dx):
         N = len(y)
         if N % 2 == 0: fes[j] = dx/6 * (np.sum(y[: N-3: 2] + 4*y[1: N-3+1: 2] + y[2: N-3+2: 2]) + np.sum(y[1: N-2: 2] + 4*y[1+1: N-1: 2] + y[1+2: N: 2])) + dx/4 * ( y[1] + y[0] + y[-1] + y[-2])
         else: fes[j] = dx / 3.0 * np.sum(y[: N-2: 2] + 4*y[1: N-1: 2] + y[2: N: 2])
-            
+            3
     fes = fes - min(fes)
     return fes
    
@@ -726,14 +725,14 @@ def bootstrap_forw_back(grid, forward_force, backward_force, n_bootstrap, set_fe
         grid (array of shape (nbins,)): CV grid positions
         forward_force (list): collection of force terms (n * [Ftot_den, Ftot]) from forward transition
         backward_force (list): collection of force terms (n * [Ftot_den, Ftot]) from backward transition
-        n_bootstrap (int): bootstrap itterations
+        n_bootstrap (int): bootstrap iterations
         set_fes_minima (str, optional): USed to specify how to set the minima of the FES. When set to "first", the first element of the fes will be set to 0, and the rest of the FES array will be shifted by the same amount. When set to None, the smalles element of the FES will be set to 0, and the rest of the FES array will be shifted by the same amount. Defauts is None.
 
     Returns:
         list : [FES_avr, sd_fes, sd_fes_prog]\n
         FES_avr (array of shape (nbins,)): Average of all FES generated during the bootstrap algorithm.\n
         sd_fes (array of shape (nbins,)): Standard deviation of all FES generated during the bootstrap algorithm.\n
-        sd_fes_prog (array of shape (n_bootstrap,)): Global average of the standard deviation after each bootstrap itteration. When this array converges, enough itterations have been performed. If it does not converge, move itterations are necessary.
+        sd_fes_prog (array of shape (n_bootstrap,)): Global average of the standard deviation after each bootstrap iteration. When this array converges, enough iterations have been performed. If it does not converge, move iterations are necessary.
     """
 
     #Define constants and lists
@@ -746,7 +745,7 @@ def bootstrap_forw_back(grid, forward_force, backward_force, n_bootstrap, set_fe
     #Patch forces
     [Ftot_den, Ftot] = patch_forces(np.concatenate((forward_force, backward_force)))        
 
-    for itteration in range(n_bootstrap):
+    for iteration in range(n_bootstrap):
 
         #Randomly choose forward forces and backward forces and save to force array
         force = np.zeros((int(n_forces * 2), 2, nbins)) 
@@ -762,15 +761,15 @@ def bootstrap_forw_back(grid, forward_force, backward_force, n_bootstrap, set_fe
 
         # calculate standard devaition using Welford’s method
         delta = FES - FES_avr
-        FES_avr += delta/(itteration+1)
+        FES_avr += delta/(iteration+1)
         delta2 = FES - FES_avr
         M2 += delta*delta2
-        sd_fes = np.sqrt(M2 / (itteration))
-        sd_fes_prog[itteration] = sum(sd_fes)/nbins
+        sd_fes = np.sqrt(M2 / (iteration))
+        sd_fes_prog[iteration] = sum(sd_fes)/nbins
         
 
         # print progress
-        if (itteration+1) % 50 == 0: print("Itteration:", itteration+1, "- sd:", round(sd_fes_prog[itteration],5) )
+        if (iteration+1) % 50 == 0: print("Iteration:", iteration+1, "- sd:", round(sd_fes_prog[iteration],5) )
        
     return [FES_avr, sd_fes, sd_fes_prog]
 
@@ -782,12 +781,12 @@ def bootstrap_1D(grid, force_array, n_bootstrap, set_fes_minima=None):
     Args:
         grid (array of shape (nbins,)): CV grid positions
         force_array (list): collection of force terms (n * [Ftot_den, Ftot]).
-        n_bootstrap (int): bootstrap itterations
+        n_bootstrap (int): bootstrap iterations
 
     Returns:
         FES_avr (array of shape (nbins,)): Average of all FES generated during the bootstrap algorithm.
         sd_fes (array of shape (nbins,)): Standard deviation of all FES generated during the bootstrap algorithm.
-        sd_fes_prog (array of shape (n_bootstrap,)): Global average of the standard deviation after each bootstrap itteration. When this array converges, enough itterations have been performed. If it does not converge, move itterations are necessary.
+        sd_fes_prog (array of shape (n_bootstrap,)): Global average of the standard deviation after each bootstrap iteration. When this array converges, enough iterations have been performed. If it does not converge, move iterations are necessary.
     """
     
     #Define constants and lists
@@ -797,7 +796,7 @@ def bootstrap_1D(grid, force_array, n_bootstrap, set_fes_minima=None):
     FES_avr = np.zeros(nbins)
     M2 = np.zeros(nbins)
 
-    for itteration in range(n_bootstrap):
+    for iteration in range(n_bootstrap):
         
         #Randomly choose forward forces and backward forces and save to force array
         force = np.zeros((int(n_forces ), 2, nbins)) 
@@ -812,14 +811,14 @@ def bootstrap_1D(grid, force_array, n_bootstrap, set_fes_minima=None):
         
         # calculate standard devaition using Welford’s method
         delta = FES - FES_avr
-        FES_avr += delta/(itteration+1)
+        FES_avr += delta/(iteration+1)
         delta2 = FES - FES_avr
         M2 += delta*delta2
-        sd_fes = np.sqrt(M2 / (itteration))
-        sd_fes_prog[itteration] = sum(sd_fes)/nbins
+        sd_fes = np.sqrt(M2 / (iteration))
+        sd_fes_prog[iteration] = sum(sd_fes)/nbins
         
         # print progress
-        if (itteration+1) % 50 == 0: print("Itteration:", itteration+1, "- sd:", round(sd_fes_prog[itteration],5) )
+        if (iteration+1) % 50 == 0: print("Iteration:", iteration+1, "- sd:", round(sd_fes_prog[iteration],5) )
        
     return [FES_avr, sd_fes, sd_fes_prog]
 
