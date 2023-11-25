@@ -15,7 +15,5 @@ John D'Errico (2021). Inverse (integrated) gradient
 (https://www.mathworks.com/matlabcentral/fileexchange/9734-inverse-integrated-gradient), 
 MATLAB Central File Exchange. Retrieved July 4, 2021.
 
-### Comparison MFI (4E3 HILLS) vs. long-time limit MetaD (1E9 HILLS) for Alanine Dipeptide 
-
-![](2D_Example_AlanineDipeptide/comparison4ns.png) 
-
+### MFI in action: 
+<video src="https://github.com/mme-ucl/mme-ucl.github.io/raw/main/images/MFI_movie.mp4" align="center" width="1000px" controls></video>
