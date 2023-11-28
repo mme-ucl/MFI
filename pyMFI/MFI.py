@@ -1071,8 +1071,6 @@ def MFI_2D(HILLS="HILLS", position_x="position_x", position_y="position_y", bw=n
 	bw_y2 = bw[1] ** 2
 	const = (1 / (np.sqrt(bw[0] * bw[1]) * np.sqrt(2 * np.pi) * stride))
 
-	print(np.shape(X))
-
 	# Optional - analyse only nhills, if nhills is set
 	if nhills > 0: total_number_of_hills = nhills
 	else: total_number_of_hills = len(HILLS)
