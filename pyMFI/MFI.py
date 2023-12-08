@@ -741,7 +741,7 @@ def plot_patch_2D(X, Y, FES, TOTAL_DENSITY, lim=50):
 	axs[1].set_xlabel('CV1', fontsize=11)
 	axs[1].set_title('Total Biased Probability Density', fontsize=11)
 
-def bootstrap_2D_new(X, Y, force_array, n_bootstrap, min_grid=np.array((-3, -3)), max_grid=np.array((3, 3)), periodic=np.array((0,0)), FES_cutoff=0, Ftot_den_cutoff=0, non_exploration_penalty=0):
+def bootstrap_2D_new(X, Yrow , force_array, n_bootstrap, min_grid=np.array((-3, -3)), max_grid=np.array((3, 3)), periodic=np.array((0,0)), FES_cutoff=0, Ftot_den_cutoff=0, non_exploration_penalty=0):
 	"""Algorithm to determine bootstrap error. Takes in a collection of force-terms and with each itteration, a random selection of force-terms will be used to calculate a FES. The average and st.dev of all FESes will be calculated.
 
 	Args:
