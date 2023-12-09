@@ -1000,8 +1000,7 @@ def MFI_2D(HILLS="HILLS", position_x="position_x", position_y="position_y", bw=n
 			hp_centre_x=0.0, hp_centre_y=0.0, hp_kappa_x=0, hp_kappa_y=0,
 			lw_centre_x=0.0, lw_centre_y=0.0, lw_kappa_x=0, lw_kappa_y=0,
 			uw_centre_x=0.0, uw_centre_y=0.0, uw_kappa_x=0, uw_kappa_y=0, 
-			F_static_x = np.zeros((1,1)), F_static_y = np.zeros((1,1)),
-	        compare_to_reference_FES = 0, ref_fes = np.zeros((200,200))):
+			F_static_x = np.zeros((1,1)), F_static_y = np.zeros((1,1)), ref_fes = np.zeros((1,1))):
 	"""Compute a time-independent estimate of the Mean Thermodynamic Force, i.e. the free energy gradient in 2D CV spaces.
 
 	Args:
@@ -1200,11 +1199,11 @@ def MFI_2D(HILLS="HILLS", position_x="position_x", position_y="position_y", bw=n
 
 			# Check if aadMAP really needed here
          	#Find Absolute deviation
-			if compare_to_reference_FES == 1:
+			if np.shape(ref_fes) == (nbins[1], nbins[0]): 
 				[X, Y, FES] = FFT_intg_2D(Ftot_x_tot, Ftot_y_tot, min_grid=min_grid, max_grid=max_grid)
 				AD=abs(ref_fes - FES) * cutoff
 				AAD = np.sum(AD)/(np.count_nonzero(cutoff))		
-				aad_history.append([AAD])
+				aad_history.append(AAD)
 				#aadMAP.append(AD)
 				
 			#print progress
