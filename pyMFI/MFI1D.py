@@ -472,13 +472,13 @@ def get_cutoff_1D(Ftot_den=None, Ftot_den_cutoff=0.1, FES=None, FES_cutoff=-1):
     """
 
     if Ftot_den != None: nbins = len(Ftot_den)
-    elif FES != None: nbins = len(FES)
+    elif FES != None and FES_cutoff > 0: nbins = len(FES)
     else: print("\n**ERROR** Please specify either Ftot_den or FES or both!! **ERROR**\n\n")
     
     cutoff = np.ones(nbins)
 
     if Ftot_den != None: cutoff = np.where(Ftot_den > Ftot_den_cutoff, 1.0, 0.0)
-    if FES != None: cutoff = np.where(FES <= FES_cutoff, cutoff, 0.0)
+    if FES != None and FES_cutoff > 0: cutoff = np.where(FES <= FES_cutoff, cutoff, 0.0)
 
     return cutoff
 
