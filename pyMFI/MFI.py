@@ -1227,7 +1227,7 @@ def MFI_2D(HILLS="HILLS", position_x="position_x", position_y="position_y", bw=n
     X, Y = np.meshgrid(gridx, gridy)
     stride = int(len(position_x) / len(HILLS))
     bw_xy2  = bw[0] * bw[1]
-    bw_x2 = bw[1] ** 2
+    bw_x2 = bw[0] ** 2
     bw_y2 = bw[1] ** 2
     const = (1 / (np.sqrt(bw[0] * bw[1]) * np.sqrt(2 * np.pi) * stride))
 
