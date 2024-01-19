@@ -13,7 +13,7 @@ def run_langevin1D(simulation_steps,
                    hp_centre=0.0, hp_kappa=0,
                    lw_centre=0.0, lw_kappa=0,
                    uw_centre=0.0, uw_kappa=0,
-                   external_bias_file=""):
+                   external_bias_file="", start_sim=True):
     """Function to run a langevin simulation in 1 dimension. Default analytical potential: y = 7*x^4-23*x^2.
 
     Args:
@@ -98,7 +98,7 @@ TEMP={} \n".format(gaus_width, gaus_height, biasfactor, grid_min, grid_max, grid
 
 
     # os.system("plumed pesmd < input")
-    os.system("plumed pesmd < input >/dev/null 2>&1")
+    if start_sim == True: os.system("plumed pesmd < input >/dev/null 2>&1")
 
 def run_langevin2D(simulation_steps,
                    analytical_function="7*x^4-23*x^2+7*y^4-23*y^2", periodic_f="NO",
