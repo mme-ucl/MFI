@@ -11,8 +11,10 @@ If you find this useful please cite:
 - Bjola, Antoniu, and Matteo Salvalaglio. "Estimating Free Energy Surfaces and their Convergence from multiple, independent static and history-dependent biased molecular-dynamics simulations with Mean Force Integration." (2024).[ChemRxiv](https://chemrxiv.org/engage/chemrxiv/article-details/65affed69138d2316192b728)
 
 
-### MFI in action: 
-<video src="https://github.com/mme-ucl/MFI/raw/master/Movies_and_presentations/MFI_movie_error.mp4" align="center" width="1000px" controls></video>
+### MFI in action:
+
+https://github.com/mme-ucl/MFI/raw/master/Movies_and_presentations/MFI_movie_error.mp4
+
 
 ### pyMFI
 
