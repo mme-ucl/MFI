@@ -12,8 +12,9 @@ If you find this useful please cite:
 
 
 ### MFI in action:
+https://github.com/mme-ucl/MFI/assets/10670857/571150b6-9f6f-4abf-bf7f-97577f0669b6
 
-https://github.com/mme-ucl/MFI/raw/master/Movies_and_presentations/MFI_movie_error.mp4
+
 
 
 ### pyMFI
