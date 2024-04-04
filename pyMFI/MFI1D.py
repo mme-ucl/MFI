@@ -267,7 +267,7 @@ def intg_1D(Force, dx):
 ### Algorithm to run 1D MFI
 # Run MFI algorithm with on the fly error calculation
 @njit
-def MFI_1D(HILLS="HILLS", position="position", bw=0.1, kT=1, min_grid=-2, max_grid=2, nbins=201, 
+def MFI_1D(HILLS, position, bw=0.1, kT=1, min_grid=-2, max_grid=2, nbins=201, 
            log_pace=-1, error_pace=-1, WellTempered=1, nhills=-1, periodic=0, 
            hp_centre=0.0, hp_kappa=0, lw_centre=0.0, lw_kappa=0, uw_centre=0.0, uw_kappa=0, F_static = np.zeros(1), 
            Ftot_den_limit = 1E-10, FES_cutoff = 0, Ftot_den_cutoff = 0, non_exploration_penalty = 0, save_intermediate_fes_error_cutoff = False, use_weighted_st_dev = True):
@@ -275,7 +275,7 @@ def MFI_1D(HILLS="HILLS", position="position", bw=0.1, kT=1, min_grid=-2, max_gr
     """Compute a time-independent estimate of the Mean Thermodynamic Force, i.e. the free energy gradient in 1D CV spaces.
 
     Args:
-        HILLS (str): HILLS array. Defaults to "HILLS".
+        HILLS (array): HILLS array from HILLS file from metadynamics simulation using PLUMED. Contains number_of_hills * [time, position, metaD_width, metaD_height metaD_biasfactor].  
         position (str): CV/position array. Defaults to "position".
         bw (float, optional): bandwidth for the construction of the KDE estimate of the biased probability density. Defaults to 1.
         kT (float, optional): Boltzmann constant multiplied with temperature (reduced format, 120K -> 1).
