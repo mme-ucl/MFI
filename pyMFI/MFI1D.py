@@ -841,10 +841,7 @@ def plot_recap(X, FES, Ftot_den, ofe, ofe_history, time_history, y_ref=None, FES
     fig, axs = plt.subplots(2, 2, figsize=(12, 8))
 
     #plot ref f
-    if hasattr(y_ref, "__len__") != True: y = 7*X**4 - 23*X**2
-    else: y = y_ref
-    y = y - min(y)  
-    axs[0, 0].plot(X, y, label="Reference", color="red", alpha=0.3);
+    if y_ref is not None: axs[0, 0].plot(X, y_ref, label="Reference", color="red", alpha=0.3);
     
     axs[0, 0].plot(X, FES, label="FES");
     axs[0, 0].set_ylim([0, FES_lim])
