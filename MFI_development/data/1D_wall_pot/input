@@ -1,7 +1,0 @@
-temperature 1
-tstep 0.005
-friction 1
-dimension 1
-nstep 100000
-ipos 0.0
-periodic on min -3.141592653589793 max 3.141592653589793
