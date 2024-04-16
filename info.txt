@@ -1,0 +1,11 @@
+The documentation should be updated periodically.
+
+This can be donw by going into the documentation folder: MFI_git/doc/
+
+Add new modules to the pyMFI.rst and modules.rst file (possible also more advanced settings).
+
+(run > sphinx-apidoc -o . .. < if rst file not available)
+
+run > make html < from terminal with docs path.
+
+the add/replace the new files from docs/_build/html/ to the github branch gh-pages.
