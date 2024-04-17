@@ -429,8 +429,8 @@ def FFT_intg_2D(FX, FY, min_grid=np.array((-np.pi, -np.pi)), max_grid=np.array((
         FY = np.block([[FY],[-FY[::-1,:]]])
 
     # Calculate frequency
-    freq_1dx = np.fft.fftfreq(nbins_yx[1], grid_spacey)  #use nbins from x-dimension and grid_space from y-dimension
-    freq_1dy = np.fft.fftfreq(nbins_yx[0], grid_spacex)  #use nbins from x-dimension and grid_space from y-dimension
+    freq_1dx = np.fft.fftfreq(nbins_yx[1], grid_spacex)  
+    freq_1dy = np.fft.fftfreq(nbins_yx[0], grid_spacey)
     freq_x, freq_y = np.meshgrid(freq_1dx, freq_1dy)
     freq_hypot = np.hypot(freq_x, freq_y)
     freq_sq = np.where(freq_hypot != 0, freq_hypot ** 2, 1E-10)
@@ -625,7 +625,7 @@ def intgrad2(fx, fy, min_grid=np.array((-2, -2)), max_grid=np.array((2, 2)), per
 
     return [X, Y, fhat]
 
-def plot_recap_2D(X, Y, FES, TOTAL_DENSITY, CONVMAP, CONV_history, CONV_history_time, FES_lim=50, ofe_map_lim=50, FES_step=1, ofe_step=1):
+def plot_recap_2D(X, Y, FES, TOTAL_DENSITY, CONVMAP, CONV_history, CONV_history_time, FES_lim=50, ofe_map_lim=50, FES_step=1, ofe_step=1, error_log_scale = 1, use_weighted_st_dev=True):
     """Plots 1. FES, 2. varinace_map, 3. Cumulative biased probability density, 4. Convergece of variance.
     
     Args:
@@ -636,6 +636,7 @@ def plot_recap_2D(X, Y, FES, TOTAL_DENSITY, CONVMAP, CONV_history, CONV_history_
         CONVMAP (array of size (nbins[1], nbins[0])): varinace_map
         CONV_history (list): Convergece of variance
         CONV_history_time (list): Simulation time corresponding to CONV_history
+        error_log_scale (boolean, optional): Option to make error_conversion plot with a log scale. 1 for log scale. Defaults to 1.
 
     """
     fig, axs = plt.subplots(1, 4, figsize=(16, 3))
@@ -650,12 +651,11 @@ def plot_recap_2D(X, Y, FES, TOTAL_DENSITY, CONVMAP, CONV_history, CONV_history_
 
     cp = axs[1].contourf(X, Y, zero_to_nan(CONVMAP), levels=range(0, ofe_map_lim, ofe_step), cmap='coolwarm', antialiased=False, alpha=0.8);
     cbar = plt.colorbar(cp, ax=axs[1])
-    cbar.set_label("Standard Deviation [kJ/mol]", fontsize=11)
-    axs[1].set_ylabel('CV2', fontsize=11)
+    cbar.set_label("Standard Deviation [kJ/mol]", fontsize=11) if use_weighted_st_dev==True else cbar.set_label("Standard Error [kJ/mol]", fontsize=11)
     axs[1].set_xlabel('CV1', fontsize=11)
     axs[1].set_xlim(np.min(X),np.max(X))
     axs[1].set_ylim(np.min(Y),np.max(Y))
-    axs[1].set_title('Standard Deviation of the Mean Force', fontsize=11)
+    axs[1].set_title('Standard Deviation of the Mean Force', fontsize=11) if use_weighted_st_dev==True else axs[1].set_title('Standard Error of the Mean Force', fontsize=11)
 
     cp = axs[2].contourf(X, Y, (TOTAL_DENSITY), cmap='gray_r', antialiased=False, alpha=0.8);  #, locator=ticker.LogLocator()
     cbar = plt.colorbar(cp, ax=axs[2])
@@ -670,7 +670,8 @@ def plot_recap_2D(X, Y, FES, TOTAL_DENSITY, CONVMAP, CONV_history, CONV_history_
     axs[3].set_ylabel('Standard Deviation [kJ/mol]', fontsize=11)
     axs[3].set_xlabel('Simulation time', fontsize=11)
     axs[3].set_title('Global Convergence of Standard Deviation', fontsize=11)
- 
+    if error_log_scale == 1: axs[3].set_yscale('log')
+    
     plt.tight_layout()
 
 
@@ -805,7 +806,7 @@ def bootstrap_2D_new(X, Yrow , force_array, n_bootstrap, min_grid=np.array((-3, 
         
         #Randomly choose forward forces and backward forces and save to force array
         random_sample_index =  np.random.choice(n_forces-1, size=n_forces)      
-        force = force_array[random_sample_index]
+        force = list(force_array[random_sample_index])
   
         #Patch forces
         [Ftot_den, Ftot_x, Ftot_y] = patch_2D_simple(force)
@@ -819,7 +820,7 @@ def bootstrap_2D_new(X, Yrow , force_array, n_bootstrap, min_grid=np.array((-3, 
         delta2 = FES - FES_avr
         M2 += delta*delta2
         if iteration > 0:
-            sd_fes = np.sqrt(M2 / (iteration))
+            sd_fes = np.sqrt(M2 / (iteration))  # Bessel correction is usually (iteration-1) but we start from 0
             if Ftot_den_cutoff > 0 or FES_cutoff > 0: sd_fes *= cutoff
             if non_exploration_penalty > 0: sd_fes = np.where(cutoff > 0.5, sd_fes, non_exploration_penalty)
             sd_fes_prog[iteration] = np.sum(sd_fes)/(nbins_yx[0]*nbins_yx[1])
@@ -962,24 +963,25 @@ def plot_bootstrap(X, Y, FES, sd_fes, sd_fes_prog, FES_lim=11, sd_lim=11, FES_le
     fig, axs = plt.subplots(1, 3, figsize=(15, 4))
     cp = axs[0].contourf(X, Y, FES, levels=np.linspace(0, FES_lim, FES_levels), cmap='coolwarm', antialiased=False, alpha=0.8);
     cbar = plt.colorbar(cp, ax=axs[0])
+    cbar.set_label("Free Energy [kJ/mol]")
     axs[0].set_ylabel('CV2', fontsize=11)
     axs[0].set_xlabel('CV1', fontsize=11)
     axs[0].set_title('Average FES', fontsize=11)
 
     cp = axs[1].contourf(X, Y, sd_fes, levels=np.linspace(0, sd_lim, sd_levels), cmap='coolwarm', antialiased=False, alpha=0.8);
     cbar = plt.colorbar(cp, ax=axs[1])
-    cbar.set_label("Variance of Average FES [kJ/mol]$^2$", rotation=270)
+    cbar.set_label("Variance of Average FES [kJ/mol]$^2$")
     axs[1].set_ylabel('CV2', fontsize=11)
     axs[1].set_xlabel('CV1', fontsize=11)
     axs[1].set_title('Bootstrap Variance of FES', fontsize=11)
 
 
     axs[2].plot( range(len(sd_fes_prog)), sd_fes_prog);
-    axs[2].set_ylabel('Average Variance of Average FES [kJ/mol]$^2$', fontsize=11)
+    axs[2].set_ylabel('Average St. Dev. of Avr. FES [kJ/mol]$^2$', fontsize=11)
     axs[2].set_xlabel('Bootstrap iterations', fontsize=11)
-    axs[2].set_title('Global Convergence of Bootstrap Variance', fontsize=11)
+    axs[2].set_title('Global Convergence of Bootstrap St. Deviation', fontsize=11)
 
-    plt.rcParams["figure.figsize"] = (5,4)
+    # plt.rcParams["figure.figsize"] = (5,4)
 
 def plot_bootstrap_2D_to_1D(X, Y, FES_2D, FES_x, FES_y, error_x, error_y, FES_lim=20):
     fig = plt.figure(figsize=(8,10))

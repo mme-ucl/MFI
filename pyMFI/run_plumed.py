@@ -257,7 +257,7 @@ METAD ARG=p.x,p.y PACE={} SIGMA={},{} HEIGHT={} GRID_MIN=-4,-4 GRID_MAX=4,4 GRID
     with open("input","w") as f:
         print("""temperature 1
 tstep 0.005
-friction 10
+friction 1
 dimension 2
 nstep {}
 ipos {},{}
