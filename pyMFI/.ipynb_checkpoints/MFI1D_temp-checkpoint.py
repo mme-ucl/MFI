@@ -582,7 +582,7 @@ def bootstrap_forw_back(grid, forward_force, backward_force, n_bootstrap):
         grid (array): CV grid positions
         forward_force (list): collection of force terms (n * [Ftot_den, Ftot]) from forward transition
         backward_force (list): collection of force terms (n * [Ftot_den, Ftot]) from backward transition
-        n_bootstrap (int): bootstrap itterations
+        n_bootstrap (int): bootstrap iterations
 
     Returns:
         [FES_avr, sd_fes, variance_prog, stdev_prog, var_fes_prog, sd_fes_prog ]
@@ -613,7 +613,7 @@ def bootstrap_forw_back(grid, forward_force, backward_force, n_bootstrap):
     Ftot_den_base = np.array(Ftot_den)
 
 
-    for itteration in range(n_bootstrap):
+    for iteration in range(n_bootstrap):
 
         #Randomly choose 49 forward forces and backward forces
         force = []    
@@ -641,10 +641,10 @@ def bootstrap_forw_back(grid, forward_force, backward_force, n_bootstrap):
         FES_sum += FES
         FES2_sum += FES**2
 
-        if itteration > 0:
+        if iteration > 0:
             
             #calculate force variance
-            Ftot_avr = Ftot_sum / (itteration+1)
+            Ftot_avr = Ftot_sum / (iteration+1)
             Ftot2_weighted = np.divide(Ftot_inter, Ftot_den_sum, out=np.zeros_like(Ftot_inter), where=Ftot_den_base>10)
             Ftot_den_ratio = np.divide(Ftot_den_sum ** 2, (Ftot_den_sum ** 2 - Ftot_den2_sum), out=np.zeros_like(Ftot_den_sum), where=Ftot_den_base > 10)
             variance = (Ftot2_weighted - Ftot_avr**2) * Ftot_den_ratio
@@ -652,7 +652,7 @@ def bootstrap_forw_back(grid, forward_force, backward_force, n_bootstrap):
             stdev = np.where(Ftot_den_base > 10,  np.sqrt(variance / n_eff ), 0)
         
             #calculate FES variance
-            FES_avr = FES_sum/ (itteration+1)
+            FES_avr = FES_sum/ (iteration+1)
             var_fes = np.zeros(len(grid))
             for i in range(len(FES_collection)): 
                 var_fes += (FES_collection[i] - FES_avr)**2
@@ -667,8 +667,8 @@ def bootstrap_forw_back(grid, forward_force, backward_force, n_bootstrap):
         
         
         #print progress
-        if (itteration+1) % 50 == 0:
-            print(itteration+1, ": var:", round(variance_prog[-1],5), "     sd:", round(stdev_prog[-1],5), "      FES: var:", round(var_fes_prog[-1],3), "     sd:", round(sd_fes_prog[-1],3) )
+        if (iteration+1) % 50 == 0:
+            print(iteration+1, ": var:", round(variance_prog[-1],5), "     sd:", round(stdev_prog[-1],5), "      FES: var:", round(var_fes_prog[-1],3), "     sd:", round(sd_fes_prog[-1],3) )
             
     return [FES_avr, sd_fes, variance_prog, stdev_prog, var_fes_prog, sd_fes_prog ]
 
