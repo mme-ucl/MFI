@@ -1,0 +1,48 @@
+# LOAD FILE=PythonCV.dylib
+grp: GROUP ATOMS=1-421
+cv1: PYTHONCV ATOMS=1-421 IMPORT=model_ncl_nq6_real FUNCTION=cv1 COMPONENTS=ncl,nq6
+
+cn: COORDINATIONNUMBER SPECIES=grp SWITCH={RATIONAL R_0=7.0 D_MAX=8.0} LOWMEM MORE_THAN={RATIONAL R_0=3.0 D_MAX=13.0}
+### calculate the number of particles with crystalline order (first shell geometries)
+q6: Q6 SPECIES=grp SWITCH={RATIONAL R_0=7.0 D_MAX=8.0} LOWMEM
+lq6: LOCAL_Q6 SPECIES=q6 SWITCH={RATIONAL R_0=7.0 D_MAX=8.0} LOWMEM
+flq6: MFILTER_MORE DATA=lq6 SWITCH={GAUSSIAN R_0=0.69 D_MAX=0.70} 
+
+### calculate the coordination number distributions for these crystalline particles and count them
+cnq6: COORDINATIONNUMBER SPECIES=flq6 SWITCH={RATIONAL R_0=7.0 D_MAX=8.0} MEAN MORE_THAN={RATIONAL R_0=11.0 D_MAX=13.0}
+#cn: COORDINATIONNUMBER SPECIES=grp SWITCH={RATIONAL R_0=7.0 D_MAX=8.0} LOWMEM MORE_THAN={RATIONAL R_0=3.0 D_MAX=13.0}
+
+n: COMBINE ARG=cn.morethan POWERS=0.33333333 PERIODIC=NO
+nq6: COMBINE ARG=cnq6.morethan POWERS=0.333333 PERIODIC=NO
+
+#restraint: METAD ARG=cv1 SIGMA=0.025 HEIGHT=1 PACE=500 
+lwall: LOWER_WALLS ARG=cv1.nq6 AT=-0.5 KAPPA=150.0 EXP=4 EPS=1 OFFSET=0
+#res: MOVINGRESTRAINT ARG=cv1.nq6 AT0=0 AT1=10 KAPPA0=1 STEP0=0 STEP1=1000000
+
+res: METAD ARG=cv1.ncl,cv1.nq6 SIGMA=0.18,0.05 HEIGHT=0.1 PACE=1000 BIASFACTOR=40 TEMP=2 GRID_MIN=-0.5,-1.5 GRID_MAX=10,8 GRID_BIN=200,200
+#p1: POSITION ATOM=1
+#p2: POSITION ATOM=421
+#
+# Uncomment/paste this to a different plumed file after
+# https://groups.google.com/g/plumed-users/c/qfQc3CO1jVc
+# plumed driver -ixy traj.xyz -plumed plumed_reweigh.dat
+#
+# METAD ARG=cv1.ncl,cv1.nq6 SIGMA=0.18,0.05 HEIGHT=0.1 PACE=1 GRID_MIN=-0.5,-1.5 GRID_MAX=10,8 GRID_BIN=100,100
+#bias: REWEIGHT_METAD TEMP=2
+
+#HISTOGRAM ...
+#   ARG=n,nq6
+#   GRID_MIN=0.0,0.0
+#   GRID_MAX=10,8
+#   GRID_BIN=100,100
+#   LOGWEIGHTS=bias
+#   LABEL=hB
+#... HISTOGRAM
+
+#fes: CONVERT_TO_FES GRID=hb TEMP=2
+#DUMPGRID GRID=fes FILE=fes.dat
+
+PRINT FILE=colvar.out ARG=cv1.ncl,cv1.nq6,res.bias,res.work,cn.morethan,cnq6.morethan STRIDE=500
+
+
+

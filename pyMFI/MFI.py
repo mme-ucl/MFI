@@ -308,8 +308,8 @@ def patch_to_base_variance(master0, master, Ftot_den_limit=1E-10, use_weighted_s
     Returns:
         list : [PD_patch, FX_patch, FY_patch, OFV, OFE]\n
         PD_patch (array of size (nbins[1], nbins[0])): Patched probability density\n
-        FX_patch (array of size (nbins[1], nbins[0])): Patched Froce gradient in x-direction (CV1 direction)\n
-        FY_patch (array of size (nbins[1], nbins[0])): Patched Froce gradient in y-direction (CV2 direction)\n
+        FX_patch (array of size (nbins[1], nbins[0])): Patched Force gradient in x-direction (CV1 direction)\n
+        FY_patch (array of size (nbins[1], nbins[0])): Patched Force gradient in y-direction (CV2 direction)\n
           OFV (array of size (nbins[1], nbins[0])): modulus of patched "on the fly variance" \n
         OFE(array of size (nbins[1], nbins[0])): modulus of patched "on the fly error" 
     """
@@ -429,8 +429,8 @@ def FFT_intg_2D(FX, FY, min_grid=np.array((-np.pi, -np.pi)), max_grid=np.array((
         FY = np.block([[FY],[-FY[::-1,:]]])
 
     # Calculate frequency
-    freq_1dx = np.fft.fftfreq(nbins_yx[1], grid_spacey)  #use nbins from x-dimension and grid_space from y-dimension
-    freq_1dy = np.fft.fftfreq(nbins_yx[0], grid_spacex)  #use nbins from x-dimension and grid_space from y-dimension
+    freq_1dx = np.fft.fftfreq(nbins_yx[1], grid_spacex)  
+    freq_1dy = np.fft.fftfreq(nbins_yx[0], grid_spacey)
     freq_x, freq_y = np.meshgrid(freq_1dx, freq_1dy)
     freq_hypot = np.hypot(freq_x, freq_y)
     freq_sq = np.where(freq_hypot != 0, freq_hypot ** 2, 1E-10)
@@ -625,7 +625,7 @@ def intgrad2(fx, fy, min_grid=np.array((-2, -2)), max_grid=np.array((2, 2)), per
 
     return [X, Y, fhat]
 
-def plot_recap_2D(X, Y, FES, TOTAL_DENSITY, CONVMAP, CONV_history, CONV_history_time, FES_lim=50, ofe_map_lim=50, FES_step=1, ofe_step=1):
+def plot_recap_2D(X, Y, FES, TOTAL_DENSITY, CONVMAP, CONV_history, CONV_history_time, FES_lim=50, ofe_map_lim=50, FES_step=1, ofe_step=1, error_log_scale = 1, use_weighted_st_dev=True):
     """Plots 1. FES, 2. varinace_map, 3. Cumulative biased probability density, 4. Convergece of variance.
     
     Args:
@@ -636,6 +636,7 @@ def plot_recap_2D(X, Y, FES, TOTAL_DENSITY, CONVMAP, CONV_history, CONV_history_
         CONVMAP (array of size (nbins[1], nbins[0])): varinace_map
         CONV_history (list): Convergece of variance
         CONV_history_time (list): Simulation time corresponding to CONV_history
+        error_log_scale (boolean, optional): Option to make error_conversion plot with a log scale. 1 for log scale. Defaults to 1.
 
     """
     fig, axs = plt.subplots(1, 4, figsize=(16, 3))
@@ -650,12 +651,11 @@ def plot_recap_2D(X, Y, FES, TOTAL_DENSITY, CONVMAP, CONV_history, CONV_history_
 
     cp = axs[1].contourf(X, Y, zero_to_nan(CONVMAP), levels=range(0, ofe_map_lim, ofe_step), cmap='coolwarm', antialiased=False, alpha=0.8);
     cbar = plt.colorbar(cp, ax=axs[1])
-    cbar.set_label("Standard Deviation [kJ/mol]", fontsize=11)
-    axs[1].set_ylabel('CV2', fontsize=11)
+    cbar.set_label("Standard Deviation [kJ/mol]", fontsize=11) if use_weighted_st_dev==True else cbar.set_label("Standard Error [kJ/mol]", fontsize=11)
     axs[1].set_xlabel('CV1', fontsize=11)
     axs[1].set_xlim(np.min(X),np.max(X))
     axs[1].set_ylim(np.min(Y),np.max(Y))
-    axs[1].set_title('Standard Deviation of the Mean Force', fontsize=11)
+    axs[1].set_title('Standard Deviation of the Mean Force', fontsize=11) if use_weighted_st_dev==True else axs[1].set_title('Standard Error of the Mean Force', fontsize=11)
 
     cp = axs[2].contourf(X, Y, (TOTAL_DENSITY), cmap='gray_r', antialiased=False, alpha=0.8);  #, locator=ticker.LogLocator()
     cbar = plt.colorbar(cp, ax=axs[2])
@@ -670,7 +670,8 @@ def plot_recap_2D(X, Y, FES, TOTAL_DENSITY, CONVMAP, CONV_history, CONV_history_
     axs[3].set_ylabel('Standard Deviation [kJ/mol]', fontsize=11)
     axs[3].set_xlabel('Simulation time', fontsize=11)
     axs[3].set_title('Global Convergence of Standard Deviation', fontsize=11)
- 
+    if error_log_scale == 1: axs[3].set_yscale('log')
+    
     plt.tight_layout()
 
 
@@ -685,10 +686,10 @@ def patch_2D(master_array):
         list : [FP, FP2, FX, FY, OFV_X, OFV_Y]\n
         FP(array of size (nbins[1], nbins[0])): Patched probability density\n
         FP2(array of size (nbins[1], nbins[0])): Patched (probability density squared)\n
-        FX(array of size (nbins[1], nbins[0])): Patched Froce gradient in x-direction (CV1 direction)\n
-        FY(array of size (nbins[1], nbins[0])): Patched Froce gradient in y-direction (CV2 direction)\n
-          OFV_X (array of size (nbins[1], nbins[0])): "on the fly variance"-term for the calculation of the variance of the froce gradient in x-direction (CV1 direction)\n
-          OFV_Y (array of size (nbins[1], nbins[0])): "on the fly variance"-term for the calculation of the variance of the froce gradient in y-direction (CV2 direction)
+        FX(array of size (nbins[1], nbins[0])): Patched Force gradient in x-direction (CV1 direction)\n
+        FY(array of size (nbins[1], nbins[0])): Patched Force gradient in y-direction (CV2 direction)\n
+          OFV_X (array of size (nbins[1], nbins[0])): "on the fly variance"-term for the calculation of the variance of the Force gradient in x-direction (CV1 direction)\n
+          OFV_Y (array of size (nbins[1], nbins[0])): "on the fly variance"-term for the calculation of the variance of the Force gradient in y-direction (CV2 direction)
     """
     nbins_yx = np.shape(master_array[0][0])
     FP = np.zeros(nbins_yx)
@@ -721,8 +722,8 @@ def patch_2D_simple(master_array):
     Returns:
         list : [FP, FP2, FX, FY, OFV_X, OFV_Y]\n
         FP (array of size (nbins[1], nbins[0])): Patched probability density\n
-        FX (array of size (nbins[1], nbins[0])): Patched Froce gradient in x-direction (CV1 direction)\n
-        FY (array of size (nbins[1], nbins[0])): Patched Froce gradient in y-direction (CV2 direction)
+        FX (array of size (nbins[1], nbins[0])): Patched Force gradient in x-direction (CV1 direction)\n
+        FY (array of size (nbins[1], nbins[0])): Patched Force gradient in y-direction (CV2 direction)
     """
     nbins_yx = np.shape(master_array[0][0])
     FP = np.zeros(nbins_yx)
@@ -764,7 +765,7 @@ def plot_patch_2D(X, Y, FES, TOTAL_DENSITY, lim=50):
     axs[1].set_title('Total Biased Probability Density', fontsize=11)
 
 def bootstrap_2D_new(X, Yrow , force_array, n_bootstrap, min_grid=np.array((-3, -3)), max_grid=np.array((3, 3)), periodic=np.array((0,0)), FES_cutoff=0, Ftot_den_cutoff=0, non_exploration_penalty=0):
-    """Algorithm to determine bootstrap error. Takes in a collection of force-terms and with each itteration, a random selection of force-terms will be used to calculate a FES. The average and st.dev of all FESes will be calculated.
+    """Algorithm to determine bootstrap error. Takes in a collection of force-terms and with each iteration, a random selection of force-terms will be used to calculate a FES. The average and st.dev of all FESes will be calculated.
 
     Args:
         X (array of size (nbins[1], nbins[0])): CV1 grid positions
@@ -782,7 +783,7 @@ def bootstrap_2D_new(X, Yrow , force_array, n_bootstrap, min_grid=np.array((-3, 
         list: [FES_avr, sd_fes, sd_fes_prog ]\n
         FES_avr (array of size (nbins[1], nbins[0])): Average of all FESes generated.\n
         sd_fes (array of size (nbins[1], nbins[0])): Map of standard deviation of all FESes generated.\n
-        sd_fes_prog (array of size (n_bootstrap,)): The standard deviation of all FESes generated after each itteration.
+        sd_fes_prog (array of size (n_bootstrap,)): The standard deviation of all FESes generated after each iteration.
     """
    
     #Define constants and lists
@@ -805,7 +806,7 @@ def bootstrap_2D_new(X, Yrow , force_array, n_bootstrap, min_grid=np.array((-3, 
         
         #Randomly choose forward forces and backward forces and save to force array
         random_sample_index =  np.random.choice(n_forces-1, size=n_forces)      
-        force = force_array[random_sample_index]
+        force = list(force_array[random_sample_index])
   
         #Patch forces
         [Ftot_den, Ftot_x, Ftot_y] = patch_2D_simple(force)
@@ -819,7 +820,7 @@ def bootstrap_2D_new(X, Yrow , force_array, n_bootstrap, min_grid=np.array((-3, 
         delta2 = FES - FES_avr
         M2 += delta*delta2
         if iteration > 0:
-            sd_fes = np.sqrt(M2 / (iteration))
+            sd_fes = np.sqrt(M2 / (iteration))  # Bessel correction is usually (iteration-1) but we start from 0
             if Ftot_den_cutoff > 0 or FES_cutoff > 0: sd_fes *= cutoff
             if non_exploration_penalty > 0: sd_fes = np.where(cutoff > 0.5, sd_fes, non_exploration_penalty)
             sd_fes_prog[iteration] = np.sum(sd_fes)/(nbins_yx[0]*nbins_yx[1])
@@ -831,7 +832,7 @@ def bootstrap_2D_new(X, Yrow , force_array, n_bootstrap, min_grid=np.array((-3, 
     return [FES_avr, sd_fes, sd_fes_prog]
 
 def bootstrap_2D_to_1D(force_array, n_bootstrap, kT=1, error_pace=-1, min_grid=np.array((-3, -3)), max_grid=np.array((3, 3)), periodic=np.array((0, 0)), Ftot_den_cutoff=0.1, use_weighted_st_dev=True):
-    """Algorithm to determine bootstrap error in x-dimension and the error in y-dimension using force gradients defined in x-y-dimension. Takes in a collection of force-terms and with each itteration, a random selection of force-terms will be used to calculate a FES in both x- and y-dimension. The average and st.dev of all FESes will be calculated.
+    """Algorithm to determine bootstrap error in x-dimension and the error in y-dimension using force gradients defined in x-y-dimension. Takes in a collection of force-terms and with each iteration, a random selection of force-terms will be used to calculate a FES in both x- and y-dimension. The average and st.dev of all FESes will be calculated.
 
     Args:
         force_array (list): collection of force terms (n * [Ftot_den, Ftot_x, Ftot_y])
@@ -848,10 +849,10 @@ def bootstrap_2D_to_1D(force_array, n_bootstrap, kT=1, error_pace=-1, min_grid=n
         list: [FES_x_avr, error_x, sd_fes_x_prog, FES_y_avr, error_y, sd_fes_y_prog ]\n
         FES_x_avr (array of size (nbins[1], nbins[0])): Average of all FESes generated in x-dimension.\n
         error_x (array of size (nbins[1], nbins[0])): Map of standard deviation of all FESes generated in x-dimension.\n
-        sd_fes_x_prog (array of size (n_bootstrap,)): The standard deviation of all FESes generated in x-dimension after each itteration.\n
+        sd_fes_x_prog (array of size (n_bootstrap,)): The standard deviation of all FESes generated in x-dimension after each iteration.\n
         FES_y_avr (array of size (nbins[1], nbins[0])): Average of all FESes generated in y-dimension.\n
         error_y (array of size (nbins[1], nbins[0])): Map of standard deviation of all FESes generated in y-dimension.\n
-        sd_fes_y_prog (array of size (n_bootstrap,)): The standard deviation of all FESes generated in y-dimension after each itteration.
+        sd_fes_y_prog (array of size (n_bootstrap,)): The standard deviation of all FESes generated in y-dimension after each iteration.
     """
 
     # Define constants and initailise arrays
@@ -948,7 +949,7 @@ def plot_bootstrap(X, Y, FES, sd_fes, sd_fes_prog, FES_lim=11, sd_lim=11, FES_le
         Y (array of size (nbins[1], nbins[0])): CV2 grid positions
         FES (array of size (nbins[1], nbins[0])): Free Energy Surface
         sd_fes (array of size (nbins[1], nbins[0])): Map of standard deviation of all FESes generated.
-        sd_fes_prog (list / np.array of size (bootstrap_iterations,)): Progression of the standard deviation (of all FESes generated after each bootstrap itteration).
+        sd_fes_prog (list / np.array of size (bootstrap_iterations,)): Progression of the standard deviation (of all FESes generated after each bootstrap iteration).
         FES_lim (int, optional): Upper energy limit of FES plot. Defaults to 11.
         sd_lim (int, optional): Upper variance limit of variance plot. Defaults to 11.
         FES_levels (int, optional): Amout of contour levels shown in FES plot. Default is set to None, in which case FES_levels = int(FES_lim + 1).
@@ -962,24 +963,25 @@ def plot_bootstrap(X, Y, FES, sd_fes, sd_fes_prog, FES_lim=11, sd_lim=11, FES_le
     fig, axs = plt.subplots(1, 3, figsize=(15, 4))
     cp = axs[0].contourf(X, Y, FES, levels=np.linspace(0, FES_lim, FES_levels), cmap='coolwarm', antialiased=False, alpha=0.8);
     cbar = plt.colorbar(cp, ax=axs[0])
+    cbar.set_label("Free Energy [kJ/mol]")
     axs[0].set_ylabel('CV2', fontsize=11)
     axs[0].set_xlabel('CV1', fontsize=11)
     axs[0].set_title('Average FES', fontsize=11)
 
     cp = axs[1].contourf(X, Y, sd_fes, levels=np.linspace(0, sd_lim, sd_levels), cmap='coolwarm', antialiased=False, alpha=0.8);
     cbar = plt.colorbar(cp, ax=axs[1])
-    cbar.set_label("Variance of Average FES [kJ/mol]$^2$", rotation=270)
+    cbar.set_label("Variance of Average FES [kJ/mol]$^2$")
     axs[1].set_ylabel('CV2', fontsize=11)
     axs[1].set_xlabel('CV1', fontsize=11)
     axs[1].set_title('Bootstrap Variance of FES', fontsize=11)
 
 
     axs[2].plot( range(len(sd_fes_prog)), sd_fes_prog);
-    axs[2].set_ylabel('Average Variance of Average FES [kJ/mol]$^2$', fontsize=11)
+    axs[2].set_ylabel('Average St. Dev. of Avr. FES [kJ/mol]$^2$', fontsize=11)
     axs[2].set_xlabel('Bootstrap iterations', fontsize=11)
-    axs[2].set_title('Global Convergence of Bootstrap Variance', fontsize=11)
+    axs[2].set_title('Global Convergence of Bootstrap St. Deviation', fontsize=11)
 
-    plt.rcParams["figure.figsize"] = (5,4)
+    # plt.rcParams["figure.figsize"] = (5,4)
 
 def plot_bootstrap_2D_to_1D(X, Y, FES_2D, FES_x, FES_y, error_x, error_y, FES_lim=20):
     fig = plt.figure(figsize=(8,10))

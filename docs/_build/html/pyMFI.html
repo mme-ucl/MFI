@@ -49,10 +49,8 @@
 <li class="toctree-l3"><a class="reference internal" href="#submodules">Submodules</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#module-pyMFI.MFI">pyMFI.MFI module</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#module-pyMFI.MFI1D">pyMFI.MFI1D module</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#module-pyMFI.MFI1D_temp">pyMFI.MFI1D_temp module</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#module-pyMFI.MFI_dev_x_per_x_nonper">pyMFI.MFI_dev_x_per_x_nonper module</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#module-pyMFI.langevin">pyMFI.langevin module</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#module-pyMFI.run_plumed">pyMFI.run_plumed module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#pymfi-mfi-functions-module">pyMFI.MFI_functions module</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#module-pyMFI">Module contents</a></li>
 </ul>
 </li>
@@ -121,7 +119,7 @@
 
 <dl class="py function">
 <dt class="sig sig-object py" id="pyMFI.MFI.MFI_2D">
-<span class="sig-prename descclassname"><span class="pre">pyMFI.MFI.</span></span><span class="sig-name descname"><span class="pre">MFI_2D</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">HILLS</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'HILLS'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">position_x</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'position_x'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">position_y</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'position_y'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bw</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">array([0.1,</span> <span class="pre">0.1])</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kT</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_grid</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">array([-</span> <span class="pre">3.14159265,</span> <span class="pre">-</span> <span class="pre">3.14159265])</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_grid</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">array([3.14159265,</span> <span class="pre">3.14159265])</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nbins</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">array([200,</span> <span class="pre">200])</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">error_pace</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-</span> <span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">base_terms</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">window_corners</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">[]</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">WellTempered</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nhills</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-</span> <span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">periodic</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">array([0,</span> <span class="pre">0])</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Ftot_den_limit</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1e-10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">FES_cutoff</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-</span> <span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Ftot_den_cutoff</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">non_exploration_penalty</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_weighted_st_dev</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hp_centre_x</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hp_centre_y</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hp_kappa_x</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hp_kappa_y</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lw_centre_x</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lw_centre_y</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lw_kappa_x</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lw_kappa_y</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">uw_centre_x</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">uw_centre_y</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">uw_kappa_x</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">uw_kappa_y</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">F_static_x</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">array([[0.]])</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">F_static_y</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">array([[0.]])</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyMFI.MFI.MFI_2D" title="Permalink to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">pyMFI.MFI.</span></span><span class="sig-name descname"><span class="pre">MFI_2D</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">HILLS</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'HILLS'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">position_x</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'position_x'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">position_y</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'position_y'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bw</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">array([0.1,</span> <span class="pre">0.1])</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kT</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_grid</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">array([-</span> <span class="pre">3.14159265,</span> <span class="pre">-</span> <span class="pre">3.14159265])</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_grid</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">array([3.14159265,</span> <span class="pre">3.14159265])</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nbins</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">array([200,</span> <span class="pre">200])</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">error_pace</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-</span> <span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">base_terms</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">window_corners</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">[]</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">WellTempered</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nhills</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-</span> <span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">periodic</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">array([0,</span> <span class="pre">0])</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Ftot_den_limit</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1e-10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">FES_cutoff</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-</span> <span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Ftot_den_cutoff</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">non_exploration_penalty</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_weighted_st_dev</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hp_centre_x</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hp_centre_y</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hp_kappa_x</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hp_kappa_y</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lw_centre_x</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lw_centre_y</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lw_kappa_x</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lw_kappa_y</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">uw_centre_x</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">uw_centre_y</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">uw_kappa_x</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">uw_kappa_y</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">F_static_x</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">array([[0.]])</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">F_static_y</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">array([[0.]])</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ref_fes</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">array([[0.]])</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyMFI.MFI.MFI_2D" title="Permalink to this definition"></a></dt>
 <dd><p>Compute a time-independent estimate of the Mean Thermodynamic Force, i.e. the free energy gradient in 2D CV spaces.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -157,13 +155,13 @@
 <li><p><strong>uw_centre_y</strong> (<em>float</em><em>, </em><em>optional</em>) – CV2-position of upper wall potential. Defaults to 0.0.</p></li>
 <li><p><strong>uw_kappa_x</strong> (<em>int</em><em>, </em><em>optional</em>) – CV1-force_constant of upper wall potential. Defaults to 0.</p></li>
 <li><p><strong>uw_kappa_y</strong> (<em>int</em><em>, </em><em>optional</em>) – CV2-force_constant of upper wall potential. Defaults to 0.</p></li>
+<li><p><strong>F_static</strong> (<em>array</em><em>, </em><em>optional</em>) – Option to provide a starting bias potential that remains constant through the algorithm. This could be a harmonic potential, an previously used MetaD potential or any other bias potential defined on the grid. Defaults to np.zeros((1,1)), which will automatically set F_static to a zero-array with shape=nbins.</p></li>
+<li><p><strong>compare_to_reference_FES</strong> (<em>int</em><em>, </em><em>optional</em>) – Do you wanto to compare with a reference FES (dev option). Defaults to 0.</p></li>
+<li><p><strong>ref_fes</strong> (<em>array</em><em>, </em><em>optional</em>) – Reference FES (dev options). Defaults to an array of zeros.</p></li>
 </ul>
 </dd>
-</dl>
-<p>F_static (array, optional): Option to provide a starting bias potential that remains constant through the algorithm. This could be a harmonic potential, an previously used MetaD potential or any other bias potential defined on the grid. Defaults to np.zeros((1,1)), which will automatically set F_static to a zero-array with shape=nbins.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Returns</dt>
-<dd class="field-odd"><p><p>[X, Y, Ftot_den, Ftot_x, Ftot_y, ofv, ofe, cutoff, volume_history, ofe_history, time_history, Ftot_den2, ofv_num_x, ofv_num_y]</p>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><p>[X, Y, Ftot_den, Ftot_x, Ftot_y, ofv, ofe, cutoff, volume_history, ofe_history, time_history, Ftot_den2, ofv_num_x, ofv_num_y]</p>
 <p>X (array of size (nbins[1], nbins[0])): CV1 grid positions</p>
 <p>Y (array of size (nbins[1], nbins[0])): CV2 grid positions</p>
 <p>Ftot_den (array of size (nbins[1], nbins[0])): Cumulative biased probability density, equivalent to an unbiased histogram of samples in CV space.</p>
@@ -181,15 +179,15 @@
 <p>ofv_y (array of size (nbins[1], nbins[0])): intermediate component in the calculation of the CV2 “on the fly variance” ( sum of: pb_t * dfds_y ** 2)</p>
 </p>
 </dd>
-<dt class="field-even">Return type</dt>
-<dd class="field-even"><p>list</p>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>list</p>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="pyMFI.MFI.bootstrap_2D_new">
-<span class="sig-prename descclassname"><span class="pre">pyMFI.MFI.</span></span><span class="sig-name descname"><span class="pre">bootstrap_2D_new</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">X</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force_array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_bootstrap</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_grid</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">array([-</span> <span class="pre">3,</span> <span class="pre">-</span> <span class="pre">3])</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_grid</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">array([3,</span> <span class="pre">3])</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">periodic</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">array([0,</span> <span class="pre">0])</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">FES_cutoff</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Ftot_den_cutoff</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">non_exploration_penalty</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyMFI.MFI.bootstrap_2D_new" title="Permalink to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">pyMFI.MFI.</span></span><span class="sig-name descname"><span class="pre">bootstrap_2D_new</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">X</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Yrow</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force_array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_bootstrap</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_grid</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">array([-</span> <span class="pre">3,</span> <span class="pre">-</span> <span class="pre">3])</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_grid</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">array([3,</span> <span class="pre">3])</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">periodic</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">array([0,</span> <span class="pre">0])</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">FES_cutoff</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Ftot_den_cutoff</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">non_exploration_penalty</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyMFI.MFI.bootstrap_2D_new" title="Permalink to this definition"></a></dt>
 <dd><p>Algorithm to determine bootstrap error. Takes in a collection of force-terms and with each itteration, a random selection of force-terms will be used to calculate a FES. The average and st.dev of all FESes will be calculated.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -211,6 +209,40 @@
 <p>FES_avr (array of size (nbins[1], nbins[0])): Average of all FESes generated.</p>
 <p>sd_fes (array of size (nbins[1], nbins[0])): Map of standard deviation of all FESes generated.</p>
 <p>sd_fes_prog (array of size (n_bootstrap,)): The standard deviation of all FESes generated after each itteration.</p>
+</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>list</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pyMFI.MFI.bootstrap_2D_to_1D">
+<span class="sig-prename descclassname"><span class="pre">pyMFI.MFI.</span></span><span class="sig-name descname"><span class="pre">bootstrap_2D_to_1D</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">force_array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_bootstrap</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kT</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">error_pace</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-</span> <span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_grid</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">array([-</span> <span class="pre">3,</span> <span class="pre">-</span> <span class="pre">3])</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_grid</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">array([3,</span> <span class="pre">3])</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">periodic</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">array([0,</span> <span class="pre">0])</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Ftot_den_cutoff</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_weighted_st_dev</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyMFI.MFI.bootstrap_2D_to_1D" title="Permalink to this definition"></a></dt>
+<dd><p>Algorithm to determine bootstrap error in x-dimension and the error in y-dimension using force gradients defined in x-y-dimension. Takes in a collection of force-terms and with each itteration, a random selection of force-terms will be used to calculate a FES in both x- and y-dimension. The average and st.dev of all FESes will be calculated.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>force_array</strong> (<em>list</em>) – collection of force terms (n * [Ftot_den, Ftot_x, Ftot_y])</p></li>
+<li><p><strong>n_bootstrap</strong> (<em>int</em>) – bootstrap iterations</p></li>
+<li><p><strong>kT</strong> (<em>float</em><em>, </em><em>optional</em>) – Temperature of the system.</p></li>
+<li><p><strong>error_pace</strong> (<em>int</em><em>, </em><em>optional</em>) – Pace at which the error is calculated. Pace of 10 means that the error will be calculated every 10 iterations. Pace of -1 will calculate the error a total of 100 times. Default is set to 0.</p></li>
+<li><p><strong>min_grid</strong> (<em>array</em><em>, </em><em>optional</em>) – Lower bound of the force domain. Defaults to np.array((-3, -3)).</p></li>
+<li><p><strong>max_grid</strong> (<em>array</em><em>, </em><em>optional</em>) – Upper bound of the force domain. Defaults to np.array((3, 3)).</p></li>
+<li><p><strong>periodic</strong> (<em>list</em><em> or </em><em>array of shape</em><em> (</em><em>2</em><em>,</em><em>)</em><em>)</em>) – Specifies if system is periodic. First entry sepcifies if CV1 is periodic. Second entry sepcifies if CV2 is periodic. value of 0 corresponds to non-periodic CV1. Value of 1 corresponds to periodic CV1.</p></li>
+<li><p><strong>Ftot_den_cutoff</strong> (<em>float</em><em>, </em><em>optional</em>) – Cutoff applied to error calculation for probability density (Ftot_den) values below the Ftot_den_cutoff. If the cutoff applies, the error will be set to zero, otherwise the error will stay the same. Defaults to 0.1. When Ftot_den_cutoff &lt;= 0, no cufoff is applied.</p></li>
+<li><p><strong>use_weighted_st_dev</strong> (<em>bool</em><em>, </em><em>optional</em>) – When set to True, the calculated error will be the weighted standard deviation ( var^0.5 ). When set to False, the calculated error will be the standard error ( (var/n_sample)^0.5 ). Defaults to True. (The standard devaition is expected to converge after enough time, while the standard error is expected to decrease as more datapoints are added.)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><p>[FES_x_avr, error_x, sd_fes_x_prog, FES_y_avr, error_y, sd_fes_y_prog ]</p>
+<p>FES_x_avr (array of size (nbins[1], nbins[0])): Average of all FESes generated in x-dimension.</p>
+<p>error_x (array of size (nbins[1], nbins[0])): Map of standard deviation of all FESes generated in x-dimension.</p>
+<p>sd_fes_x_prog (array of size (n_bootstrap,)): The standard deviation of all FESes generated in x-dimension after each itteration.</p>
+<p>FES_y_avr (array of size (nbins[1], nbins[0])): Average of all FESes generated in y-dimension.</p>
+<p>error_y (array of size (nbins[1], nbins[0])): Map of standard deviation of all FESes generated in y-dimension.</p>
+<p>sd_fes_y_prog (array of size (n_bootstrap,)): The standard deviation of all FESes generated in y-dimension after each itteration.</p>
 </p>
 </dd>
 <dt class="field-odd">Return type</dt>
@@ -380,6 +412,28 @@ F_wall_y</p>
 </dd>
 <dt class="field-odd">Return type</dt>
 <dd class="field-odd"><p>np.array</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pyMFI.MFI.get_cutoff_1D">
+<span class="sig-prename descclassname"><span class="pre">pyMFI.MFI.</span></span><span class="sig-name descname"><span class="pre">get_cutoff_1D</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">Ftot_den</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Ftot_den_cutoff</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">FES</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">FES_cutoff</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">23</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyMFI.MFI.get_cutoff_1D" title="Permalink to this definition"></a></dt>
+<dd><p>Finds the cutoff array according to the specifications.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>Ftot_den</strong> (<em>np.array</em><em>, </em><em>optional</em>) – If a probability density (Ftot_den) cutoff should be applied, this argument in necessary. Defaults to None.</p></li>
+<li><p><strong>Ftot_den_cutoff</strong> (<em>float</em><em>, </em><em>optional</em>) – Specifies the cutoff limit of the probability density. Values below the limit will be cut-off. Will only be applied if Ftot_den is provided. Defaults to 0.1.</p></li>
+<li><p><strong>FES</strong> (<em>np.array</em><em>, </em><em>optional</em>) – free energy surfacee. If a free energy surface (FES) cutoff should be applied, this argument in necessary. Defaults to None.</p></li>
+<li><p><strong>FES_cutoff</strong> (<em>float</em><em>, </em><em>optional</em>) – Specifies the cutoff limit of the FES. Values above the limit will be cut-off. Will only be applied if FES is provided. Defaults to 23.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>cutoff array with the shape of Ftot_den or FES. Elements that correspond to the probability density above the Ftot_den_cutoff or the FES below the FES_cutoff will be 1. Elements outside the cutoff will be 0.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>array</p>
 </dd>
 </dl>
 </dd></dl>
@@ -577,8 +631,10 @@ position_y (np.array of shape (number_of_positions,)): position (or COLVAR) data
 <p>FP2(array of size (nbins[1], nbins[0])): Patched (probability density squared)</p>
 <p>FX(array of size (nbins[1], nbins[0])): Patched Froce gradient in x-direction (CV1 direction)</p>
 <p>FY(array of size (nbins[1], nbins[0])): Patched Froce gradient in y-direction (CV2 direction)</p>
-<p>OFV_X (array of size (nbins[1], nbins[0])): “on the fly variance”-term for the calculation of the variance of the froce gradient in x-direction (CV1 direction)</p>
+<blockquote>
+<div><p>OFV_X (array of size (nbins[1], nbins[0])): “on the fly variance”-term for the calculation of the variance of the froce gradient in x-direction (CV1 direction)</p>
 <p>OFV_Y (array of size (nbins[1], nbins[0])): “on the fly variance”-term for the calculation of the variance of the froce gradient in y-direction (CV2 direction)</p>
+</div></blockquote>
 </p>
 </dd>
 <dt class="field-odd">Return type</dt>
@@ -626,7 +682,9 @@ position_y (np.array of shape (number_of_positions,)): position (or COLVAR) data
 <p>PD_patch (array of size (nbins[1], nbins[0])): Patched probability density</p>
 <p>FX_patch (array of size (nbins[1], nbins[0])): Patched Froce gradient in x-direction (CV1 direction)</p>
 <p>FY_patch (array of size (nbins[1], nbins[0])): Patched Froce gradient in y-direction (CV2 direction)</p>
-<p>OFV (array of size (nbins[1], nbins[0])): modulus of patched “on the fly variance”</p>
+<blockquote>
+<div><p>OFV (array of size (nbins[1], nbins[0])): modulus of patched “on the fly variance”</p>
+</div></blockquote>
 <p>OFE(array of size (nbins[1], nbins[0])): modulus of patched “on the fly error”</p>
 </p>
 </dd>
@@ -656,6 +714,11 @@ position_y (np.array of shape (number_of_positions,)): position (or COLVAR) data
 </dd>
 </dl>
 </dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pyMFI.MFI.plot_bootstrap_2D_to_1D">
+<span class="sig-prename descclassname"><span class="pre">pyMFI.MFI.</span></span><span class="sig-name descname"><span class="pre">plot_bootstrap_2D_to_1D</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">X</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">FES_2D</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">FES_x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">FES_y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">error_x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">error_y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">FES_lim</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyMFI.MFI.plot_bootstrap_2D_to_1D" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="pyMFI.MFI.plot_patch_2D">
@@ -784,12 +847,12 @@ position_y (np.array of shape (number_of_positions,)): position (or COLVAR) data
 <span id="pymfi-mfi1d-module"></span><h2>pyMFI.MFI1D module<a class="headerlink" href="#module-pyMFI.MFI1D" title="Permalink to this heading"></a></h2>
 <dl class="py function">
 <dt class="sig sig-object py" id="pyMFI.MFI1D.MFI_1D">
-<span class="sig-prename descclassname"><span class="pre">pyMFI.MFI1D.</span></span><span class="sig-name descname"><span class="pre">MFI_1D</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">HILLS</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'HILLS'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">position</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'position'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bw</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kT</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_grid</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-</span> <span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_grid</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nbins</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">201</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log_pace</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-</span> <span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">error_pace</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-</span> <span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">WellTempered</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nhills</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-</span> <span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">periodic</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hp_centre</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hp_kappa</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lw_centre</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lw_kappa</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">uw_centre</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">uw_kappa</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">F_static</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">array([0.])</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Ftot_den_limit</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1e-10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">FES_cutoff</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Ftot_den_cutoff</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">non_exploration_penalty</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_intermediate_fes_error_cutoff</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_weighted_st_dev</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyMFI.MFI1D.MFI_1D" title="Permalink to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">pyMFI.MFI1D.</span></span><span class="sig-name descname"><span class="pre">MFI_1D</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">HILLS</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">position</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bw</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kT</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_grid</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-</span> <span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_grid</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nbins</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">201</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log_pace</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-</span> <span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">error_pace</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-</span> <span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">WellTempered</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nhills</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-</span> <span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">periodic</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hp_centre</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hp_kappa</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lw_centre</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lw_kappa</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">uw_centre</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">uw_kappa</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">F_static</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">array([0.])</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Ftot_den_limit</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1e-10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">FES_cutoff</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Ftot_den_cutoff</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">non_exploration_penalty</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_intermediate_fes_error_cutoff</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_weighted_st_dev</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyMFI.MFI1D.MFI_1D" title="Permalink to this definition"></a></dt>
 <dd><p>Compute a time-independent estimate of the Mean Thermodynamic Force, i.e. the free energy gradient in 1D CV spaces.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>HILLS</strong> (<em>str</em>) – HILLS array. Defaults to “HILLS”.</p></li>
+<li><p><strong>HILLS</strong> (<em>array</em>) – HILLS array from HILLS file from metadynamics simulation using PLUMED. Contains number_of_hills * [time, position, metaD_width, metaD_height metaD_biasfactor].</p></li>
 <li><p><strong>position</strong> (<em>str</em>) – CV/position array. Defaults to “position”.</p></li>
 <li><p><strong>bw</strong> (<em>float</em><em>, </em><em>optional</em>) – bandwidth for the construction of the KDE estimate of the biased probability density. Defaults to 1.</p></li>
 <li><p><strong>kT</strong> (<em>float</em><em>, </em><em>optional</em>) – Boltzmann constant multiplied with temperature (reduced format, 120K -&gt; 1).</p></li>
@@ -846,13 +909,13 @@ non_exploration_penalty (float, optional): Turns zero-value error to the non_exp
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>grid</strong> (<em>array of shape</em><em> (</em><em>nbins</em><em>,</em><em>)</em>) – CV grid positions</p></li>
 <li><p><strong>force_array</strong> (<em>list</em>) – collection of force terms (n * [Ftot_den, Ftot]).</p></li>
-<li><p><strong>n_bootstrap</strong> (<em>int</em>) – bootstrap itterations</p></li>
+<li><p><strong>n_bootstrap</strong> (<em>int</em>) – bootstrap iterations</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p>Average of all FES generated during the bootstrap algorithm.
 sd_fes (array of shape (nbins,)): Standard deviation of all FES generated during the bootstrap algorithm.
-sd_fes_prog (array of shape (n_bootstrap,)): Global average of the standard deviation after each bootstrap itteration. When this array converges, enough itterations have been performed. If it does not converge, move itterations are necessary.</p>
+sd_fes_prog (array of shape (n_bootstrap,)): Global average of the standard deviation after each bootstrap iteration. When this array converges, enough iterations have been performed. If it does not converge, move iterations are necessary.</p>
 </dd>
 <dt class="field-odd">Return type</dt>
 <dd class="field-odd"><p>FES_avr (array of shape (nbins,))</p>
@@ -870,7 +933,7 @@ sd_fes_prog (array of shape (n_bootstrap,)): Global average of the standard devi
 <li><p><strong>grid</strong> (<em>array of shape</em><em> (</em><em>nbins</em><em>,</em><em>)</em>) – CV grid positions</p></li>
 <li><p><strong>forward_force</strong> (<em>list</em>) – collection of force terms (n * [Ftot_den, Ftot]) from forward transition</p></li>
 <li><p><strong>backward_force</strong> (<em>list</em>) – collection of force terms (n * [Ftot_den, Ftot]) from backward transition</p></li>
-<li><p><strong>n_bootstrap</strong> (<em>int</em>) – bootstrap itterations</p></li>
+<li><p><strong>n_bootstrap</strong> (<em>int</em>) – bootstrap iterations</p></li>
 <li><p><strong>set_fes_minima</strong> (<em>str</em><em>, </em><em>optional</em>) – USed to specify how to set the minima of the FES. When set to “first”, the first element of the fes will be set to 0, and the rest of the FES array will be shifted by the same amount. When set to None, the smalles element of the FES will be set to 0, and the rest of the FES array will be shifted by the same amount. Defauts is None.</p></li>
 </ul>
 </dd>
@@ -878,7 +941,7 @@ sd_fes_prog (array of shape (n_bootstrap,)): Global average of the standard devi
 <dd class="field-even"><p><p>[FES_avr, sd_fes, sd_fes_prog]</p>
 <p>FES_avr (array of shape (nbins,)): Average of all FES generated during the bootstrap algorithm.</p>
 <p>sd_fes (array of shape (nbins,)): Standard deviation of all FES generated during the bootstrap algorithm.</p>
-<p>sd_fes_prog (array of shape (n_bootstrap,)): Global average of the standard deviation after each bootstrap itteration. When this array converges, enough itterations have been performed. If it does not converge, move itterations are necessary.</p>
+<p>sd_fes_prog (array of shape (n_bootstrap,)): Global average of the standard deviation after each bootstrap iteration. When this array converges, enough iterations have been performed. If it does not converge, move iterations are necessary.</p>
 </p>
 </dd>
 <dt class="field-odd">Return type</dt>
@@ -1359,1000 +1422,6 @@ non_exploration_penalty (float, optional): Turns zero-value error to the non_exp
 </dd></dl>
 
 </section>
-<section id="module-pyMFI.MFI1D_temp">
-<span id="pymfi-mfi1d-temp-module"></span><h2>pyMFI.MFI1D_temp module<a class="headerlink" href="#module-pyMFI.MFI1D_temp" title="Permalink to this heading"></a></h2>
-<dl class="py function">
-<dt class="sig sig-object py" id="pyMFI.MFI1D_temp.MFI_1D">
-<span class="sig-prename descclassname"><span class="pre">pyMFI.MFI1D_temp.</span></span><span class="sig-name descname"><span class="pre">MFI_1D</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">HILLS</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'HILLS'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">position</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'position'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bw</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kT</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_grid</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-</span> <span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_grid</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nbins</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">201</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log_pace</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">error_pace</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">200</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">WellTempered</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">periodic</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hp_center</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hp_kappa</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lw_center</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lw_kappa</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">uw_center</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">uw_kappa</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">intermediate_fes_number</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyMFI.MFI1D_temp.MFI_1D" title="Permalink to this definition"></a></dt>
-<dd><p>Compute a time-independent estimate of the Mean Thermodynamic Force, i.e. the free energy gradient in 1D CV spaces.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>HILLS</strong> (<em>str</em>) – HILLS array. Defaults to “HILLS”.</p></li>
-<li><p><strong>position</strong> (<em>str</em>) – CV/position array. Defaults to “position”.</p></li>
-<li><p><strong>bw</strong> (<em>float</em><em>, </em><em>optional</em>) – bandwidth for the construction of the KDE estimate of the biased probability density. Defaults to 1.</p></li>
-<li><p><strong>kT</strong> (<em>float</em><em>, </em><em>optional</em>) – kT. Defaults to 1.</p></li>
-<li><p><strong>min_grid</strong> (<em>int</em><em>, </em><em>optional</em>) – Lower bound of the force domain. Defaults to -2.</p></li>
-<li><p><strong>max_grid</strong> (<em>int</em><em>, </em><em>optional</em>) – Upper bound of the force domain. Defaults to 2.</p></li>
-<li><p><strong>nbins</strong> (<em>int</em><em>, </em><em>optional</em>) – number of bins in grid. Defaults to 101.</p></li>
-<li><p><strong>log_pace</strong> (<em>int</em><em>, </em><em>optional</em>) – Pace for outputting progress and convergence. Defaults to 10.</p></li>
-<li><p><strong>error_pace</strong> (<em>int</em><em>, </em><em>optional</em>) – Pace for the calculation of the on-the-fly measure of global convergence. Defaults to 200.</p></li>
-<li><p><strong>WellTempered</strong> (<em>binary</em><em>, </em><em>optional</em>) – Is the simulation well tempered?. Defaults to 1.</p></li>
-<li><p><strong>periodic</strong> (<em>int</em><em>, </em><em>optional</em>) – Is the CV space periodic? 1 for yes. Defaults to 0.</p></li>
-<li><p><strong>hp_center</strong> (<em>float</em><em>, </em><em>optional</em>) – position of harmonic potential. Defaults to 0.0.</p></li>
-<li><p><strong>hp_kappa</strong> (<em>int</em><em>, </em><em>optional</em>) – force_constant of harmonic potential. Defaults to 0.</p></li>
-<li><p><strong>lw_center</strong> (<em>float</em><em>, </em><em>optional</em>) – position of lower wall potential. Defaults to 0.0.</p></li>
-<li><p><strong>lw_kappa</strong> (<em>int</em><em>, </em><em>optional</em>) – force_constant of lower wall potential. Defaults to 0.</p></li>
-<li><p><strong>uw_center</strong> (<em>float</em><em>, </em><em>optional</em>) – position of upper wall potential. Defaults to 0.0.</p></li>
-<li><p><strong>uw_kappa</strong> (<em>int</em><em>, </em><em>optional</em>) – force_constant of upper wall potential. Defaults to 0.</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>CV-array
-Ftot_den (array of size (1, nbins)): Cumulative biased probability density
-Ftot (array of size (1, nbins)): Mean Force
-ofe (array of size (1, nbins)): on the fly estimate of the variance of the mean force
-ofe_history (list of size (1, error_pace)): running estimate of the global on the fly variance of the mean force</p>
-</dd>
-<dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p>grid (array of size (1, nbins))</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="pyMFI.MFI1D_temp.MFI_1D_test">
-<span class="sig-prename descclassname"><span class="pre">pyMFI.MFI1D_temp.</span></span><span class="sig-name descname"><span class="pre">MFI_1D_test</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">HILLS</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'HILLS'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">position</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'position'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bw</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kT</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_grid</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-</span> <span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_grid</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nbins</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">201</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log_pace</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">error_pace</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">200</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">WellTempered</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nhills</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-</span> <span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">periodic</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hp_center</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hp_kappa</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lw_center</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lw_kappa</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">uw_center</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">uw_kappa</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">intermediate_fes_number</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyMFI.MFI1D_temp.MFI_1D_test" title="Permalink to this definition"></a></dt>
-<dd><p>Compute a time-independent estimate of the Mean Thermodynamic Force, i.e. the free energy gradient in 1D CV spaces.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>HILLS</strong> (<em>str</em>) – HILLS array. Defaults to “HILLS”.</p></li>
-<li><p><strong>position</strong> (<em>str</em>) – CV/position array. Defaults to “position”.</p></li>
-<li><p><strong>bw</strong> (<em>float</em><em>, </em><em>optional</em>) – bandwidth for the construction of the KDE estimate of the biased probability density. Defaults to 1.</p></li>
-<li><p><strong>kT</strong> (<em>float</em><em>, </em><em>optional</em>) – kT. Defaults to 1.</p></li>
-<li><p><strong>min_grid</strong> (<em>int</em><em>, </em><em>optional</em>) – Lower bound of the force domain. Defaults to -2.</p></li>
-<li><p><strong>max_grid</strong> (<em>int</em><em>, </em><em>optional</em>) – Upper bound of the force domain. Defaults to 2.</p></li>
-<li><p><strong>nbins</strong> (<em>int</em><em>, </em><em>optional</em>) – number of bins in grid. Defaults to 101.</p></li>
-<li><p><strong>log_pace</strong> (<em>int</em><em>, </em><em>optional</em>) – Pace for outputting progress and convergence. Defaults to 10.</p></li>
-<li><p><strong>error_pace</strong> (<em>int</em><em>, </em><em>optional</em>) – Pace for the calculation of the on-the-fly measure of global convergence. Defaults to 200.</p></li>
-<li><p><strong>WellTempered</strong> (<em>binary</em><em>, </em><em>optional</em>) – Is the simulation well tempered?. Defaults to 1.</p></li>
-<li><p><strong>periodic</strong> (<em>int</em><em>, </em><em>optional</em>) – Is the CV space periodic? 1 for yes. Defaults to 0.</p></li>
-<li><p><strong>hp_center</strong> (<em>float</em><em>, </em><em>optional</em>) – position of harmonic potential. Defaults to 0.0.</p></li>
-<li><p><strong>hp_kappa</strong> (<em>int</em><em>, </em><em>optional</em>) – force_constant of harmonic potential. Defaults to 0.</p></li>
-<li><p><strong>lw_center</strong> (<em>float</em><em>, </em><em>optional</em>) – position of lower wall potential. Defaults to 0.0.</p></li>
-<li><p><strong>lw_kappa</strong> (<em>int</em><em>, </em><em>optional</em>) – force_constant of lower wall potential. Defaults to 0.</p></li>
-<li><p><strong>uw_center</strong> (<em>float</em><em>, </em><em>optional</em>) – position of upper wall potential. Defaults to 0.0.</p></li>
-<li><p><strong>uw_kappa</strong> (<em>int</em><em>, </em><em>optional</em>) – force_constant of upper wall potential. Defaults to 0.</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>CV-array
-Ftot_den (array of size (1, nbins)): Cumulative biased probability density
-Ftot (array of size (1, nbins)): Mean Force
-ofe (array of size (1, nbins)): on the fly estimate of the variance of the mean force
-ofe_history (list of size (1, error_pace)): running estimate of the global on the fly variance of the mean force</p>
-</dd>
-<dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p>grid (array of size (1, nbins))</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="pyMFI.MFI1D_temp.bootstrap_forw_back">
-<span class="sig-prename descclassname"><span class="pre">pyMFI.MFI1D_temp.</span></span><span class="sig-name descname"><span class="pre">bootstrap_forw_back</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">grid</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">forward_force</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">backward_force</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_bootstrap</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyMFI.MFI1D_temp.bootstrap_forw_back" title="Permalink to this definition"></a></dt>
-<dd><p>Algorithm to determine bootstrap error</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>grid</strong> (<em>array</em>) – CV grid positions</p></li>
-<li><p><strong>forward_force</strong> (<em>list</em>) – collection of force terms (n * [Ftot_den, Ftot]) from forward transition</p></li>
-<li><p><strong>backward_force</strong> (<em>list</em>) – collection of force terms (n * [Ftot_den, Ftot]) from backward transition</p></li>
-<li><p><strong>n_bootstrap</strong> (<em>int</em>) – bootstrap itterations</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>[FES_avr, sd_fes, variance_prog, stdev_prog, var_fes_prog, sd_fes_prog ]</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="pyMFI.MFI1D_temp.find_hp_force">
-<span class="sig-prename descclassname"><span class="pre">pyMFI.MFI1D_temp.</span></span><span class="sig-name descname"><span class="pre">find_hp_force</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">hp_center</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hp_kappa</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grid</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_grid</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_grid</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grid_space</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">periodic</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyMFI.MFI1D_temp.find_hp_force" title="Permalink to this definition"></a></dt>
-<dd><p>Find 1D harmonic potential force.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>hp_center</strong> (<em>float</em>) – position of harmonic potential</p></li>
-<li><p><strong>hp_kappa</strong> (<em>float</em>) – force_constant of harmonic potential</p></li>
-<li><p><strong>grid</strong> (<em>array</em>) – CV grid positions</p></li>
-<li><p><strong>min_grid</strong> (<em>float</em>) – minimum value of grid</p></li>
-<li><p><strong>max_grid</strong> (<em>float</em>) – maximum value of grid</p></li>
-<li><p><strong>grid_space</strong> (<em>float</em>) – space between two consecutive grid values</p></li>
-<li><p><strong>periodic</strong> (<em>binary</em>) – information if system is periodic. value of 0 corresponds to non-periodic system. Value of 1 corresponds to periodic system.</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>harmonic force array</p>
-</dd>
-<dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p>array</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="pyMFI.MFI1D_temp.find_lw_force">
-<span class="sig-prename descclassname"><span class="pre">pyMFI.MFI1D_temp.</span></span><span class="sig-name descname"><span class="pre">find_lw_force</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lw_center</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lw_kappa</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grid</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_grid</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_grid</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grid_space</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">periodic</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyMFI.MFI1D_temp.find_lw_force" title="Permalink to this definition"></a></dt>
-<dd><p>_summary_</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>lw_center</strong> (<em>float</em>) – position of lower wall potential</p></li>
-<li><p><strong>lw_kappa</strong> (<em>float</em>) – force_constant of lower wall potential</p></li>
-<li><p><strong>grid</strong> (<em>array</em>) – CV grid positions</p></li>
-<li><p><strong>min_grid</strong> (<em>float</em>) – minimum value of grid</p></li>
-<li><p><strong>max_grid</strong> (<em>float</em>) – maximum value of grid</p></li>
-<li><p><strong>grid_space</strong> (<em>float</em>) – space between two consecutive grid values</p></li>
-<li><p><strong>periodic</strong> (<em>binary</em>) – information if system is periodic. value of 0 corresponds to non-periodic system. Value of 1 corresponds to periodic system.</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>lower wall force array</p>
-</dd>
-<dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p>array</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="pyMFI.MFI1D_temp.find_periodic_point">
-<span class="sig-prename descclassname"><span class="pre">pyMFI.MFI1D_temp.</span></span><span class="sig-name descname"><span class="pre">find_periodic_point</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x_coord</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_grid</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_grid</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">periodic</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyMFI.MFI1D_temp.find_periodic_point" title="Permalink to this definition"></a></dt>
-<dd><p>Finds periodic copies of input coordinate.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>x_coord</strong> (<em>float</em>) – CV-coordinate</p></li>
-<li><p><strong>min_grid</strong> (<em>float</em>) – minimum value of grid</p></li>
-<li><p><strong>max_grid</strong> (<em>float</em>) – maximum value of grid</p></li>
-<li><p><strong>periodic</strong> (<em>binary</em>) – information if system is periodic. value of 0 corresponds to non-periodic system; function will only return input coordinates. Value of 1 corresponds to periodic system; function will return input coordinates with periodic copies.</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>list of input coord and possibly periodic copies</p>
-</dd>
-<dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p>list</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="pyMFI.MFI1D_temp.find_uw_force">
-<span class="sig-prename descclassname"><span class="pre">pyMFI.MFI1D_temp.</span></span><span class="sig-name descname"><span class="pre">find_uw_force</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">uw_center</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">uw_kappa</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grid</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_grid</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_grid</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grid_space</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">periodic</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyMFI.MFI1D_temp.find_uw_force" title="Permalink to this definition"></a></dt>
-<dd><p>_summary_</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>uw_center</strong> (<em>float</em>) – position of upper wall potential</p></li>
-<li><p><strong>uw_kappa</strong> (<em>float</em>) – force_constant of upper wall potential</p></li>
-<li><p><strong>grid</strong> (<em>_type_</em>) – CV grid positions</p></li>
-<li><p><strong>min_grid</strong> (<em>float</em>) – minimum value of grid</p></li>
-<li><p><strong>max_grid</strong> (<em>float</em>) – maximum value of grid</p></li>
-<li><p><strong>grid_space</strong> (<em>float</em>) – space between two consecutive grid values</p></li>
-<li><p><strong>periodic</strong> (<em>binary</em>) – information if system is periodic. value of 0 corresponds to non-periodic system. Value of 1 corresponds to periodic system.</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>upper wall force array</p>
-</dd>
-<dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p>array</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="pyMFI.MFI1D_temp.index">
-<span class="sig-prename descclassname"><span class="pre">pyMFI.MFI1D_temp.</span></span><span class="sig-name descname"><span class="pre">index</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">position</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_grid</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grid_space</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyMFI.MFI1D_temp.index" title="Permalink to this definition"></a></dt>
-<dd><p>Finds (approximate) index of a position in a grid. Independent of CV-type.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>position</strong> (<em>float</em>) – position of interest</p></li>
-<li><p><strong>min_grid</strong> (<em>float</em>) – minimum value of grid</p></li>
-<li><p><strong>grid_space</strong> (<em>float</em>) – grid spacing</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>index of position</p>
-</dd>
-<dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p>int</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="pyMFI.MFI1D_temp.intg_1D">
-<span class="sig-prename descclassname"><span class="pre">pyMFI.MFI1D_temp.</span></span><span class="sig-name descname"><span class="pre">intg_1D</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">F</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyMFI.MFI1D_temp.intg_1D" title="Permalink to this definition"></a></dt>
-<dd><p>Integration of 1D gradient using finite difference method (simpson’s method).</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>x</strong> (<em>array</em>) – grid</p></li>
-<li><p><strong>F</strong> (<em>array</em>) – Mean force</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>Free energy surface</p>
-</dd>
-<dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p>FES (array)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="pyMFI.MFI1D_temp.load_HILLS">
-<span class="sig-prename descclassname"><span class="pre">pyMFI.MFI1D_temp.</span></span><span class="sig-name descname"><span class="pre">load_HILLS</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">hills_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'HILLS'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyMFI.MFI1D_temp.load_HILLS" title="Permalink to this definition"></a></dt>
-<dd><p>Load 1-dimensional hills data (includes time, position_x, position_y, hills_parameters</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>hills_name</strong> (<em>str</em><em>, </em><em>optional</em>) – Name of hills file. Defaults to “HILLS”.</p>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>Array with hills data</p>
-</dd>
-<dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p>np.array</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="pyMFI.MFI1D_temp.load_npy">
-<span class="sig-prename descclassname"><span class="pre">pyMFI.MFI1D_temp.</span></span><span class="sig-name descname"><span class="pre">load_npy</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyMFI.MFI1D_temp.load_npy" title="Permalink to this definition"></a></dt>
-<dd><p>Loads np.array of a file with .npy format</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>name</strong> (<em>string</em>) – Name of file</p>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>object to be loaded. Must be a numpy array.</p>
-</dd>
-<dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p>np.array</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="pyMFI.MFI1D_temp.load_pkl">
-<span class="sig-prename descclassname"><span class="pre">pyMFI.MFI1D_temp.</span></span><span class="sig-name descname"><span class="pre">load_pkl</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyMFI.MFI1D_temp.load_pkl" title="Permalink to this definition"></a></dt>
-<dd><p>Loads list/array of a file with .pkl format</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>name</strong> (<em>string</em>) – Name of file</p>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>object to be loaded</p>
-</dd>
-<dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p>any</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="pyMFI.MFI1D_temp.load_position">
-<span class="sig-prename descclassname"><span class="pre">pyMFI.MFI1D_temp.</span></span><span class="sig-name descname"><span class="pre">load_position</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">position_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'position'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyMFI.MFI1D_temp.load_position" title="Permalink to this definition"></a></dt>
-<dd><p>Load 1-dimensional position/trajectory data.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>position_name</strong> (<em>str</em><em>, </em><em>optional</em>) – Name of position file. Defaults to “position”.</p>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>np.array with position data</p>
-</dd>
-<dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p>position (list)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="pyMFI.MFI1D_temp.patch_forces">
-<span class="sig-prename descclassname"><span class="pre">pyMFI.MFI1D_temp.</span></span><span class="sig-name descname"><span class="pre">patch_forces</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">force_vector</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyMFI.MFI1D_temp.patch_forces" title="Permalink to this definition"></a></dt>
-<dd><p>Takes in a collection of force and probability density and patches them.
-:param force_vector: collection of force terms (n * [Ftot_den, Ftot])
-:type force_vector: list</p>
-<dl class="field-list simple">
-<dt class="field-odd">Returns</dt>
-<dd class="field-odd"><p>Patched probability density and mean forces (list) -&gt; ([Ftot_den, Ftot])</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="pyMFI.MFI1D_temp.plot_recap">
-<span class="sig-prename descclassname"><span class="pre">pyMFI.MFI1D_temp.</span></span><span class="sig-name descname"><span class="pre">plot_recap</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">X</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">FES</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">TOTAL_DENSITY</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">CONVMAP</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">CONV_history</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lim</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">40</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyMFI.MFI1D_temp.plot_recap" title="Permalink to this definition"></a></dt>
-<dd><p>Plot result of 1D MFI algorithm. 1. FES, 2. varinace_map, 3. Cumulative biased probability density, 4. Convergece of variance.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>X</strong> (<em>array</em>) – gird</p></li>
-<li><p><strong>FES</strong> (<em>array</em>) – Free energy surface</p></li>
-<li><p><strong>TOTAL_DENSITY</strong> (<em>array</em>) – _description_</p></li>
-<li><p><strong>CONVMAP</strong> (<em>array</em>) – Cumulative biased probability density</p></li>
-<li><p><strong>CONV_history</strong> (<em>list</em>) – on the fly estimate of the local convergence</p></li>
-<li><p><strong>lim</strong> (<em>int</em><em>, </em><em>optional</em>) – Upper energy value in FES plot. Defaults to 40.</p></li>
-</ul>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="pyMFI.MFI1D_temp.save_npy">
-<span class="sig-prename descclassname"><span class="pre">pyMFI.MFI1D_temp.</span></span><span class="sig-name descname"><span class="pre">save_npy</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">object</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">file_name</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyMFI.MFI1D_temp.save_npy" title="Permalink to this definition"></a></dt>
-<dd><p>Saves np.array in a file with .npy format</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>object</strong> (<em>np.array</em>) – object to be saved. Must be a numpy array.</p></li>
-<li><p><strong>file_name</strong> (<em>string</em>) – Name of file</p></li>
-</ul>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="pyMFI.MFI1D_temp.save_pkl">
-<span class="sig-prename descclassname"><span class="pre">pyMFI.MFI1D_temp.</span></span><span class="sig-name descname"><span class="pre">save_pkl</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">object</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">file_name</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyMFI.MFI1D_temp.save_pkl" title="Permalink to this definition"></a></dt>
-<dd><p>Saves a list/array in a file with .pkl format</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>object</strong> (<em>any</em>) – object to be saved</p></li>
-<li><p><strong>file_name</strong> (<em>string</em>) – Name of file</p></li>
-</ul>
-</dd>
-</dl>
-</dd></dl>
-
-</section>
-<section id="module-pyMFI.MFI_dev_x_per_x_nonper">
-<span id="pymfi-mfi-dev-x-per-x-nonper-module"></span><h2>pyMFI.MFI_dev_x_per_x_nonper module<a class="headerlink" href="#module-pyMFI.MFI_dev_x_per_x_nonper" title="Permalink to this heading"></a></h2>
-<dl class="py function">
-<dt class="sig sig-object py" id="pyMFI.MFI_dev_x_per_x_nonper.FFT_intg_2D">
-<span class="sig-prename descclassname"><span class="pre">pyMFI.MFI_dev_x_per_x_nonper.</span></span><span class="sig-name descname"><span class="pre">FFT_intg_2D</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">FX</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">FY</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_grid</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">array([-</span> <span class="pre">3.14159265,</span> <span class="pre">-</span> <span class="pre">3.14159265])</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_grid</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">array([3.14159265,</span> <span class="pre">3.14159265])</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nbins</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">periodic_x</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">periodic_y</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyMFI.MFI_dev_x_per_x_nonper.FFT_intg_2D" title="Permalink to this definition"></a></dt>
-<dd><p>2D integration of force gradient (FX, FY) to find FES using Fast Fourier Transform.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>FX</strong> (<em>array of size</em><em> (</em><em>nbins</em><em>[</em><em>0</em><em>]</em><em>, </em><em>nbins</em><em>[</em><em>1</em><em>]</em><em>)</em>) – CV1 component of the Mean Force.</p></li>
-<li><p><strong>FY</strong> (<em>array of size</em><em> (</em><em>nbins</em><em>[</em><em>0</em><em>]</em><em>, </em><em>nbins</em><em>[</em><em>1</em><em>]</em><em>)</em>) – CV1 component of the Mean Force.</p></li>
-<li><p><strong>min_grid</strong> (<em>array</em><em>, </em><em>optional</em>) – Lower bound of the simulation domain. Defaults to np.array((-np.pi, -np.pi)).</p></li>
-<li><p><strong>min_grid</strong> – Upper bound of the simulation domain. Defaults to np.array((np.pi, np.pi)).</p></li>
-<li><p><strong>nbins</strong> (<em>int</em><em>, </em><em>optional</em>) – number of bins in CV2,CV1. Defaults to 0. When nbins=0, nbins will take the shape of FX.</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>array of size (nbins[0], nbins[1]) - CV1 meshgrid positions
-Y: array of size (nbins[0], nbins[1]) - CV2 meshgrid positions
-fes: array of size (nbins[0], nbins[1]) - Free Energy Surface</p>
-</dd>
-<dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p>X</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="pyMFI.MFI_dev_x_per_x_nonper.MFI_2D">
-<span class="sig-prename descclassname"><span class="pre">pyMFI.MFI_dev_x_per_x_nonper.</span></span><span class="sig-name descname"><span class="pre">MFI_2D</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">HILLS</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'HILLS'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">position_x</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'position_x'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">position_y</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'position_y'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bw_x</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bw_y</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kT</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_grid</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">array([-</span> <span class="pre">3.14159265,</span> <span class="pre">-</span> <span class="pre">3.14159265])</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_grid</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">array([3.14159265,</span> <span class="pre">3.14159265])</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nbins</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">array([200,</span> <span class="pre">200])</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log_pace</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-</span> <span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">error_pace</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-</span> <span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">base_terms</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">window_corners</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">[]</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">WellTempered</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nhills</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-</span> <span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">periodic_x</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">periodic_y</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">FES_cutoff</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-</span> <span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Ftot_den_limit</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1e-10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Ftot_den_cutoff</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_weighted_st_dev</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hp_centre_x</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hp_centre_y</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hp_kappa_x</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hp_kappa_y</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lw_centre_x</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lw_centre_y</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lw_kappa_x</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lw_kappa_y</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">uw_centre_x</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">uw_centre_y</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">uw_kappa_x</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">uw_kappa_y</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">F_static_x</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">array([[0.,</span> <span class="pre">0.,</span> <span class="pre">0.,</span> <span class="pre">...,</span> <span class="pre">0.,</span> <span class="pre">0.,</span> <span class="pre">0.],</span> <span class="pre">[0.,</span> <span class="pre">0.,</span> <span class="pre">0.,</span> <span class="pre">...,</span> <span class="pre">0.,</span> <span class="pre">0.,</span> <span class="pre">0.],</span> <span class="pre">[0.,</span> <span class="pre">0.,</span> <span class="pre">0.,</span> <span class="pre">...,</span> <span class="pre">0.,</span> <span class="pre">0.,</span> <span class="pre">0.],</span> <span class="pre">...,</span> <span class="pre">[0.,</span> <span class="pre">0.,</span> <span class="pre">0.,</span> <span class="pre">...,</span> <span class="pre">0.,</span> <span class="pre">0.,</span> <span class="pre">0.],</span> <span class="pre">[0.,</span> <span class="pre">0.,</span> <span class="pre">0.,</span> <span class="pre">...,</span> <span class="pre">0.,</span> <span class="pre">0.,</span> <span class="pre">0.],</span> <span class="pre">[0.,</span> <span class="pre">0.,</span> <span class="pre">0.,</span> <span class="pre">...,</span> <span class="pre">0.,</span> <span class="pre">0.,</span> <span class="pre">0.]])</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">F_static_y</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">array([[0.,</span> <span class="pre">0.,</span> <span class="pre">0.,</span> <span class="pre">...,</span> <span class="pre">0.,</span> <span class="pre">0.,</span> <span class="pre">0.],</span> <span class="pre">[0.,</span> <span class="pre">0.,</span> <span class="pre">0.,</span> <span class="pre">...,</span> <span class="pre">0.,</span> <span class="pre">0.,</span> <span class="pre">0.],</span> <span class="pre">[0.,</span> <span class="pre">0.,</span> <span class="pre">0.,</span> <span class="pre">...,</span> <span class="pre">0.,</span> <span class="pre">0.,</span> <span class="pre">0.],</span> <span class="pre">...,</span> <span class="pre">[0.,</span> <span class="pre">0.,</span> <span class="pre">0.,</span> <span class="pre">...,</span> <span class="pre">0.,</span> <span class="pre">0.,</span> <span class="pre">0.],</span> <span class="pre">[0.,</span> <span class="pre">0.,</span> <span class="pre">0.,</span> <span class="pre">...,</span> <span class="pre">0.,</span> <span class="pre">0.,</span> <span class="pre">0.],</span> <span class="pre">[0.,</span> <span class="pre">0.,</span> <span class="pre">0.,</span> <span class="pre">...,</span> <span class="pre">0.,</span> <span class="pre">0.,</span> <span class="pre">0.]])</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyMFI.MFI_dev_x_per_x_nonper.MFI_2D" title="Permalink to this definition"></a></dt>
-<dd><p>Compute a time-independent estimate of the Mean Thermodynamic Force, i.e. the free energy gradient in 2D CV spaces.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>HILLS</strong> (<em>str</em>) – HILLS array. Defaults to “HILLS”.</p></li>
-<li><p><strong>position_x</strong> (<em>str</em>) – CV1 array. Defaults to “position_x”.</p></li>
-<li><p><strong>position_y</strong> (<em>str</em>) – CV2 array. Defaults to “position_y”.</p></li>
-<li><p><strong>bw</strong> (<em>int</em><em>, </em><em>optional</em>) – Scalar, bandwidth for the construction of the KDE estimate of the biased probability density. Defaults to 1.</p></li>
-<li><p><strong>kT</strong> (<em>int</em><em>, </em><em>optional</em>) – Scalar, kT. Defaults to 1.</p></li>
-<li><p><strong>min_grid</strong> (<em>array</em><em>, </em><em>optional</em>) – Lower bound of the force domain. Defaults to np.array((-np.pi, -np.pi)).</p></li>
-<li><p><strong>max_grid</strong> (<em>array</em><em>, </em><em>optional</em>) – Upper bound of the force domain. Defaults to np.array((np.pi, np.pi)).</p></li>
-<li><p><strong>nbins</strong> (<em>array</em><em>, </em><em>optional</em>) – number of bins in CV1,CV2. Defaults to np.array((200,200)).</p></li>
-<li><p><strong>error_pace</strong> (<em>int</em><em>, </em><em>optional</em>) – Pace for the calculation of the on-the-fly measure of global convergence. Defaults to 1, change it to a higher value if FES_cutoff&gt;0 is used.</p></li>
-<li><p><strong>base_terms</strong> (<em>int</em><em> or </em><em>list</em><em>, </em><em>optional</em>) – When set to 0, inactive. When activated, “on the fly” variance is calculated as a patch to base (previous) simulation. To activate, put force terms of base simulation ([Ftot_den, Ftot_den2, Ftot_x, Ftot_y, ofv_x, ofv_y]). Defaults to 0.</p></li>
-<li><p><strong>window_corners</strong> (<em>list</em><em>, </em><em>optional</em>) – When set to [], inactive. When activated, error is ALSO calculated for mean force in the window. To activate, put the min and max values of the window ([min_x, max_x, min_y, max_y]). Defaults to [].</p></li>
-<li><p><strong>WellTempered</strong> (<em>binary</em><em>, </em><em>optional</em>) – Is the simulation well tempered? . Defaults to 1.</p></li>
-<li><p><strong>nhills</strong> (<em>int</em><em>, </em><em>optional</em>) – Number of HILLS to analyse, -1 for the entire HILLS array. Defaults to -1, i.e. the entire dataset.</p></li>
-<li><p><strong>periodic</strong> (<em>int</em><em>, </em><em>optional</em>) – Is the CV space periodic? 1 for yes. Defaults to 0.</p></li>
-<li><p><strong>FES_cutoff</strong> (<em>float</em><em>, </em><em>optional</em>) – Cutoff applied to FES and error calculation for FES values over the FES_cutoff. Defaults to -1. When FES_cutoff = 0, no cufoff is applied. Use with care, computing the fes in the loop renders the calculation extremely slow.</p></li>
-<li><p><strong>FFT_integration</strong> (<em>binary</em><em>, </em><em>optional</em>) – Specifies if integration method. If set to 1, it will be done with the Fast Fourier Transform (FFT) algorithm. FFT integration is a fast integration algorithms, especially for higher dimensions, however it requires a sqmetric system. When set to 0, a finite difference integration algorithm will be used. Default is set to 0.</p></li>
-<li><p><strong>Ftot_den_limit</strong> (<em>float</em><em>, </em><em>optional</em>) – Probability density limit below which data will be set to zero (this is done for numerical stability reasons. For default Ftot_den_limit, numerical difference is negligable). Defaults to 1E-10.</p></li>
-<li><p><strong>Ftot_den_cutoff</strong> (<em>int</em><em>, </em><em>optional</em>) – Cutoff applied to FES and error calculation for Ftot_den (Probability density) values below the Ftot_den_cutoff. All FES values that are excluded by the cutoff won’t contribuite towards the error. Useful when low probability density values have little statistical significance or no physical meaning. When Ftot_den_cutoff = 0, no cufoff is applied. Defaults to 0.</p></li>
-<li><p><strong>hp_centre_x</strong> (<em>float</em><em>, </em><em>optional</em>) – CV1-position of harmonic potential. Defaults to 0.0.</p></li>
-<li><p><strong>hp_centre_y</strong> (<em>float</em><em>, </em><em>optional</em>) – CV2-position of harmonic potential. Defaults to 0.0.</p></li>
-<li><p><strong>hp_kappa_x</strong> (<em>int</em><em>, </em><em>optional</em>) – CV1-force_constant of harmonic potential. Defaults to 0.</p></li>
-<li><p><strong>hp_kappa_y</strong> (<em>int</em><em>, </em><em>optional</em>) – CV2-force_constant of harmonic potential. Defaults to 0.</p></li>
-<li><p><strong>lw_centre_x</strong> (<em>float</em><em>, </em><em>optional</em>) – CV1-position of lower wall potential. Defaults to 0.0.</p></li>
-<li><p><strong>lw_centre_y</strong> (<em>float</em><em>, </em><em>optional</em>) – CV2-position of lower wall potential. Defaults to 0.0.</p></li>
-<li><p><strong>lw_kappa_x</strong> (<em>int</em><em>, </em><em>optional</em>) – CV1-force_constant of lower wall potential. Defaults to 0.</p></li>
-<li><p><strong>lw_kappa_y</strong> (<em>int</em><em>, </em><em>optional</em>) – CV2-force_constant of lower wall potential. Defaults to 0.</p></li>
-<li><p><strong>uw_centre_x</strong> (<em>float</em><em>, </em><em>optional</em>) – CV1-position of upper wall potential. Defaults to 0.0.</p></li>
-<li><p><strong>uw_centre_y</strong> (<em>float</em><em>, </em><em>optional</em>) – CV2-position of upper wall potential. Defaults to 0.0.</p></li>
-<li><p><strong>uw_kappa_x</strong> (<em>int</em><em>, </em><em>optional</em>) – CV1-force_constant of upper wall potential. Defaults to 0.</p></li>
-<li><p><strong>uw_kappa_y</strong> (<em>int</em><em>, </em><em>optional</em>) – CV2-force_constant of upper wall potential. Defaults to 0.</p></li>
-</ul>
-</dd>
-</dl>
-<p>F_static_x (array, optional): Option to provide a starting bias potential force in the CV1-direction that remains constant through the algorithm. This could be a harmonic potential, an previously used MetaD potential or any other bias potential defined on the grid. Defaults to np.zeros((123,96)), which will automatically set F_static to a zero-array with shape=(123,96).
-F_static_y (array, optional): Option to provide a starting bias potential force in the CV2-direction that remains constant through the algorithm. This could be a harmonic potential, an previously used MetaD potential or any other bias potential defined on the grid. Defaults to np.zeros((123,96)), which will automatically set F_static to a zero-array with shape=(123,96).
-use_weighted_st_dev (bool, optional): When set to True, the calculated error will be the weighted standard deviation ( var^0.5 ). When set to False, the calculated error will be the standard error ( (var/n_sample)^0.5 ). Defaults to True. (The standard devaition is expected to converge after enough time, while the standard error is expected to decrease as more datapoints are added.)</p>
-<dl class="field-list simple">
-<dt class="field-odd">Returns</dt>
-<dd class="field-odd"><p>array of size (nbins[0], nbins[1]) - CV1 grid positions
-Y: array of size (nbins[0], nbins[1]) - CV2 grid positions
-Ftot_den: array of size (nbins[0], nbins[1]) - Cumulative biased probability density, equivalent to an unbiased histogram of samples in CV space.
-Ftot_x:  array of size (nbins[0], nbins[1]) - CV1 component of the Mean Force.
-Ftot_y:  array of size (nbins[0], nbins[1]) - CV2 component of the Mean Force.
-ofe:  array of size (nbins[0], nbins[1]) - on the fly estimate of the local convergence
-ofe_history: array of size (1, total_number_of_hills) - running estimate of the global convergence of the mean force.
-(option with window corner activated: ofe_history_window: array of size (1, total_number_of_hills) - running estimate of the “window” convergence of the mean force.)
-ofe_history_time: array of size (1, total_number_of_hills) - time array of ofe_history
-Ftot_den2: array of size (nbins[0], nbins[1]) - Cumulative squared biased probability density
-ofv_x: array of size (nbins[0], nbins[1]) - intermediate component in the calculation of the CV1 “on the fly variance” ( sum of: pb_t * dfds_x ** 2)
-ofv_y: array of size (nbins[0], nbins[1]) - intermediate component in the calculation of the CV2 “on the fly variance” ( sum of: pb_t * dfds_y ** 2)</p>
-</dd>
-<dt class="field-even">Return type</dt>
-<dd class="field-even"><p>X</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="pyMFI.MFI_dev_x_per_x_nonper.bootstrap_2D_new">
-<span class="sig-prename descclassname"><span class="pre">pyMFI.MFI_dev_x_per_x_nonper.</span></span><span class="sig-name descname"><span class="pre">bootstrap_2D_new</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">X</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force_array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_bootstrap</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">FES_cutoff</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">periodic</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log_pace</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyMFI.MFI_dev_x_per_x_nonper.bootstrap_2D_new" title="Permalink to this definition"></a></dt>
-<dd><p>Algorithm to determine bootstrap error of FES. Takes in a list of force terms, and with each bootstrap itteration random force terms are picked, patched together and the FES is determinded. Over the itterations, the a standard deviation map and the averaged st.dev. is computed. When all iterations are completed, the average of all FESs, the final averaged st.dev. map and the progression of the averaged st.dev. is returned.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>X</strong> – array of size (nbins[0], nbins[1]): CV1 grid positions</p></li>
-<li><p><strong>Y</strong> – array of size (nbins[0], nbins[1]): CV2 grid positions</p></li>
-<li><p><strong>forces_all</strong> (<em>list</em>) – collection of force terms (n * [Ftot_den, Ftot_x, Ftot_y])</p></li>
-<li><p><strong>n_bootstrap</strong> (<em>int</em>) – bootstrap iterations</p></li>
-<li><p><strong>FES_cutoff</strong> (<em>float</em>) – Only st.dev. values that correspond to a FES value below the FES_cutoff will be considered, while the others will just be turned to zero. Default FES_cutoff is 0, and no cutoff is applied.</p></li>
-<li><p><strong>periodic</strong> (<em>bool</em>) – Will specify if the system is periodic (periodic=1) or non-periodic (periodic=0). This is relevant to choose the appropiate integration method. Default is set to zero (non-periodic).</p></li>
-<li><p><strong>log_pace</strong> (<em>int</em>) – Specifies the pace at which the average st.dev is printed. With a value of 100, st.dev is printed is printed every 100 iterations. With a value of 0, st.dev is printed is only printed at the end. With a value of -1, it will be printed 5 times in total. Default is set to 0.</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>array of size (nbins[0], nbins[1]) - Average of all FES calculated. The minima will be set automatically to zero.
-sd_fes: array of size (nbins[0], nbins[1]) - Standard deviation map of all FES generated.
-sd_fes_prog: array of size (n_bootstrap,) - Array of the average st.dev. calculated at each iteration.</p>
-</dd>
-<dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p>FES_avr</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="pyMFI.MFI_dev_x_per_x_nonper.find_hp_force">
-<span class="sig-prename descclassname"><span class="pre">pyMFI.MFI_dev_x_per_x_nonper.</span></span><span class="sig-name descname"><span class="pre">find_hp_force</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">hp_centre_x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hp_centre_y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hp_kappa_x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hp_kappa_y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">X</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_grid</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_grid</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grid_space</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">periodic_x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">periodic_y</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyMFI.MFI_dev_x_per_x_nonper.find_hp_force" title="Permalink to this definition"></a></dt>
-<dd><p>Find 2D harmonic potential force.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>hp_centre_x</strong> (<em>float</em>) – CV1-position of harmonic potential</p></li>
-<li><p><strong>hp_centre_y</strong> (<em>float</em>) – CV2-position of harmonic potential</p></li>
-<li><p><strong>hp_kappa_x</strong> (<em>float</em>) – CV1-force_constant of harmonic potential</p></li>
-<li><p><strong>hp_kappa_y</strong> (<em>float</em>) – CV2-force_constant of harmonic potential</p></li>
-<li><p><strong>X</strong> (<em>array</em>) – 2D array of CV1 grid positions</p></li>
-<li><p><strong>Y</strong> (<em>array</em>) – 2D array of CV2 grid positions</p></li>
-<li><p><strong>min_grid</strong> (<em>list</em>) – list of CV1-minimum value of grid and CV2-minimum value of grid</p></li>
-<li><p><strong>max_grid</strong> (<em>list</em>) – list of CV1-maximum value of grid and CV2-maximum value of grid</p></li>
-<li><p><strong>grid_space</strong> (<em>list</em>) – list of CV1-grid spacing and CV2-grid spacing</p></li>
-<li><p><strong>periodic</strong> (<em>binary</em>) – information if system is periodic. value of 0 corresponds to non-periodic system. Value of 1 corresponds to periodic system.</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>harmonic force in CV1 direction.
-F_harmonic_y (array): harmonic force in CV2 direction.</p>
-</dd>
-<dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p>F_harmonic_x (array)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="pyMFI.MFI_dev_x_per_x_nonper.find_lw_force">
-<span class="sig-prename descclassname"><span class="pre">pyMFI.MFI_dev_x_per_x_nonper.</span></span><span class="sig-name descname"><span class="pre">find_lw_force</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lw_centre_x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lw_centre_y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lw_kappa_x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lw_kappa_y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">X</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_grid</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_grid</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grid_space</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">periodic_x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">periodic_y</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyMFI.MFI_dev_x_per_x_nonper.find_lw_force" title="Permalink to this definition"></a></dt>
-<dd><p>Find lower half of 2D harmonic potential force equivalent to f = 2 * lw_kappa * (grid - lw_centre) for grid &lt; lw_centre and f = 0 otherwise. This can change for periodic cases.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>lw_centre_x</strong> (<em>float</em>) – CV1-position of lower wall potential</p></li>
-<li><p><strong>lw_centre_y</strong> (<em>float</em>) – CV2-position of lower wall potential</p></li>
-<li><p><strong>lw_kappa_x</strong> (<em>float</em>) – CV1-force_constant of lower wall potential</p></li>
-<li><p><strong>lw_kappa_y</strong> (<em>float</em>) – CV2-force_constant of lower wall potential</p></li>
-<li><p><strong>X</strong> (<em>array</em>) – 2D array of CV1 grid positions</p></li>
-<li><p><strong>Y</strong> (<em>array</em>) – 2D array of CV2 grid positions</p></li>
-<li><p><strong>min_grid</strong> (<em>list</em>) – list of CV1-minimum value of grid and CV2-minimum value of grid</p></li>
-<li><p><strong>max_grid</strong> (<em>list</em>) – list of CV1-maximum value of grid and CV2-maximum value of grid</p></li>
-<li><p><strong>grid_space</strong> (<em>list</em>) – list of CV1-grid spacing and CV2-grid spacing</p></li>
-<li><p><strong>periodic</strong> (<em>binary</em>) – information if system is periodic. value of 0 corresponds to non-periodic system. Value of 1 corresponds to periodic system.</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>lower wall potential force in CV1 direction.
-F_wall_y (array): lower wall potential force in CV2 direction.</p>
-</dd>
-<dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p>F_wall_x (array)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="pyMFI.MFI_dev_x_per_x_nonper.find_periodic_point">
-<span class="sig-prename descclassname"><span class="pre">pyMFI.MFI_dev_x_per_x_nonper.</span></span><span class="sig-name descname"><span class="pre">find_periodic_point</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x_coord</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y_coord</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_grid</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_grid</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">periodic_x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">periodic_y</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyMFI.MFI_dev_x_per_x_nonper.find_periodic_point" title="Permalink to this definition"></a></dt>
-<dd><p>Finds periodic copies of input coordinates. First checks if systems is periodic. If not, returns input coordinate array. Next, it checks if each coordinate is within the boundary range (grid min/max +/- grid_ext). If it is, periodic copies will be made on the other side of the CV-domain.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>x_coord</strong> (<em>float</em>) – CV1-coordinate</p></li>
-<li><p><strong>y_coord</strong> (<em>float</em>) – CV2-coordinate</p></li>
-<li><p><strong>min_grid</strong> (<em>list</em>) – list of CV1-minimum value of grid and CV2-minimum value of grid</p></li>
-<li><p><strong>max_grid</strong> (<em>list</em>) – list of CV1-maximum value of grid and CV2-maximum value of grid</p></li>
-<li><p><strong>periodic_x</strong> (<em>binary</em>) – Specifies if CV1 is periodic. value of 0 corresponds to non-periodic CV1; function will only return input coordinates. Value of 1 corresponds to periodic CV1; function will return input coordinates with periodic copies if appilcable.</p></li>
-<li><p><strong>periodic_y</strong> (<em>binary</em>) – Specifies if CV2 is periodic. value of 0 corresponds to non-periodic CV2; function will only return input coordinates. Value of 1 corresponds to periodic CV2; function will return input coordinates with periodic copies if appilcable.</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>list of [x-coord, y-coord] pairs</p>
-</dd>
-<dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p>list</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="pyMFI.MFI_dev_x_per_x_nonper.find_uw_force">
-<span class="sig-prename descclassname"><span class="pre">pyMFI.MFI_dev_x_per_x_nonper.</span></span><span class="sig-name descname"><span class="pre">find_uw_force</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">uw_centre_x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">uw_centre_y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">uw_kappa_x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">uw_kappa_y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">X</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_grid</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_grid</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grid_space</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">periodic_x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">periodic_y</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyMFI.MFI_dev_x_per_x_nonper.find_uw_force" title="Permalink to this definition"></a></dt>
-<dd><p>Find upper half of 2D harmonic potential force equivalent to f = 2 * uw_kappa * (grid - uw_centre) for grid &gt; uw_centre and f = 0 otherwise. This can change for periodic cases.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>lw_centre_x</strong> (<em>float</em>) – CV1-position of upper wall potential</p></li>
-<li><p><strong>lw_centre_y</strong> (<em>float</em>) – CV2-position of upper wall potential</p></li>
-<li><p><strong>lw_kappa_x</strong> (<em>float</em>) – CV1-force_constant of upper wall potential</p></li>
-<li><p><strong>lw_kappa_y</strong> (<em>float</em>) – CV2-force_constant of upper wall potential</p></li>
-<li><p><strong>X</strong> (<em>array</em>) – 2D array of CV1 grid positions</p></li>
-<li><p><strong>Y</strong> (<em>array</em>) – 2D array of CV2 grid positions</p></li>
-<li><p><strong>min_grid</strong> (<em>list</em>) – list of CV1-minimum value of grid and CV2-minimum value of grid</p></li>
-<li><p><strong>max_grid</strong> (<em>list</em>) – list of CV1-maximum value of grid and CV2-maximum value of grid</p></li>
-<li><p><strong>grid_space</strong> (<em>list</em>) – list of CV1-grid spacing and CV2-grid spacing</p></li>
-<li><p><strong>periodic</strong> (<em>binary</em>) – information if system is periodic. value of 0 corresponds to non-periodic system. Value of 1 corresponds to periodic system.</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>upper wall potential force in CV1 direction.
-F_wall_y (array): upper wall potential force in CV2 direction.</p>
-</dd>
-<dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p>F_wall_x (array)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="pyMFI.MFI_dev_x_per_x_nonper.index">
-<span class="sig-prename descclassname"><span class="pre">pyMFI.MFI_dev_x_per_x_nonper.</span></span><span class="sig-name descname"><span class="pre">index</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">position</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_grid</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grid_space</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyMFI.MFI_dev_x_per_x_nonper.index" title="Permalink to this definition"></a></dt>
-<dd><p>Finds (approximate) index of a position in a grid. Independent of CV-type.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>position</strong> (<em>float</em>) – position of interest</p></li>
-<li><p><strong>min_grid</strong> (<em>float</em>) – minimum value of grid</p></li>
-<li><p><strong>grid_space</strong> (<em>float</em>) – grid spacing</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>index of position</p>
-</dd>
-<dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p>int</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="pyMFI.MFI_dev_x_per_x_nonper.intg_2D">
-<span class="sig-prename descclassname"><span class="pre">pyMFI.MFI_dev_x_per_x_nonper.</span></span><span class="sig-name descname"><span class="pre">intg_2D</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">FX</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">FY</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_grid</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">array([-</span> <span class="pre">3.14159265,</span> <span class="pre">-</span> <span class="pre">3.14159265])</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_grid</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">array([3.14159265,</span> <span class="pre">3.14159265])</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nbins</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">array([200,</span> <span class="pre">200])</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyMFI.MFI_dev_x_per_x_nonper.intg_2D" title="Permalink to this definition"></a></dt>
-<dd><p>2D integration of force gradient (FX, FY) to find FES using finite difference method.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>FX</strong> (<em>array of size</em><em> (</em><em>nbins</em><em>[</em><em>0</em><em>]</em><em>, </em><em>nbins</em><em>[</em><em>1</em><em>]</em><em>)</em>) – CV1 component of the Mean Force.</p></li>
-<li><p><strong>FY</strong> (<em>array of size</em><em> (</em><em>nbins</em><em>[</em><em>0</em><em>]</em><em>, </em><em>nbins</em><em>[</em><em>1</em><em>]</em><em>)</em>) – CV2 component of the Mean Force.</p></li>
-<li><p><strong>min_grid</strong> (<em>array</em><em>, </em><em>optional</em>) – Lower bound of the simulation domain. Defaults to np.array((-np.pi, -np.pi)).</p></li>
-<li><p><strong>min_grid</strong> – Upper bound of the simulation domain. Defaults to np.array((np.pi, np.pi)).</p></li>
-<li><p><strong>nbins</strong> (<em>array of shape</em><em> (</em><em>2</em><em>,</em><em>)</em><em>, </em><em>optional</em>) – number of bins in CV1,CV2. Defaults to np.array((200,200)).</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>array of size (nbins[0], nbins[1]) - CV1 grid positions
-Y: array of size (nbins[0], nbins[1]) - CV2 grid positions
-fes: array of size (nbins[0], nbins[1]) - Free Energy Surface</p>
-</dd>
-<dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p>X</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="pyMFI.MFI_dev_x_per_x_nonper.intg_FD8">
-<span class="sig-prename descclassname"><span class="pre">pyMFI.MFI_dev_x_per_x_nonper.</span></span><span class="sig-name descname"><span class="pre">intg_FD8</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">FX</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">FY</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_grid</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">array([0,</span> <span class="pre">0])</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_grid</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">array([3,</span> <span class="pre">3])</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nbins</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">array([201,</span> <span class="pre">201])</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyMFI.MFI_dev_x_per_x_nonper.intg_FD8" title="Permalink to this definition"></a></dt>
-<dd><p>Alternative integrtion method. More comoputational intense finite difference method. Might be usefull when other methods don’t seem to work.
-This method is doing 8 finite difference integrations, where each of the 8 is taking a different integration path. All 8 integrals are averaged into the final integral.</p>
-<blockquote>
-<div><dl class="simple">
-<dt>Args:</dt><dd><p>FX (array of size (nbins[0], nbins[1])): CV1 component of the Mean Force.
-FY (array of size (nbins[0], nbins[1])): CV2 component of the Mean Force.
-min_grid (array, optional): Lower bound of the simulation domain. Defaults to np.array((0, 0)).
-min_grid (array, optional): Upper bound of the simulation domain. Defaults to np.array((3, 3)).
-nbins (int, optional): number of bins in CV1,CV2. Defaults to np.array((200,200)).</p>
-</dd>
-<dt>Returns:</dt><dd><p>X: array of size (nbins[0], nbins[1]) - CV1 grid positions
-Y: array of size (nbins[0], nbins[1]) - CV2 grid positions
-FES_a: array of size (nbins[0], nbins[1]) - (Average) Free Energy Surface</p>
-</dd>
-</dl>
-</div></blockquote>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="pyMFI.MFI_dev_x_per_x_nonper.intgrad2">
-<span class="sig-prename descclassname"><span class="pre">pyMFI.MFI_dev_x_per_x_nonper.</span></span><span class="sig-name descname"><span class="pre">intgrad2</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fy</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nx</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ny</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">intconst</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">per1</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">per2</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_grid</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">array([-</span> <span class="pre">2,</span> <span class="pre">-</span> <span class="pre">2])</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_grid</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">array([2,</span> <span class="pre">2])</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nbins</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyMFI.MFI_dev_x_per_x_nonper.intgrad2" title="Permalink to this definition"></a></dt>
-<dd><p>This function uses the inverse of the gradient to reconstruct the free energy surface from the mean force components.
-[John D’Errico (2022). Inverse (integrated) gradient (<a class="reference external" href="https://www.mathworks.com/matlabcentral/fileexchange/9734-inverse-integrated-gradient">https://www.mathworks.com/matlabcentral/fileexchange/9734-inverse-integrated-gradient</a>), MATLAB Central File Exchange. Retrieved May 17, 2022.]
-[Translated from MatLab to Python by Francesco Serse (<a class="reference external" href="https://github.com/Fserse">https://github.com/Fserse</a>)]</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>fx</strong> (<em>array</em>) – (ny by nx) array. X-gradient to be integrated.</p></li>
-<li><p><strong>fy</strong> (<em>array</em>) – (ny by nx) array. X-gradient to be integrated.</p></li>
-<li><p><strong>nx</strong> (<em>integer</em>) – nuber of datapoints in x-direction. Default to 0: will copy the shape of the input gradient.</p></li>
-<li><p><strong>ny</strong> (<em>integer</em>) – nuber of datapoints in y-direction. Default to 0: will copy the shape of the input gradient.</p></li>
-<li><p><strong>intconst</strong> (<em>float</em>) – Minimum value of output FES</p></li>
-<li><p><strong>per1</strong> (<em>boolean</em>) – True if x-variable is periodic. False if non-periodic.</p></li>
-<li><p><strong>per2</strong> (<em>boolean</em>) – True if y-variable is periodic. False if non-periodic</p></li>
-<li><p><strong>min_grid</strong> (<em>list/array of length=2</em>) – list/array of minimum value of [x-grid, y-grid]</p></li>
-<li><p><strong>max_grid</strong> (<em>list/array of length=2</em>) – list/array of maximum value of [x-grid, y-grid]</p></li>
-<li><p><strong>nbins</strong> (<em>list/array of length=2</em>) – list/array of number of data pointis of [x-grid, y-grid]. Default to 0: will copy the shape of the input gradient.</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>X-component of meshgrid
-Y (ny by nx array): Y-component of meshgrid
-fhat (ny by nx array): integrated free energy surface</p>
-</dd>
-<dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p>X (ny by nx array)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="pyMFI.MFI_dev_x_per_x_nonper.load_HILLS_2D">
-<span class="sig-prename descclassname"><span class="pre">pyMFI.MFI_dev_x_per_x_nonper.</span></span><span class="sig-name descname"><span class="pre">load_HILLS_2D</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">hills_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'HILLS'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyMFI.MFI_dev_x_per_x_nonper.load_HILLS_2D" title="Permalink to this definition"></a></dt>
-<dd><p>Load 2-dimensional hills data (includes time, position_x, position_y, hills_parameters ).</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>hills_name</strong> (<em>str</em><em>, </em><em>optional</em>) – Name of hills file. Defaults to “HILLS”.</p>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>Array with hills data</p>
-</dd>
-<dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p>np.array</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="pyMFI.MFI_dev_x_per_x_nonper.load_npy">
-<span class="sig-prename descclassname"><span class="pre">pyMFI.MFI_dev_x_per_x_nonper.</span></span><span class="sig-name descname"><span class="pre">load_npy</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyMFI.MFI_dev_x_per_x_nonper.load_npy" title="Permalink to this definition"></a></dt>
-<dd><p>Loads np.array of a file with .npy format</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>name</strong> (<em>string</em>) – Name of file</p>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>object to be loaded. Must be a numpy array.</p>
-</dd>
-<dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p>np.array</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="pyMFI.MFI_dev_x_per_x_nonper.load_pkl">
-<span class="sig-prename descclassname"><span class="pre">pyMFI.MFI_dev_x_per_x_nonper.</span></span><span class="sig-name descname"><span class="pre">load_pkl</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyMFI.MFI_dev_x_per_x_nonper.load_pkl" title="Permalink to this definition"></a></dt>
-<dd><p>Loads list/array of a file with .pkl format</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>name</strong> (<em>string</em>) – Name of file</p>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>object to be loaded</p>
-</dd>
-<dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p>any</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="pyMFI.MFI_dev_x_per_x_nonper.load_position_2D">
-<span class="sig-prename descclassname"><span class="pre">pyMFI.MFI_dev_x_per_x_nonper.</span></span><span class="sig-name descname"><span class="pre">load_position_2D</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">position_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'position'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyMFI.MFI_dev_x_per_x_nonper.load_position_2D" title="Permalink to this definition"></a></dt>
-<dd><p>Load 2-dimensional position/trajectory data.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>position_name</strong> (<em>str</em><em>, </em><em>optional</em>) – Name of position file. Defaults to “position”.</p>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>2 * np.array with position data of each dimension ([position_x, position_y])</p>
-</dd>
-<dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p>list</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="pyMFI.MFI_dev_x_per_x_nonper.mean_force_variance">
-<span class="sig-prename descclassname"><span class="pre">pyMFI.MFI_dev_x_per_x_nonper.</span></span><span class="sig-name descname"><span class="pre">mean_force_variance</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">Ftot_den</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Ftot_den2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Ftot_x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Ftot_y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ofv_num_x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ofv_num_y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_weighted_st_dev</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyMFI.MFI_dev_x_per_x_nonper.mean_force_variance" title="Permalink to this definition"></a></dt>
-<dd><p>Calculates the weighted variance of the mean force and the weighted standard devaition of the mean force. First calculates the variance and st.dev. of the force in CV1 space and CV2 space seperately, then computes the modulus of the two.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>Ftot_den</strong> (<em>array of size</em><em> (</em><em>nbins</em><em>[</em><em>0</em><em>]</em><em>, </em><em>nbins</em><em>[</em><em>1</em><em>]</em><em>)</em>) – Cumulative biased probability density</p></li>
-<li><p><strong>25Ftot_den2</strong> (<em>array of size</em><em> (</em><em>nbins</em><em>[</em><em>0</em><em>]</em><em>, </em><em>nbins</em><em>[</em><em>1</em><em>]</em><em>)</em>) – Cumulative squared biased probability density</p></li>
-<li><p><strong>Ftot_x</strong> (<em>array of size</em><em> (</em><em>nbins</em><em>[</em><em>0</em><em>]</em><em>, </em><em>nbins</em><em>[</em><em>1</em><em>]</em><em>)</em>) – CV1 component of the Mean Force.</p></li>
-<li><p><strong>Ftot_y</strong> (<em>array of size</em><em> (</em><em>nbins</em><em>[</em><em>0</em><em>]</em><em>, </em><em>nbins</em><em>[</em><em>1</em><em>]</em><em>)</em>) – CV2 component of the Mean Force.</p></li>
-<li><p><strong>ofv_num_x</strong> (<em>array of size</em><em> (</em><em>nbins</em><em>[</em><em>0</em><em>]</em><em>, </em><em>nbins</em><em>[</em><em>1</em><em>]</em><em>)</em>) – intermediate component in the calculation of the CV1 “on the fly variance” ( sum of: pb_t * dfds_x ** 2)</p></li>
-<li><p><strong>ofv_num_y</strong> (<em>array of size</em><em> (</em><em>nbins</em><em>[</em><em>0</em><em>]</em><em>, </em><em>nbins</em><em>[</em><em>1</em><em>]</em><em>)</em>) – intermediate component in the calculation of the CV2 “on the fly variance” ( sum of: pb_t * dfds_y ** 2)</p></li>
-<li><p><strong>Ftot_den_limit</strong> (<em>scalar</em>) – threshold in the cumulative biased probability density where data is discarded. Defaults to 0.</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>“on-the-fly” variance. Modulus of “on-the-fly variance” in CV1 space and CV2 space.
-ofe (array of size (nbins[0], nbins[1])): “on-the-fly” error (standard devaition). Modulus of “on-the-fly variance” in CV1 space and CV2 space.</p>
-</dd>
-<dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p>ofv (array of size (nbins[0], nbins[1]))</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="pyMFI.MFI_dev_x_per_x_nonper.patch_2D">
-<span class="sig-prename descclassname"><span class="pre">pyMFI.MFI_dev_x_per_x_nonper.</span></span><span class="sig-name descname"><span class="pre">patch_2D</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">master_array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nbins</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">array([200,</span> <span class="pre">200])</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyMFI.MFI_dev_x_per_x_nonper.patch_2D" title="Permalink to this definition"></a></dt>
-<dd><p>Takes in a collection of force terms and patches them togehter to return the patched force terms</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>master_array</strong> (<em>list</em>) – collection of force terms (n * [Ftot_den, Ftot_den2, Ftot_x, Ftot_y, ofv_x, ofv_y])</p></li>
-<li><p><strong>nbins</strong> (<em>array</em><em>, </em><em>optional</em>) – number of bins in CV1,CV2. Defaults to np.array((200,200)).</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>Patched force terms (list) -&gt; ([Ftot_den, Ftot_den2, Ftot_x, Ftot_y, ofv_x, ofv_y])</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="pyMFI.MFI_dev_x_per_x_nonper.patch_2D_simple">
-<span class="sig-prename descclassname"><span class="pre">pyMFI.MFI_dev_x_per_x_nonper.</span></span><span class="sig-name descname"><span class="pre">patch_2D_simple</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">master_array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nbins</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">array([200,</span> <span class="pre">200])</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyMFI.MFI_dev_x_per_x_nonper.patch_2D_simple" title="Permalink to this definition"></a></dt>
-<dd><p>Takes in a collection of force and patches only the probability density and mean forces</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>master_array</strong> (<em>list</em>) – collection of force terms (n * [X, Y, Ftot_den, Ftot_x, Ftot_y])</p></li>
-<li><p><strong>nbins</strong> (<em>array</em><em>, </em><em>optional</em>) – number of bins in CV1,CV2. Defaults to np.array((200,200)).</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>Patched probability density and mean forces (list) -&gt; ([Ftot_den, Ftot_x, Ftot_y])</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="pyMFI.MFI_dev_x_per_x_nonper.patch_to_base_variance">
-<span class="sig-prename descclassname"><span class="pre">pyMFI.MFI_dev_x_per_x_nonper.</span></span><span class="sig-name descname"><span class="pre">patch_to_base_variance</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">master0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">master</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Ftot_den_limit</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1e-10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_weighted_st_dev</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyMFI.MFI_dev_x_per_x_nonper.patch_to_base_variance" title="Permalink to this definition"></a></dt>
-<dd><p>Patches force terms of a base simulation (alaysed prior to current simulation) with current simulation to return patched “on the fly variance”.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>master0</strong> (<em>list</em>) – Force terms of base simulation (alaysed prior to current simulation) [Ftot_den, Ftot_den2, Ftot_x, Ftot_y, ofv_num_x, ofv_num_y]</p></li>
-<li><p><strong>master</strong> (<em>list</em>) – Force terms of current simulation [Ftot_den, Ftot_den2, Ftot_x, Ftot_y, ofv_num_x, ofv_num_y]</p></li>
-<li><p><strong>Ftot_den_limit</strong> (<em>float</em>) – Truncates the probability density below Ftot_den_limit. Default set to 1E-10.</p></li>
-</ul>
-</dd>
-</dl>
-<p>use_weighted_st_dev (bool, optional): When set to True, the calculated error will be the weighted standard deviation ( var^0.5 ). When set to False, the calculated error will be the standard error ( (var/n_sample)^0.5 ). Defaults to True. (The standard devaition is expected to converge after enough time, while the standard error is expected to decrease as more datapoints are added.)</p>
-<dl class="field-list simple">
-<dt class="field-odd">Returns</dt>
-<dd class="field-odd"><p>modulus of patched “on the fly variance”</p>
-</dd>
-<dt class="field-even">Return type</dt>
-<dd class="field-even"><p>OFV (array of size (nbins[0], nbins[1]))</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="pyMFI.MFI_dev_x_per_x_nonper.plot_bootstrap">
-<span class="sig-prename descclassname"><span class="pre">pyMFI.MFI_dev_x_per_x_nonper.</span></span><span class="sig-name descname"><span class="pre">plot_bootstrap</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">X</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">FES</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sd_fes</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sd_fes_prog</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">FES_lim</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">11</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ofe_lim</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">11</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">FES_step</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ofe_step</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyMFI.MFI_dev_x_per_x_nonper.plot_bootstrap" title="Permalink to this definition"></a></dt>
-<dd><p>Plots result of bootstrap analysis. 1. Average FES, 2. average varinace, 3. variance progression</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>X</strong> – array of size (nbins[0], nbins[1]) - CV1 grid positions</p></li>
-<li><p><strong>Y</strong> – array of size (nbins[0], nbins[1]) - CV2 grid positions</p></li>
-<li><p><strong>FES</strong> – array of size (nbins[0], nbins[1]) - Free Energy Surface</p></li>
-<li><p><strong>var_fes</strong> (<em>array of size</em><em> (</em><em>nbins</em><em>[</em><em>0</em><em>]</em><em>, </em><em>nbins</em><em>[</em><em>1</em><em>]</em><em>)</em>) – _description_</p></li>
-<li><p><strong>var_fes_prog</strong> (<em>list</em>) – _description_</p></li>
-<li><p><strong>FES_lim</strong> (<em>int</em><em>, </em><em>optional</em>) – Upper energy limit of FES plot. Defaults to 11.</p></li>
-<li><p><strong>ofe_map_lim</strong> (<em>int</em><em>, </em><em>optional</em>) – Upper variance limit of variance plot. Defaults to 11.</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>(Plot)</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="pyMFI.MFI_dev_x_per_x_nonper.plot_patch_2D">
-<span class="sig-prename descclassname"><span class="pre">pyMFI.MFI_dev_x_per_x_nonper.</span></span><span class="sig-name descname"><span class="pre">plot_patch_2D</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">X</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">FES</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">TOTAL_DENSITY</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lim</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">50</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyMFI.MFI_dev_x_per_x_nonper.plot_patch_2D" title="Permalink to this definition"></a></dt>
-<dd><p>Plots 1. FES, 2. Cumulative biased probability density</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>X</strong> – array of size (nbins[0], nbins[1]) - CV1 grid positions</p></li>
-<li><p><strong>Y</strong> – array of size (nbins[0], nbins[1]) - CV2 grid positions</p></li>
-<li><p><strong>FES</strong> – array of size (nbins[0], nbins[1]) - Free Energy Surface</p></li>
-<li><p><strong>TOTAL_DENSITY</strong> – array of size (nbins[0], nbins[1]) - Cumulative biased probability density</p></li>
-</ul>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="pyMFI.MFI_dev_x_per_x_nonper.plot_recap_2D">
-<span class="sig-prename descclassname"><span class="pre">pyMFI.MFI_dev_x_per_x_nonper.</span></span><span class="sig-name descname"><span class="pre">plot_recap_2D</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">X</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">FES</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">TOTAL_DENSITY</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">CONVMAP</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">CONV_history</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">CONV_history_time</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">FES_lim</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">50</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ofe_map_lim</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">50</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">FES_step</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ofe_step</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyMFI.MFI_dev_x_per_x_nonper.plot_recap_2D" title="Permalink to this definition"></a></dt>
-<dd><p>Plots 1. FES, 2. varinace_map, 3. Cumulative biased probability density, 4. Convergece of variance.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>X</strong> – array of size (nbins[0], nbins[1]) - CV1 grid positions</p></li>
-<li><p><strong>Y</strong> – array of size (nbins[0], nbins[1]) - CV2 grid positions</p></li>
-<li><p><strong>FES</strong> – array of size (nbins[0], nbins[1]) - Free Energy Surface</p></li>
-<li><p><strong>TOTAL_DENSITY</strong> – array of size (nbins[0], nbins[1]) - Cumulative biased probability density</p></li>
-<li><p><strong>CONVMAP</strong> (<em>array of size</em><em> (</em><em>nbins</em><em>[</em><em>0</em><em>]</em><em>, </em><em>nbins</em><em>[</em><em>1</em><em>]</em><em>)</em>) – varinace_map</p></li>
-<li><p><strong>CONV_history</strong> (<em>list</em>) – Convergece of variance</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>FES.
-Plot 2: Error Map.
-Plot 3: Probability density map.
-Plot 4: Error progression for measure of convergence.</p>
-</dd>
-<dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p>Plot 1</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="pyMFI.MFI_dev_x_per_x_nonper.reduce_to_window">
-<span class="sig-prename descclassname"><span class="pre">pyMFI.MFI_dev_x_per_x_nonper.</span></span><span class="sig-name descname"><span class="pre">reduce_to_window</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_grid</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grid_space</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">x_min</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-</span> <span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">x_max</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y_min</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-</span> <span class="pre">1.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y_max</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.5</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyMFI.MFI_dev_x_per_x_nonper.reduce_to_window" title="Permalink to this definition"></a></dt>
-<dd><p>Reduces an 2D input array to a specified range (or a window of the CV).</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>input_array</strong> (<em>array</em>) – 2D array to be reduced</p></li>
-<li><p><strong>min_grid</strong> (<em>list</em>) – list of CV1-minimum value of grid and CV2-minimum value of grid</p></li>
-<li><p><strong>grid_space</strong> (<em>list</em>) – list of CV1-grid spacing and CV2-grid spacing</p></li>
-<li><p><strong>x_min</strong> (<em>float</em><em>, </em><em>optional</em>) – lower CV1-value of output array. Defaults to -0.5.</p></li>
-<li><p><strong>x_max</strong> (<em>float</em><em>, </em><em>optional</em>) – upper CV1-value of output array. Defaults to 0.5.</p></li>
-<li><p><strong>y_min</strong> (<em>float</em><em>, </em><em>optional</em>) – lower CV2-value of output array. Defaults to -1.5.</p></li>
-<li><p><strong>y_max</strong> (<em>float</em><em>, </em><em>optional</em>) – upper CV2-value of output array. Defaults to 1.5.</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>reduced array</p>
-</dd>
-<dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p>array</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="pyMFI.MFI_dev_x_per_x_nonper.save_npy">
-<span class="sig-prename descclassname"><span class="pre">pyMFI.MFI_dev_x_per_x_nonper.</span></span><span class="sig-name descname"><span class="pre">save_npy</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">object</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">file_name</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyMFI.MFI_dev_x_per_x_nonper.save_npy" title="Permalink to this definition"></a></dt>
-<dd><p>Saves np.array in a file with .npy format</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>object</strong> (<em>np.array</em>) – object to be saved. Must be a numpy array.</p></li>
-<li><p><strong>file_name</strong> (<em>string</em>) – Name of file</p></li>
-</ul>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="pyMFI.MFI_dev_x_per_x_nonper.save_pkl">
-<span class="sig-prename descclassname"><span class="pre">pyMFI.MFI_dev_x_per_x_nonper.</span></span><span class="sig-name descname"><span class="pre">save_pkl</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">object</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">file_name</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyMFI.MFI_dev_x_per_x_nonper.save_pkl" title="Permalink to this definition"></a></dt>
-<dd><p>Saves a list/array in a file with .pkl format</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>object</strong> (<em>any</em>) – object to be saved</p></li>
-<li><p><strong>file_name</strong> (<em>string</em>) – Name of file</p></li>
-</ul>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="pyMFI.MFI_dev_x_per_x_nonper.zero_to_nan">
-<span class="sig-prename descclassname"><span class="pre">pyMFI.MFI_dev_x_per_x_nonper.</span></span><span class="sig-name descname"><span class="pre">zero_to_nan</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_array</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyMFI.MFI_dev_x_per_x_nonper.zero_to_nan" title="Permalink to this definition"></a></dt>
-<dd><p>Ruturns an array identical to the input array, but with all zero-values turned to np.nan. This could be useful for plotting arrays, where np.nan values won’t be shown.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>input_array</strong> (<em>array</em><em> or </em><em>list</em><em> (</em><em>flexible shape</em><em>)</em>) – This can be anything from FES to error map</p>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>zero-values turned to np.nan</p>
-</dd>
-<dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p>output_array (array with identical shape to input array)</p>
-</dd>
-</dl>
-</dd></dl>
-
-</section>
-<section id="module-pyMFI.langevin">
-<span id="pymfi-langevin-module"></span><h2>pyMFI.langevin module<a class="headerlink" href="#module-pyMFI.langevin" title="Permalink to this heading"></a></h2>
-<dl class="py function">
-<dt class="sig sig-object py" id="pyMFI.langevin.run_2D">
-<span class="sig-prename descclassname"><span class="pre">pyMFI.langevin.</span></span><span class="sig-name descname"><span class="pre">run_2D</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pace</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">100</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nsteps</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">100000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sigma</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">height</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">biasfactor</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ipos</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">array([-</span> <span class="pre">1,</span> <span class="pre">-</span> <span class="pre">1])</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tag</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyMFI.langevin.run_2D" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="pyMFI.langevin.run_2D_Invernizzi">
-<span class="sig-prename descclassname"><span class="pre">pyMFI.langevin.</span></span><span class="sig-name descname"><span class="pre">run_2D_Invernizzi</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pace</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">200</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nsteps</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">100000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sigma</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">height</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">biasfactor</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ipos</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">array([-</span> <span class="pre">1,</span> <span class="pre">-</span> <span class="pre">1])</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tag</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyMFI.langevin.run_2D_Invernizzi" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-</section>
 <section id="module-pyMFI.run_plumed">
 <span id="pymfi-run-plumed-module"></span><h2>pyMFI.run_plumed module<a class="headerlink" href="#module-pyMFI.run_plumed" title="Permalink to this heading"></a></h2>
 <dl class="py function">
@@ -2494,7 +1563,7 @@ Requires traj_comp.xtc file or similar (trajecory file of a simulation that alre
 
 <dl class="py function">
 <dt class="sig sig-object py" id="pyMFI.run_plumed.run_langevin1D">
-<span class="sig-prename descclassname"><span class="pre">pyMFI.run_plumed.</span></span><span class="sig-name descname"><span class="pre">run_langevin1D</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">simulation_steps</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">analytical_function</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'7*x^4-23*x^2'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">periodic</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'NO'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">initial_position</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">temperature</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time_step</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.005</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grid_min</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-</span> <span class="pre">3.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grid_max</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grid_bin</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">200</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gaus_width</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gaus_height</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">biasfactor</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gaus_pace</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">100</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">position_pace</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hp_centre</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hp_kappa</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lw_centre</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lw_kappa</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">uw_centre</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">uw_kappa</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">external_bias_file</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">''</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyMFI.run_plumed.run_langevin1D" title="Permalink to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">pyMFI.run_plumed.</span></span><span class="sig-name descname"><span class="pre">run_langevin1D</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">simulation_steps</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">analytical_function</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'7*x^4-23*x^2'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">periodic</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'NO'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">initial_position</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">temperature</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time_step</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.005</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grid_min</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-</span> <span class="pre">3.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grid_max</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grid_bin</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">200</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gaus_width</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gaus_height</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">biasfactor</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gaus_pace</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">100</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">position_pace</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hp_centre</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hp_kappa</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lw_centre</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lw_kappa</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">uw_centre</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">uw_kappa</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">external_bias_file</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start_sim</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pyMFI.run_plumed.run_langevin1D" title="Permalink to this definition"></a></dt>
 <dd><p>Function to run a langevin simulation in 1 dimension. Default analytical potential: y = 7*x^4-23*x^2.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -2589,6 +1658,9 @@ Requires traj_comp.xtc file or similar (trajecory file of a simulation that alre
 </dl>
 </dd></dl>
 
+</section>
+<section id="pymfi-mfi-functions-module">
+<h2>pyMFI.MFI_functions module<a class="headerlink" href="#pymfi-mfi-functions-module" title="Permalink to this heading"></a></h2>
 </section>
 <section id="module-pyMFI">
 <span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-pyMFI" title="Permalink to this heading"></a></h2>

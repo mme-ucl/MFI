@@ -1,13 +1,8 @@
-title                    = Alanine dipeptide in vacuum
-;Preprocessor
-cpp                      = /lib/cpp
-;Directories to include in the topology format
-;include                 = -I../top
+;title                    = Alanine dipeptide in vacuum
 ;Run control: A leap-frog algorithm for integrating Newton's equations. 
 integrator               = md
-;Total simulation time: 100 ps
-:time step in femtoseconds 
-dt                       = 0.002
+;time step in femtoseconds (was 0.002. now higher -> expensive)
+dt                       = 0.001
 ;number of steps
 nsteps                   = 20000000
 ;frequency to write coordinates to output trajectory file
@@ -19,28 +14,27 @@ nstlog                   = 100
 ;frequency to write energies to energy file
 nstenergy                = 100
 ;frequency to write coordinates to xtc trajectory 
-nstxtcout                = 100
+nstxout-compressed	  = 100
 ;group(s) to write to xtc trajectory
-xtc_grps                 = System
+compressed-x-grps        = System
 ;group(s) to write to energy file 
 energygrps               = Protein
 ;Frequency to update the neighbor list (and the long-range forces, 
 ;when using twin-range cut-off's). 
 nstlist                  = 10
-;Make a grid in the box and only check atoms in neighboring grid cells 
-;when constructing a new neighbor list every nstlist steps. 
-ns_type                  = grid
-;cut-off distance for the short-range neighbor list
-;treatment of electrostatic interactions
-coulombtype = cutoff
-;treatment of van der waals interactions
+;treatment of electrostatic interactions: cut-off distance for the short-range neighbor list
+coulombtype = PME
+;cutoff (option: increase to 1.4 for lower PME load. Helps with parallel processing)
 rvdw = 1.2
 rlist = 1.2
 rcoulomb = 1.2 
-cutoff-scheme=group
-comm-mode=Angular
+;fourierspacing (set (increase compared to default, usually=[0.1 - 0.15]) the grid-spacing of PME for better computational efficiency, but slightly lower accuracy )
+;fourierspacing = 0.16 
+cutoff-scheme=verlet
+;Remove the translational motion of the center of mass. None will not remove com-motion. Linear: removes the translational motion of com.
+comm-mode=Linear
 ; Periodic boudary conditions in all the directions 
-pbc                      = no
+pbc                      = xyz
 ;Temperature coupling
 tcoupl                   = v-rescale
 tc-grps                  = Protein
@@ -51,4 +45,4 @@ gen_vel                  = yes
 gen_temp                 = 300
 gen_seed                 = 173529
 ;Constrain all bonds
-constraints              = all-bonds
+constraints              = h-bonds

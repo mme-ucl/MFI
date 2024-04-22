@@ -11,12 +11,16 @@ If you find this useful please cite:
 - Bjola, Antoniu, and Matteo Salvalaglio. "Estimating Free Energy Surfaces and their Convergence from multiple, independent static and history-dependent biased molecular-dynamics simulations with Mean Force Integration." (2024).[ChemRxiv](https://chemrxiv.org/engage/chemrxiv/article-details/65affed69138d2316192b728)
 
 
-### MFI in action: 
-<video src="https://github.com/mme-ucl/MFI/raw/master/Movies_and_presentations/MFI_movie_error.mp4" align="center" width="1000px" controls></video>
+### MFI in action:
+https://github.com/mme-ucl/MFI/assets/10670857/571150b6-9f6f-4abf-bf7f-97577f0669b6
+
+### Monitoring Convergence:
+https://github.com/mme-ucl/MFI/assets/10670857/da24d051-0378-44b8-a1cb-f7703f482fb9
 
 ### pyMFI
+The stable pyMFI code is available [here](https://github.com/mme-ucl/pyMFI).
 
-The stable pyMFI code is available [here](https://github.com/mme-ucl/pyMFI) and can be installed with _pip_ as: ```pip install -e git+https://github.com/mme-ucl/pyMFI.git#egg=pyMFI```
+The documentation of pyMFI is available at [mme-ucl.github.io/MFI/](https://mme-ucl.github.io/MFI/)
 
 ### Matlab scripts 
 Matlab implementations of MFI are available in the folder _matlab_examples_. 

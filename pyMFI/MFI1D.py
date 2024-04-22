@@ -297,7 +297,7 @@ def MFI_1D(HILLS, position, bw=0.1, kT=1, min_grid=-2, max_grid=2, nbins=201,
         Ftot_den_limit (float, optional): Probability density limit below which data will be set to zero (this is done for numerical stability reasons. For default Ftot_den_limit, numerical difference is negligable). Defaults to 1E-10.
         FES_cutoff (float, optional): Cutoff applied to FES and error calculation for FES values over the FES_cutoff. All FES values above the FES_cutoff won't contribuite towards the error. Useful when high FES values have no physical meaning. When FES_cutoff = 0, no cufoff is applied.Defaults to 0. 
         Ftot_den_cutoff (flaot, optional): Cutoff applied to FES and error calculation for Ftot_den (Probability density) values below the Ftot_den_cutoff. All FES values that are excluded by the cutoff won't contribuite towards the error. Useful when low Probability density values have little statistical significance or no physical meaning. When Ftot_den_cutoff = 0, no cufoff is applied. Defaults to 0.
-		non_exploration_penalty (float, optional): Turns zero-value error to the non_exploration_penalty value. This should be used in combination with the cutoff. If some part of CV space hasn't been explored, or has a FES value that is irrelevanlty high, the cutoff will set the error of that region to zero. If the non_exploration_penalty is larger than zero, the error of that region will take the value of the non_exploration_penalty instead of zero. Default is set to 0.
+        non_exploration_penalty (float, optional): Turns zero-value error to the non_exploration_penalty value. This should be used in combination with the cutoff. If some part of CV space hasn't been explored, or has a FES value that is irrelevanlty high, the cutoff will set the error of that region to zero. If the non_exploration_penalty is larger than zero, the error of that region will take the value of the non_exploration_penalty instead of zero. Default is set to 0.
         save_intermediate_fes_error_cutoff (bool, optional): If Ture, every time the error is calculated, the FES, variance, standard deviation and cutoff will be saved. Defaults to False.
         use_weighted_st_dev (bool, optional): When set to True, the calculated error will be the weighted standard deviation ( var^0.5 ). When set to False, the calculated error will be the standard error ( (var/n_sample)^0.5 ). Defaults to True. (The standard devaition is expected to converge after enough time, while the standard error is expected to decrease as more datapoints are added.)
 
@@ -461,14 +461,14 @@ def patch_forces(force_vector, PD_limit=1E-10):
 def get_cutoff_1D(Ftot_den=None, Ftot_den_cutoff=0.1, FES=None, FES_cutoff=-1):
     """Finds the cutoff array according to the specifications. If the "@njit" is deactivated, use get_cutoff_1D_nonjit() instead.
 
-	Args:
-		Ftot_den (np.array, optional): If a probability density (Ftot_den) cutoff should be applied, this argument in necessary. Defaults to None.
-		Ftot_den_cutoff (float, optional): Specifies the cutoff limit of the probability density. Values below the limit will be cut-off. Will only be applied if Ftot_den is provided. Defaults to 0.1.
-		FES (np.array, optional): free energy surfacee. If a free energy surface (FES) cutoff should be applied, this argument in necessary. Defaults to None.
-		FES_cutoff (float, optional): Specifies the cutoff limit of the FES. Values above the limit will be cut-off. Will only be applied if FES is provided. Defaults to 23.
+    Args:
+        Ftot_den (np.array, optional): If a probability density (Ftot_den) cutoff should be applied, this argument in necessary. Defaults to None.
+        Ftot_den_cutoff (float, optional): Specifies the cutoff limit of the probability density. Values below the limit will be cut-off. Will only be applied if Ftot_den is provided. Defaults to 0.1.
+        FES (np.array, optional): free energy surfacee. If a free energy surface (FES) cutoff should be applied, this argument in necessary. Defaults to None.
+        FES_cutoff (float, optional): Specifies the cutoff limit of the FES. Values above the limit will be cut-off. Will only be applied if FES is provided. Defaults to 23.
 
-	Returns:
-		array :cutoff array with the shape of Ftot_den or FES. Elements that correspond to the probability density above the Ftot_den_cutoff or the FES below the FES_cutoff will be 1. Elements outside the cutoff will be 0.
+    Returns:
+        array :cutoff array with the shape of Ftot_den or FES. Elements that correspond to the probability density above the Ftot_den_cutoff or the FES below the FES_cutoff will be 1. Elements outside the cutoff will be 0.
     """
 
     if Ftot_den != None: nbins = len(Ftot_den)
@@ -486,14 +486,14 @@ def get_cutoff_1D(Ftot_den=None, Ftot_den_cutoff=0.1, FES=None, FES_cutoff=-1):
 def get_cutoff_1D_nonjit(Ftot_den=None, Ftot_den_cutoff=0.1, FES=None, FES_cutoff=23):
     """Finds the cutoff array according to the specifications. 
 
-	Args:
-		Ftot_den (np.array, optional): If a probability density (Ftot_den) cutoff should be applied, this argument in necessary. Defaults to None.
-		Ftot_den_cutoff (float, optional): Specifies the cutoff limit of the probability density. Values below the limit will be cut-off. Will only be applied if Ftot_den is provided. Defaults to 0.1.
-		FES (np.array, optional): free energy surfacee. If a free energy surface (FES) cutoff should be applied, this argument in necessary. Defaults to None.
-		FES_cutoff (float, optional): Specifies the cutoff limit of the FES. Values above the limit will be cut-off. Will only be applied if FES is provided. Defaults to 23.
+    Args:
+        Ftot_den (np.array, optional): If a probability density (Ftot_den) cutoff should be applied, this argument in necessary. Defaults to None.
+        Ftot_den_cutoff (float, optional): Specifies the cutoff limit of the probability density. Values below the limit will be cut-off. Will only be applied if Ftot_den is provided. Defaults to 0.1.
+        FES (np.array, optional): free energy surfacee. If a free energy surface (FES) cutoff should be applied, this argument in necessary. Defaults to None.
+        FES_cutoff (float, optional): Specifies the cutoff limit of the FES. Values above the limit will be cut-off. Will only be applied if FES is provided. Defaults to 23.
 
-	Returns:
-		array : cutoff array with the shape of Ftot_den or FES. Elements that correspond to the probability density above the Ftot_den_cutoff or the FES below the FES_cutoff will be 1. Elements outside the cutoff will be 0.
+    Returns:
+        array : cutoff array with the shape of Ftot_den or FES. Elements that correspond to the probability density above the Ftot_den_cutoff or the FES below the FES_cutoff will be 1. Elements outside the cutoff will be 0.
     """
 
     if hasattr(Ftot_den, "__len__") == True: cutoff = np.where(Ftot_den > Ftot_den_cutoff, 1, 0)
@@ -518,8 +518,8 @@ def patch_forces_ofe(force_vector, PD_limit=1E-10, use_weighted_st_dev=True, ofe
         ofe_non_exploration_penalty (flaot, optional): On-the-fly error values that that are ouside of the PD_cutoff will have a error equal to the ofe_non_exploration_penalty. Absolute deviation values that that are ouside of the PD_cutoff will have a error equal to the ofe_non_exploration_penalty/10. Defaults to 100.
         use_weighted_st_dev (bool, optional): When set to True, the calculated error will be the weighted standard deviation ( var^0.5 ). When set to False, the calculated error will be the standard error ( (var/n_sample)^0.5 ). Defaults to True. (The standard devaition is expected to converge after enough time, while the standard error is expected to decrease as more datapoints are added.).
         ofe_progression (bool, optional): If True, the error progression will be returned. If false, error progression will be an array will all elements being the final error. Default set to False.
-		Ftot_den_cutoff (float, optional): Specifies the cutoff limit of the probability density. Values below the limit will be cut-off. Will only be applied if Ftot_den_cutoff is larger than 0. Defaults to -1.
-		non_exploration_penalty (float, optional): Turns zero-value error to the non_exploration_penalty value. This should be used in combination with the cutoff. If some part of CV space hasn't been explored, or has a FES value that is irrelevanlty high, the cutoff will set the error of that region to zero. If the non_exploration_penalty is larger than zero, the error of that region will take the value of the non_exploration_penalty instead of zero. Default is set to 0.
+        Ftot_den_cutoff (float, optional): Specifies the cutoff limit of the probability density. Values below the limit will be cut-off. Will only be applied if Ftot_den_cutoff is larger than 0. Defaults to -1.
+        non_exploration_penalty (float, optional): Turns zero-value error to the non_exploration_penalty value. This should be used in combination with the cutoff. If some part of CV space hasn't been explored, or has a FES value that is irrelevanlty high, the cutoff will set the error of that region to zero. If the non_exploration_penalty is larger than zero, the error of that region will take the value of the non_exploration_penalty instead of zero. Default is set to 0.
 
     Returns:
         tuple : PD_patch, PD2_patch, F_patch, OFV_num_patch, OFE, Aofe_progression\n
@@ -605,9 +605,9 @@ def patch_forces_ofe_AD(force_vector, grid, y, PD_limit=1E-10, use_weighted_st_d
         PD_limit (flaot, optional): Probability density values below the PD_limit will be approximated to be 0, to ensure the numerical stability of the algorithm. Defaults to 1E-10.
         use_weighted_st_dev (bool, optional): When set to True, the calculated error will be the weighted standard deviation ( var^0.5 ). When set to False, the calculated error will be the standard error ( (var/n_sample)^0.5 ). Defaults to True. (The standard devaition is expected to converge after enough time, while the standard error is expected to decrease as more datapoints are added.).
         error_progression (bool, optional): When set to True, the error (AOFE, AAD, volume ratio) will be calculated after every patch. When set to False, all forces are patched and the error is calculated only at the end. Default set to True.
-		Ftot_den_cutoff (float, optional): Specifies the cutoff limit of the probability density. Values below the limit will be cut-off. Will only be applied if Ftot_den_cutoff is larger than 0. Defaults to -1.
-		FES_cutoff (float, optional): Specifies the cutoff limit of the FES. Values above the limit will be cut-off. Will only be applied if FES is provided. Defaults to 23.
-		non_exploration_penalty (float, optional): Turns zero-value error to the non_exploration_penalty value. This should be used in combination with the cutoff. If some part of CV space hasn't been explored, or has a FES value that is irrelevanlty high, the cutoff will set the error of that region to zero. If the non_exploration_penalty is larger than zero, the error of that region will take the value of the non_exploration_penalty instead of zero. Default is set to 0.
+        Ftot_den_cutoff (float, optional): Specifies the cutoff limit of the probability density. Values below the limit will be cut-off. Will only be applied if Ftot_den_cutoff is larger than 0. Defaults to -1.
+        FES_cutoff (float, optional): Specifies the cutoff limit of the FES. Values above the limit will be cut-off. Will only be applied if FES is provided. Defaults to 23.
+        non_exploration_penalty (float, optional): Turns zero-value error to the non_exploration_penalty value. This should be used in combination with the cutoff. If some part of CV space hasn't been explored, or has a FES value that is irrelevanlty high, the cutoff will set the error of that region to zero. If the non_exploration_penalty is larger than zero, the error of that region will take the value of the non_exploration_penalty instead of zero. Default is set to 0.
         set_fes_minima (str, optional): USed to specify how to set the minima of the FES. When set to "first", the first element of the fes will be set to 0, and the rest of the FES array will be shifted by the same amount. When set to None, the smalles element of the FES will be set to 0, and the rest of the FES array will be shifted by the same amount. Defauts is None.
         
     Returns:
@@ -822,6 +822,27 @@ def bootstrap_1D(grid, force_array, n_bootstrap, set_fes_minima=None):
     return [FES_avr, sd_fes, sd_fes_prog]
 
 
+def remove_flat_tail(x, FES, sd):
+    """Removes the flat tail of the FES and the same array-elements of the other arrays. This is usefull when the FES has a flat tail a the end (due to the force being zero in that region). 
+
+    Args:
+        x (array of shape (nbins,)): CV grid positions.
+        FES (array of shape (nbins,)): Free energy surface.
+        sd (array of shape (nbins,)): Standard deviation of the free energy surface. This can also be another arbritary array.
+
+    Returns:
+        x (array of shape (nbins,)): CV grid positions with flat tail removed.
+        FES (array of shape (nbins,)): Free energy surface with flat tail removed.
+        sd (array of shape (nbins,)): Standard deviation of the free energy surface with flat tail removed.
+    """
+    
+    while FES[-1] - FES[-3] < 10E-10:
+        FES = FES[:-2]
+        x = x[:-2]
+        sd = sd[:-2]
+        
+    return [x, FES, sd]
+
 def plot_recap(X, FES, Ftot_den, ofe, ofe_history, time_history, y_ref=None, FES_lim=40, ofe_lim = 10, error_log_scale = 1,
                cv = "CV", time_axis_name="simulation time"):
     """Plot result of 1D MFI algorithm. 1. FES, 2. varinace_map, 3. Cumulative biased probability density, 4. Convergece of variance.
@@ -841,10 +862,7 @@ def plot_recap(X, FES, Ftot_den, ofe, ofe_history, time_history, y_ref=None, FES
     fig, axs = plt.subplots(2, 2, figsize=(12, 8))
 
     #plot ref f
-    if hasattr(y_ref, "__len__") != True: y = 7*X**4 - 23*X**2
-    else: y = y_ref
-    y = y - min(y)  
-    axs[0, 0].plot(X, y, label="Reference", color="red", alpha=0.3);
+    if y_ref is not None: axs[0, 0].plot(X, y_ref, label="Reference", color="red", alpha=0.3);
     
     axs[0, 0].plot(X, FES, label="FES");
     axs[0, 0].set_ylim([0, FES_lim])
