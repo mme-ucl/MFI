@@ -452,7 +452,6 @@ def FFT_intg_2D(FX, FY, min_grid=np.array((-np.pi, -np.pi)), max_grid=np.array((
     return [X, Y, fes]
 
 
-# Equivalent to integration MS in Alanine dipeptide notebook.
 def intg_2D(FX, FY, min_grid=np.array((-np.pi, -np.pi)), max_grid=np.array((np.pi, np.pi)), nbins=np.array((200, 200))):
     """2D integration of force gradient (FX, FY) to find FES using finite difference method.
     
@@ -516,8 +515,8 @@ def intgrad2(fx, fy, min_grid=np.array((-2, -2)), max_grid=np.array((2, 2)), per
     
     gridx = np.linspace(min_grid[0], max_grid[0], nx)
     gridy = np.linspace(min_grid[1], max_grid[1], ny)
-    dy = abs(gridx[1] - gridx[0])
-    dx = abs(gridy[1] - gridy[0])
+    dx = abs(gridx[1] - gridx[0])
+    dy = abs(gridy[1] - gridy[0])
     X, Y = np.meshgrid(gridx, gridy)
 
     rhs = np.ravel((fx,fy))
@@ -764,7 +763,7 @@ def plot_patch_2D(X, Y, FES, TOTAL_DENSITY, lim=50):
     axs[1].set_xlabel('CV1', fontsize=11)
     axs[1].set_title('Total Biased Probability Density', fontsize=11)
 
-def bootstrap_2D_new(X, Yrow , force_array, n_bootstrap, min_grid=np.array((-3, -3)), max_grid=np.array((3, 3)), periodic=np.array((0,0)), FES_cutoff=0, Ftot_den_cutoff=0, non_exploration_penalty=0):
+def bootstrap_2D_new(X, Yrow , force_array, n_bootstrap, min_grid=np.array((-3, -3)), max_grid=np.array((3, 3)), periodic=np.array((0,0)), FES_cutoff=0, Ftot_den_cutoff=0, non_exploration_penalty=0, log_pace=10):
     """Algorithm to determine bootstrap error. Takes in a collection of force-terms and with each iteration, a random selection of force-terms will be used to calculate a FES. The average and st.dev of all FESes will be calculated.
 
     Args:
@@ -826,7 +825,7 @@ def bootstrap_2D_new(X, Yrow , force_array, n_bootstrap, min_grid=np.array((-3, 
             sd_fes_prog[iteration] = np.sum(sd_fes)/(nbins_yx[0]*nbins_yx[1])
         
             #print progress
-            print_progress(iteration+1,n_bootstrap,variable_name='Bootstrap Average Standard Deviation',variable=round(sd_fes_prog[iteration],3))        
+            if (iteration+1) % log_pace == 0: print_progress(iteration+1,n_bootstrap,variable_name='Bootstrap Average Standard Deviation',variable=round(sd_fes_prog[iteration],3))        
             
     # return [FES_avr, cutoff, var_fes, sd_fes, variance_prog, stdev_prog, var_fes_prog, sd_fes_prog ]
     return [FES_avr, sd_fes, sd_fes_prog]
@@ -1074,7 +1073,7 @@ def zero_to_nan(input_array):
     output_array = np.zeros_like(input_array)
     for ii in range(len(input_array)):
         for jj in range(len(input_array[ii])):
-            if input_array[ii][jj] <= 0: output_array[ii][jj] = np.nan
+            if abs(input_array[ii][jj]) < 1E-10: output_array[ii][jj] = np.nan
             else: output_array[ii][jj] = input_array[ii][jj]
     return output_array
 
