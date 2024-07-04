@@ -108,7 +108,7 @@ def run_langevin2D(simulation_steps,
                    hp_centre_x=0.0, hp_centre_y=0.0, hp_kappa_x=0, hp_kappa_y=0,
                    lw_centre_x=0.0, lw_centre_y=0.0, lw_kappa_x=0, lw_kappa_y=0,
                    uw_centre_x=0.0, uw_centre_y=0.0, uw_kappa_x=0, uw_kappa_y=0,
-                   position_pace=0, file_extension=""):
+                   position_pace=0, file_extension="", external_bias_file=""):
     """Function to run a langevin simulation in 2 dimension. Default analytical potential: z = 7*x^4-23*x^2+7*y^4-23*y^2.
 
     Args:
@@ -179,7 +179,10 @@ TEMP={} FILE=HILLS{}\n".format(gaus_width_x, gaus_width_y, gaus_height, biasfact
         # Upper wall bias. To activate, the force constant (kappa) needs to be a positive number
         if uw_kappa_x > 0 or uw_kappa_y > 0:
             f.write("UPPER_WALLS ARG=p.x,p.y AT={},{} KAPPA={},{} LABEL=upperwall \n".format(uw_centre_x, uw_centre_y, uw_kappa_x, uw_kappa_y))
-
+            
+        if external_bias_file != "":
+            f.write("EXTERNAL ARG=p.x,p.y FILE={} LABEL=external \n".format(external_bias_file))
+            
         # Print position of system. If position_pace = 0, it will be position_pace = gaus_pace/10
         if position_pace == 0: position_pace = int(gaus_pace / 10)
         f.write("PRINT FILE=position{} ARG=p.x,p.y STRIDE={}".format(file_extension , position_pace))
