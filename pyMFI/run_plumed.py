@@ -108,7 +108,7 @@ def run_langevin2D(simulation_steps,
                    hp_centre_x=0.0, hp_centre_y=0.0, hp_kappa_x=0, hp_kappa_y=0,
                    lw_centre_x=0.0, lw_centre_y=0.0, lw_kappa_x=0, lw_kappa_y=0,
                    uw_centre_x=0.0, uw_centre_y=0.0, uw_kappa_x=0, uw_kappa_y=0,
-                   position_pace=0, file_extension="", external_bias_file=""):
+                   position_pace=0, file_extension="", external_bias_file="", start_sim=True):
     """Function to run a langevin simulation in 2 dimension. Default analytical potential: z = 7*x^4-23*x^2+7*y^4-23*y^2.
 
     Args:
@@ -186,9 +186,9 @@ TEMP={} FILE=HILLS{}\n".format(gaus_width_x, gaus_width_y, gaus_height, biasfact
         # Print position of system. If position_pace = 0, it will be position_pace = gaus_pace/10
         if position_pace == 0: position_pace = int(gaus_pace / 10)
         f.write("PRINT FILE=position{} ARG=p.x,p.y STRIDE={}".format(file_extension , position_pace))
-     
-    print("starting simulation...")
-    os.system("plumed pesmd < input > /dev/null")
+    if start_sim: 
+        print("starting simulation...")
+        os.system("plumed pesmd < input > /dev/null")
     
 
     # process_run_simulation = subprocess.Popen(["plumed", "pesmd", "<", "input"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
