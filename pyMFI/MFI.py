@@ -161,8 +161,8 @@ def find_hp_force(hp_centre_x, hp_centre_y, hp_kappa_x, hp_kappa_y, X , Y, min_g
     #Calculate y-force
     F_harmonic_y = hp_kappa_y * (Y - hp_centre_y)
     if periodic[1] == 1:
-        grid_length = max_grid[0] - min_grid[0]
-        grid_centre = min_grid[0] + grid_length / 2
+        grid_length = max_grid[1] - min_grid[1]
+        grid_centre = min_grid[1] + grid_length / 2
         if hp_centre_y < grid_centre:
             index_period = index(hp_centre_y + grid_length/2, min_grid[1], grid_space[1])
             F_harmonic_y[index_period:, :] = hp_kappa_y * (Y[index_period:, :] - hp_centre_y - grid_length)
@@ -254,6 +254,8 @@ def find_uw_force(uw_centre_x, uw_centre_y, uw_kappa_x, uw_kappa_y, X , Y, min_g
     #Calculate y-force
     F_wall_y = np.where(Y > uw_centre_y, 2 * uw_kappa_y * (Y - uw_centre_y), 0)
     if periodic[1] == 1:
+        grid_length = max_grid[1] - min_grid[1]
+        grid_centre = min_grid[1] + grid_length/2
         if uw_centre_y < grid_centre:
             index_period = index(uw_centre_y + grid_length/2, min_grid[1], grid_space)
             F_wall_y[index_period:, :] = 0
@@ -1266,11 +1268,11 @@ def MFI_2D(HILLS="HILLS", position_x="position_x", position_y="position_y", bw=n
         F_static_x += Force_x
         F_static_y += Force_y
     if lw_kappa_x > 0 or lw_kappa_y > 0:
-        [Force_x, Force_y] = find_lw_force(lw_centre_x, lw_centre_y, lw_kappa_x, lw_kappa_y, X , Y, periodic)
+        [Force_x, Force_y] = find_lw_force(lw_centre_x, lw_centre_y, lw_kappa_x, lw_kappa_y, X , Y, min_grid, max_grid, grid_space, periodic)
         F_static_x += Force_x
         F_static_y += Force_y
     if uw_kappa_x > 0 or uw_kappa_y > 0:
-        [Force_x, Force_y] = find_uw_force(uw_centre_x, uw_centre_y, uw_kappa_x, uw_kappa_y, X , Y, periodic)
+        [Force_x, Force_y] = find_uw_force(uw_centre_x, uw_centre_y, uw_kappa_x, uw_kappa_y, X , Y, min_grid, max_grid, grid_space, periodic)
         F_static_x += Force_x
         F_static_y += Force_y
 
