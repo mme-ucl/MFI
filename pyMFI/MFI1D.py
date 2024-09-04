@@ -798,8 +798,8 @@ def bootstrap_1D(grid, force_array, n_bootstrap, set_fes_minima=None):
     for iteration in range(n_bootstrap):
         
         #Randomly choose forward forces and backward forces and save to force array
-        force = np.zeros((int(n_forces ), 2, nbins)) 
-        random_sample_index =  np.random.choice(n_forces-1, size=n_forces)      
+        force = np.zeros((int(n_forces), 2, nbins)) 
+        random_sample_index =  np.random.choice(n_forces, size=n_forces)      
         force = force_array[random_sample_index]
      
         #patch forces to find average Ftot_den, Ftot and FES
