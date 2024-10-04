@@ -6,3 +6,5 @@ ener.edr
 *.mdp
 *.cpt
 *.out
+_data*
+__pycache__
