@@ -534,7 +534,7 @@ class MFI1D:
                 
         if self.calculate_FES_st_dev:
             if self.Maps_list.shape[0] > 2:
-                FES_maps_list = np.array(self.Maps_list)[-30:,0]
+                FES_maps_list = np.array(self.Maps_list)[:,0]
                 FES_maps_list = np.concatenate((FES_maps_list, [self.FES]), axis=0)
                 FES_maps_list = FES_maps_list * self.cutoff[np.newaxis, :]
                 FES_st_dev = np.var(FES_maps_list, axis=0)
@@ -1295,12 +1295,13 @@ class MFI1D:
 
     def patch_and_find_error_SRTR(self, force_terms_e, bias_terms_e, patch_realtime_forces=True):
 
-        # record bias potential and bias force 
-        self.Force_bias += bias_terms_e[0]
-        self.Bias += bias_terms_e[1]    
-
         # if patch_realtime_forces is True, patch the force terms of simulation i with the (new) force_terms_e. If False, force_terms_e is the new force terms of the entire simulation.
         if patch_realtime_forces: 
+            
+            # record bias potential and bias force 
+            self.Force_bias += bias_terms_e[0]
+            self.Bias += bias_terms_e[1]              
+            
             # record last force terms (_e) of latest simulation  
             if self.record_forces_e: [self.PD_e, self.PD2_e, self.Force_e, self.ofv_num_e] = force_terms_e
             # Patch forces of latest simulation with the (new) force_terms_e
@@ -1311,10 +1312,16 @@ class MFI1D:
             self.n_pos_analysed[-1] += len(self.position)
             
         else: 
+            
+            # record bias potential and bias force 
+            self.Force_bias += bias_terms_e[0]
+            self.Bias += bias_terms_e[1]                
+            
             if self.record_forces_e: 
                 PD_sim, PD2_sim, Force_sim, ofv_num_sim = force_terms_e
-                [self.PD_e, self.PD2_e, self.ofv_num_e] = [PD_sim - self.PD, PD2_sim - self.PD2, ofv_num_sim - self.ofv_num]
-                self.Force_e = np.divide(np.multiply(Force_sim, PD_sim) - np.multiply(self.Force, self.PD), self.PD_e, out=np.zeros_like(self.PD_e), where=self.PD_e > self.PD_limit)
+                PD_last, PD2_last, Force_last, ofv_num_last = self.force_terms[-1]
+                [self.PD_e, self.PD2_e, self.ofv_num_e] = [PD_sim - PD_last, PD2_sim - PD2_last, ofv_num_sim - ofv_num_last]
+                self.Force_e = np.divide(np.multiply(Force_sim, PD_sim) - np.multiply(Force_last, PD_last), self.PD_e, out=np.zeros_like(self.PD_e), where=self.PD_e > self.PD_limit)
             self.force_terms[-1] = force_terms_e
             # Patch forces of all simulations
             self.force_terms[0] = lib1.patch_forces(self.force_terms[1:], PD_limit=self.PD_limit)
@@ -2262,13 +2269,14 @@ class MFI1D:
             os.chdir(self.campaign_path)
 
         def patch_and_find_error(self, i, force_terms_e, bias_terms_e, patch_realtime_forces=True):
-            
-            # record bias potential and bias force 
-            self.sim[i].Force_bias += bias_terms_e[0]
-            self.sim[i].Bias += bias_terms_e[1]
-                          
+                                     
             # if patch_realtime_forces is True, patch the force terms of simulation i with the (new) force_terms_e. If False, force_terms_e is the new force terms of the entire simulation.
             if patch_realtime_forces:
+                
+                # record bias potential and bias force 
+                self.sim[i].Force_bias += bias_terms_e[0]
+                self.sim[i].Bias += bias_terms_e[1]                
+                
                 # record last force terms (_e) of simulation i
                 if self.sim[0].record_forces_e: [self.sim[0].PD_e, self.sim[0].PD2_e, self.sim[0].Force_e, self.sim[0].ofv_num_e] = force_terms_e
                 #Patch forces of Simulation
@@ -2278,6 +2286,11 @@ class MFI1D:
                 self.sim[i].n_pos_analysed[0] = sum(self.sim[i].n_pos_analysed[1:])
 
             else:
+                
+                # record bias potential and bias force 
+                self.sim[i].Force_bias += bias_terms_e[0]
+                self.sim[i].Bias += bias_terms_e[1]                
+                
                 # record force terms of entire simulation. if record_forces_e is True, calculate the difference between the new (whole) force terms and the previous force terms.
                 if self.sim[0].record_forces_e: 
                     PD_sim, PD2_sim, Force_sim, ofv_num_sim = force_terms_e
