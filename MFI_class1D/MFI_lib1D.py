@@ -2,6 +2,7 @@ import os
 import sys
 import subprocess
 import shutil
+import glob
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -17,46 +18,64 @@ from scipy.optimize import curve_fit
 from scipy.interpolate import interp1d
 from dataclasses import dataclass, field
 
-####  ---- Run Langevin Simulation with 1 CV (1D)  ----  ####
+####  ---- Run Simulation with 1 CV (1D)  ----  ####
 
 @dataclass
-class RunLangevin1D:
-    """Class for running langevin dynamics in 1D with some bias potential."""
-    
-    analytical_function: str = "7*x^4-23*x^2"
-    n_steps: int = 1_000_000
-    initial_position: float = None
-    pl_grid: np.ndarray = field(default = None)
-    pl_min: float = -3
-    pl_max: float = 3
-    pl_n: int = 201 #what grid does plumed create? should this be 200 to be compatible with np.linspace(-3,3,201)?
-    periodic: bool = False
+class Run_Simulation:
+    """Class for running simulations."""
 
-    temperature: float = 1
-    time_step: float = 0.005
-    friction: float = 1
-    
-    metad_width: float = 0.1
-    metad_height: float = None
-    biasfactor: float = 10.0
-    metad_pace: int = 200
-    position_pace: int = None
-    n_pos_per_window: int = 10
-    
-    hp_centre: float = None; hp_kappa: float = None
-    lw_centre: float = None; lw_kappa: float = None
-    uw_centre: float = None; uw_kappa: float = None
-    
-    external_bias_file: str = None
-    file_extension: str = ""
-    
-    terminal_input: str = "plumed pesmd < input >/dev/null 2>&1" 
-    start_sim: bool = True
-    print_info: bool = True
-    info: str = None
-    save_simulation_data_file: str = None
+    for init_parameters in [0]:
+        
+        # Variables for the plumed grid
+        pl_grid: np.ndarray = field(default = None)
+        pl_min: float = -3
+        pl_max: float = 3
+        pl_n: int = 201 #what grid does plumed create? should this be 200 to be compatible with np.linspace(-3,3,201)?
+        periodic: bool = False
+
+        # Variables for the simulation
+        System: str = None
+        cv_name: list = field(default_factory=lambda: [None, None])
+        n_steps: int = 1_000_000
+        time_step: float = 0.005
+        temperature: float = 1
+        find_sim_init_structure: bool = False
+        initial_position: float = None
+        initial_position_accuracy: float = None             
+        make_tpr_input_file: bool = False
+        n_cores_per_simulation: int = None
+        start_sim: bool = True
+        friction: float = 1
+
+        # Variables for the metadynamics
+        plumed_dat_text: str = None  # This is the text that will be written to the plumed.dat file. This text should include everything upto the lines specifying the Bias (metad adn/or static bias)
+        metad_width: float = 0.1
+        metad_height: float = None
+        biasfactor: float = 10.0
+        metad_pace: int = 200
+        position_pace: int = None
+        n_pos_per_window: int = 10
+
+        # Variables for static bias
+        hp_centre: float = None; hp_kappa: float = None
+        lw_centre: float = None; lw_kappa: float = None
+        uw_centre: float = None; uw_kappa: float = None
+        external_bias_file: str = None
+        
+        # Variables specifying file paths and file extensions
+        sim_files_path: dict = field(default_factory=lambda: {"trajectory_xtc_file_path_list":["traj_0.xtc"], "structure_gro_file_path":"structure.gro", "mdp_file_path":"gromppvac.mdp", "top_file_path":"topology.top", "tpr_file_path":"input.tpr", "pdb_file_path":"reference.pdb"})
+        file_extension: str = ""
+        save_simulation_data_file: str = None
+
+        # Variables for printing information about the simualtion
+        print_info: bool = True
+        info: str = None
+
+        # # This is the text that will be written to the plumed.dat file. This text should include everything upto the lines containing the UPDADE_IF and DUMPATOMS commands. If None, plumed_dat_text will be used.
+        find_structure_text: str = None # This is the text that will be written to the plumed_traj.dat file. If the text is the same as plumed_dat_text (defined above), this field can be left to None, and plumed_dat_text will be used.
     
     def __post_init__(self):
+
         # Get the grid for plumed
         if self.pl_grid is None and (self.pl_min is None or self.pl_max is None or self.pl_n is None): print("\n ***** Please either plumed grid or plumed min, max, and nbins. ***** \n")
         elif self.pl_grid is None: self.pl_grid = np.linspace(self.pl_min, self.pl_max, self.pl_n)
@@ -71,44 +90,150 @@ class RunLangevin1D:
         self.periodic_boundaries = str(self.pl_min) + "," + str(self.pl_max) if self.periodic else "NO"
         if self.initial_position is None: self.initial_position = get_random_move(self.pl_min + self.pl_l/10, self.pl_max - self.pl_l/10) if self.periodic is False else get_random_move(self.pl_min, self.pl_max)
 
-        # Write the input file or command
-        input_file_text = f"nstep {self.n_steps}\n"  \
-                            f"ipos {self.initial_position}\n" \
-                            f"temperature {self.temperature}\n"  \
-                            f"tstep {self.time_step}\n"  \
-                            f"friction {self.friction}\n" \
-                            f"dimension 1"
-        input_file_text += f"\nperiodic on min {self.pl_min} max {self.pl_max}" if self.periodic else "\nperiodic false"
-        with open("input" ,"w") as f: print( input_file_text,file=f)
+        # If specified, find the initial structure for the simulation
+        if self.find_sim_init_structure: self.find_init_structure(new_structure_gro_file_path="structure_new.gro")
+
+        # If specified, create the tpr file for the simulation
+        if self.make_tpr_input_file: self.make_tpr_input(new_input_tpr_file_path="input_new.tpr")
+        # check if the input.tpr file exists
+        if self.System in ["gmx", "gromacs", "GMX", "GROMACS"] and not os.path.exists(self.sim_files_path["tpr_file_path"]): raise FileNotFoundError(f"tpr file not found: {self.sim_files_path['tpr_file_path']}")
+        
+        # if grid is periodic, set the min and max to "-pi" and "pi"        
+        pl_min, pl_max = self.pl_min, self.pl_max
+        if self.periodic: pl_min, pl_max = "-pi", "pi"
+
+        # make the input command for the simulation. Set the number of cores per simulation if specified.
+        if self.System in ["gmx", "gromacs", "GMX", "GROMACS"]:
+            if self.n_cores_per_simulation is None: self.terminal_input = f"gmx mdrun -s {self.sim_files_path['tpr_file_path']} -nsteps {int(self.n_steps)} -plumed plumed.dat >/dev/null 2>&1"    
+            elif self.n_cores_per_simulation > 0: self.terminal_input = f"gmx mdrun -s {self.sim_files_path['tpr_file_path']} -nsteps {int(self.n_steps)} -plumed plumed.dat -ntomp {self.n_cores_per_simulation} >/dev/null 2>&1"    
+            else: raise ValueError(f"Number of cores per simulation must be a positive integer. Current n_cores_per_simulation = {self.n_cores_per_simulation}.")
+        if self.System in ["Langevin", "Langevin2D"]:
+            self.terminal_input = "plumed pesmd < input >/dev/null 2>&1" 
+            # Write the input file or command
+            input_file_text = f"nstep {self.n_steps}\nipos {self.initial_position}\ntemperature {self.temperature}\ntstep {self.time_step}\nfriction {self.friction}\ndimension 1"
+            input_file_text += f"\nperiodic on min {pl_min} max {pl_max}" if self.periodic else "\nperiodic false"                   
+            with open("input" ,"w") as f: print( input_file_text,file=f)
 
         # Write the plumed file
-        plumed_file_text = f"p: DISTANCE ATOMS=1,2 COMPONENTS\n"  \
-                            f"ff: MATHEVAL ARG=p.x FUNC=({self.analytical_function}) PERIODIC={self.periodic_boundaries}\n"  \
-                            f"bb: BIASVALUE ARG=ff\n"
-
+        plumed_file_text = str(self.plumed_dat_text)
         # Metadynamics bias. To activate, the height needs to be a positive number
-        if self.metad_height is not None and self.metad_height > 0: plumed_file_text += f"METAD ARG=p.x SIGMA={self.metad_width} HEIGHT={self.metad_height} BIASFACTOR={self.biasfactor} GRID_MIN={self.pl_min} GRID_MAX={self.pl_max} GRID_BIN={self.pl_n-1} PACE={self.metad_pace} TEMP={self.temperature * 120} FILE=HILLS{self.file_extension}\n"
+        if self.metad_height is not None and self.metad_height > 0: plumed_file_text += f"METAD ARG={self.cv_name} SIGMA={self.metad_width} HEIGHT={self.metad_height} BIASFACTOR={self.biasfactor} GRID_MIN={pl_min} GRID_MAX={pl_max} GRID_BIN={self.pl_n-1} PACE={self.metad_pace} TEMP={self.temperature * 120} FILE=HILLS{self.file_extension}\n"
         # Harmonic potential bias. To activate, the force constant (kappa) needs to be a positive number
-        if self.hp_kappa is not None: plumed_file_text += f"RESTRAINT ARG=p.x AT={self.hp_centre} KAPPA={self.hp_kappa} LABEL=restraint\n"
+        if self.hp_kappa is not None: plumed_file_text += f"RESTRAINT ARG={self.cv_name} AT={self.hp_centre} KAPPA={self.hp_kappa} LABEL=restraint\n"
         # Lower wall bias. To activate, the force constant (kappa) needs to be a positive number
-        if self.lw_kappa is not None: plumed_file_text += f"LOWER_WALLS ARG=p.x AT={self.lw_centre} KAPPA={self.lw_kappa} LABEL=lowerwall\n"
+        if self.lw_kappa is not None: plumed_file_text += f"LOWER_WALLS ARG={self.cv_name} AT={self.lw_centre} KAPPA={self.lw_kappa} LABEL=lowerwall\n"
         # Upper wall bias. To activate, the force constant (kappa) needs to be a positive number
-        if self.uw_kappa is not None: plumed_file_text += f"UPPER_WALLS ARG=p.x AT={self.uw_centre} KAPPA={self.uw_kappa} LABEL=upperwall\n"
+        if self.uw_kappa is not None: plumed_file_text += f"UPPER_WALLS ARG={self.cv_name} AT={self.uw_centre} KAPPA={self.uw_kappa} LABEL=upperwall\n"
         # External bias. To activate, the file name needs to be given
-        if (self.external_bias_file is not None) and (self.external_bias_file != ""): plumed_file_text += f"EXTERNAL ARG=p.x FILE={self.external_bias_file} LABEL=external \n"
+        if (self.external_bias_file is not None) and (self.external_bias_file != ""): plumed_file_text += f"EXTERNAL ARG={self.cv_name} FILE={self.external_bias_file} LABEL=external \n"
         # Print position of system. 
-        plumed_file_text += f"PRINT FILE=position{self.file_extension} ARG=p.x STRIDE={self.position_pace}"
+        plumed_file_text += f"PRINT FILE=position{self.file_extension} ARG={self.cv_name} STRIDE={self.position_pace}"
         # Write the plumed file
         with open("plumed.dat" ,"w") as f: print(plumed_file_text ,file=f)
 
         # Start the simulation
         if self.start_sim == True: self.start_simulation()
+
+    def find_init_structure(self, new_structure_gro_file_path):#, only_first_structure=None):
+        
+        # check if the trajectory file and pdb file exists
+        if any([os.path.exists(traj_path) for traj_path in self.sim_files_path["trajectory_xtc_file_path_list"]]) == False: print(f"\n******* No Trajectory files were found: {self.sim_files_path['trajectory_xtc_file_path_list']} ******* \n\n The next simulation will start from the input.tpr file (if available).")
+        # if not os.path.exists(self.sim_files_path["trajectory_xtc_file_path_list"]): raise FileNotFoundError(f"Trajectory file not found: {self.sim_files_path['trajectory_xtc_file_path_list']}")
+        if not os.path.exists(self.sim_files_path["pdb_file_path"]): raise FileNotFoundError(f"pdb file not found: {self.sim_files_path['pdb_file_path']}")
+        
+        if self.find_structure_text is None: find_structure_text = str(self.plumed_dat_text)
+        else: find_structure_text = str(self.find_structure_text)
+        
+        # set the distance for the initial position where the structure is searched. If not found, distance is doubled until a structure is found or 10 attempts are made. 
+        d_pos = self.initial_position_accuracy if self.initial_position_accuracy is not None else (self.pl_max - self.pl_min)/100
+                
+        total_structures, attempts = 0, 0
+        while total_structures < 1 and attempts < 11:
+            
+            # iterate through existing trajectory files
+            for traj_path in self.sim_files_path["trajectory_xtc_file_path_list"]:
+            
+                # get the initial position
+                if self.initial_position is None: np.random.seed()
+                i_pos = self.initial_position if self.initial_position is not None else np.random.uniform(self.pl_min, self.pl_max)
+
+                # write plumed file to get the initial structure   
+                find_structure_text += f"UPDATE_IF ARG={self.cv_name} MORE_THAN={i_pos-d_pos} LESS_THAN={i_pos+d_pos}\n"
+                find_structure_text += f"DUMPATOMS FILE={new_structure_gro_file_path} ATOMS=1-22\n"        
+                find_structure_text += f"UPDATE_IF ARG={self.cv_name} END\n"
+                with open("plumed_traj.dat", "w") as f: print(find_structure_text, file=f)
+                
+                # run plumed driver to get the initial structure
+                os.system(f"plumed driver --plumed plumed_traj.dat --mf_xtc {traj_path} > /dev/null")
+
+                # count the structures in the new structure file
+                with open(new_structure_gro_file_path, 'r') as file: total_structures = sum(1 for line in file if line.startswith("Made with PLUMED"))
+                
+                # if at least one structure is found, break the loop and continue
+                if total_structures > 0: break
+            
+            # if there is a file with "bck.*.structure_new.gro" remove it
+            if os.path.exists(f"bck.*.{new_structure_gro_file_path}"): os.system(f"rm bck.*.{new_structure_gro_file_path}")
+
+            # if no structure is found, double the distance and try again
+            attempts += 1
+            d_pos *= 2
+        if total_structures < 1: raise FileNotFoundError(f"Initial structure not found in {attempts} attempts.")
+
+        # find the lines per structure in the structure file
+        total_n_lines = int(os.popen(f"wc -l {new_structure_gro_file_path}").read().split()[0])
+        lines_per_structure = int(total_n_lines / total_structures)
+
+        # if total_structures > 1, remove a random number of structures from the start of the file
+        if total_structures > 1: 
+            np.random.seed()
+            del_structure_lines = int(lines_per_structure * (total_structures-np.random.randint(1, total_structures)) )
+            os.system(f"sed -i -e '1,{del_structure_lines}d' {new_structure_gro_file_path}")
+            
+        # # if total_structures > 1, remove all but the first structure from the file
+        if total_structures > 1: os.system(f"sed -i -e '1,{lines_per_structure}!d' {new_structure_gro_file_path}")
+        
+        # update the path to the new structure file     
+        self.sim_files_path["structure_gro_file_path"] = os.getcwd() + "/" + new_structure_gro_file_path
+        
+    def make_tpr_input(self, new_input_tpr_file_path):
+        
+        if not os.path.exists(self.sim_files_path["structure_gro_file_path"]): raise FileNotFoundError(f"Stucture(.gro) file not found: {self.sim_files_path['structure_gro_file_path']}")
+        if not os.path.exists(self.sim_files_path["mdp_file_path"]): raise FileNotFoundError(f"mdp file not found: {self.sim_files_path['mdp_file_path']}")
+        if not os.path.exists(self.sim_files_path["top_file_path"]): raise FileNotFoundError(f"Topology(.top) file not found: {self.sim_files_path['top_file_path']}")
+        
+        # print("Make TPR file command: ", "gmx", "grompp", "-f", self.sim_files_path["mdp_file_path"], "-c", self.sim_files_path["structure_gro_file_path"], "-p", self.sim_files_path["top_file_path"], "-o", new_input_tpr_file_path)
+        
+        #Prepare new input file<- input structure.gro, topolvac.top, gromppvac.mdp -> input(n).tpr
+        find_input_structure = subprocess.Popen(["gmx", "grompp", "-f", self.sim_files_path["mdp_file_path"], "-c", self.sim_files_path["structure_gro_file_path"], "-p", self.sim_files_path["top_file_path"], "-o", new_input_tpr_file_path], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)#, text=True)
+        find_input_structure.wait()
+        
+        output_find_input_structure, errors_find_input_structure = find_input_structure.communicate()
+        if "Error" in errors_find_input_structure.decode('utf-8'):
+            print("\n*****There is an error message when attempting to create a tpr input file:*****\n")
+            # change the type of errors_find_input_structure to string
+            errors_find_input_structure = errors_find_input_structure.decode('utf-8')
+            # remove the gromacs header from the error message to make it more readable
+            remove_text = "                :-) GROMACS - gmx grompp, 2021-plumed-2.7.5 (-:\n\n                            GROMACS is written by:\n     Andrey Alekseenko              Emile Apol              Rossen Apostolov     \n         Paul Bauer           Herman J.C. Berendsen           Par Bjelkmar       \n       Christian Blau           Viacheslav Bolnykh             Kevin Boyd        \n     Aldert van Buuren           Rudi van Drunen             Anton Feenstra      \n    Gilles Gouaillardet             Alan Gray               Gerrit Groenhof      \n       Anca Hamuraru            Vincent Hindriksen          M. Eric Irrgang      \n      Aleksei Iupinov           Christoph Junghans             Joe Jordan        \n    Dimitrios Karkoulis            Peter Kasson                Jiri Kraus        \n      Carsten Kutzner              Per Larsson              Justin A. Lemkul     \n       Viveca Lindahl            Magnus Lundborg             Erik Marklund       \n        Pascal Merz             Pieter Meulenhoff            Teemu Murtola       \n        Szilard Pall               Sander Pronk              Roland Schulz       \n       Michael Shirts            Alexey Shvetsov             Alfons Sijbers      \n       Peter Tieleman              Jon Vincent              Teemu Virolainen     \n     Christian Wennberg            Maarten Wolf              Artem Zhmurov       \n                           and the project leaders:\n        Mark Abraham, Berk Hess, Erik Lindahl, and David van der Spoel\n\nCopyright (c) 1991-2000, University of Groningen, The Netherlands.\nCopyright (c) 2001-2019, The GROMACS development team at\nUppsala University, Stockholm University and\nthe Royal Institute of Technology, Sweden.\ncheck out http://www.gromacs.org for more information.\n\nGROMACS is free software; you can redistribute it and/or modify it\nunder the terms of the GNU Lesser General Public License\nas published by the Free Software Foundation; either version 2.1\nof the License, or (at your option) any later version.\n\n"
+            remove_line_start = ["GROMACS:      gmx", "Executable:", "Data prefix:", "Program:     gmx", "Source file:", "Function:", "For more information", "website at", "------------------"]
+            if remove_text in errors_find_input_structure: errors_find_input_structure = errors_find_input_structure.replace(remove_text, "")
+            errors_find_input_structure = errors_find_input_structure.split("\n")
+            for remove_line in remove_line_start: errors_find_input_structure = [line for line in errors_find_input_structure if not line.startswith(remove_line)] 
+            # remove the empty lines from the error message
+            errors_find_input_structure = [line for line in errors_find_input_structure if line != ""]
+            # change the list of strings to a single string, separated by new lines
+            errors_find_input_structure = "\n".join(errors_find_input_structure)
+            print(errors_find_input_structure, "\n   ******************************\n")
+        
+        if not os.path.exists(new_input_tpr_file_path): raise FileNotFoundError(f"tpr file not found: {new_input_tpr_file_path = }")
+        else: self.sim_files_path["tpr_file_path"] = new_input_tpr_file_path
                 
     def start_simulation(self):
-        
+
         # Start the simulation
         process = subprocess.Popen(self.terminal_input, shell=True, preexec_fn=os.setsid)
-        
+        if self.print_info: print("Simulation started with Terminal input:", self.terminal_input) 
+
         # Write simulation info text. If self.print_info, print the information about the simulation
         if self.print_info: start = time.time()
         if self.print_info or self.save_simulation_data_file is not None:
@@ -118,10 +243,7 @@ class RunLangevin1D:
             if self.lw_kappa is not None: info += f"\nLower wall: centre={self.lw_centre}, kappa={self.lw_kappa}"
             if self.uw_kappa is not None: info += f"\nUpper wall: centre={self.uw_centre}, kappa={self.uw_kappa}"
             if self.external_bias_file != "": info += f"\nStatic bias used: {self.external_bias_file}"
-                        
             if self.print_info: print(info, "\n") 
-        
-        # If self.print_info, print a progress bar, else wait for the simulation to finish
         if self.print_info:
             tot_pos = self.n_steps / self.position_pace               
             while process.poll() is None:
@@ -129,19 +251,37 @@ class RunLangevin1D:
                 n_lines = count_lines("position"+self.file_extension)
                 live_print_progress(start, n_lines, tot_pos, bar_length=50, variable_name='Simulated time', variable=round(n_lines*self.time_step*self.position_pace/1_000,4))
         else: process.wait()
-        if self.print_info: print(f"\nLangevin dynamics finished in {format_seconds(time.time()-start)}.")
-        
+        if self.print_info: print(f"\n{self.System} simulation finished in {format_seconds(time.time()-start)}.")
+
         # if self.save_simulation_data_file is given save the data
         if self.save_simulation_data_file is not None:
+            if info is None: info = f"\nRunning {self.System} simulation: n_steps={self.n_steps:,}, ipos={self.initial_position[0]},{self.initial_position[1]}, Pos_t={self.position_pace}, T={self.temperature}, t_Tot={self.n_steps*self.time_step/1000:,.2f}ns"
             [HILLS, pos] = read_data(n_pos_per_window=self.n_pos_per_window, extension=self.file_extension)
             external_bias = read_plumed_grid_file(self.external_bias_file) if self.external_bias_file != "" else [None]
             save_pkl([HILLS, pos, external_bias, info], self.save_simulation_data_file)        
             
     def start_sim_return_process(self, print_info=False):
         # Start the simulation and return the process so that it can be interupted later.
+        if self.print_info: print("Simulation started with Terminal input:", self.terminal_input) 
         process = subprocess.Popen(self.terminal_input, shell=True, preexec_fn=os.setsid)
         if print_info: print("Simulation started with pid:", process.pid, os.getpgid(process.pid))
         return process
+    
+def get_trajectory_xtc_file_path(simulation_path=None, System="gromacs"):
+    
+    if simulation_path is not None: os.chdir(simulation_path)
+    current_path = os.getcwd() + "/"
+
+    if System in ["gmx", "gromacs", "GMX", "GROMACS"]:
+        traj_files = sorted(glob.glob("*traj*.xtc"), key=os.path.getctime)
+        if len(traj_files) == 0: 
+            print(f"\n******* No trajectory files found in {simulation_path} ******* ")
+            return None
+        return current_path + traj_files[-1]
+    
+    if System in ["Langevin", "Langevin1D"]:
+        print(f"\n******* No trajectory files are generated in Langevin simulations ******* ")
+        return None
             
 def wait_for_HILLS(new_hills, hills_analysed=0, hills_path="HILLS", return_nhills=False, lines_with_coments="default", periodic=False, sleep_between_checks=0.1):
     wait = True
@@ -188,15 +328,16 @@ def get_plumed_grid_1D(X, pl_min=None, pl_max=None, print_info=False, periodic=F
     x_min, x_max, nx = np.min(X), np.max(X), len(X)
     dx = X[1] - X[0]
     
-    if pl_min is None and periodic is False: pl_min = x_min - 1
-    if pl_max is None and periodic is False: pl_max = x_max + 1
-    if pl_min is None and pl_max is None and periodic is True: 
-        
+    if periodic is True: 
         pl_x = X
         pl_x_min_new, pl_x_max_new, pl_nx = x_min, x_max, nx
-        nx_low_extra, nx_up_extra = 0, 0
-    
+        nx_low_extra, nx_up_extra = 0, -nx  
+
     else: 
+            
+        if pl_min is None: pl_min = x_min - 1
+        if pl_max is None: pl_max = x_max + 1        
+        
         diff_x_low = x_min - pl_min
         diff_x_up = pl_max - x_max
         
@@ -243,18 +384,16 @@ def make_external_bias_1D(grid_mfi, FES=None, Bias=None, Bias_sf=1, gaus_filter_
     
     # get correct format to save in file "external_bias.dat" file
     if periodic: 
-        pl_x = pl_x[:-1]
-        pl_Bias = pl_Bias[:-1]
-        pl_F_bias = pl_F_bias[:-1]
-        if round(pl_min,1) + np.pi == 0.0: pl_min, pl_max = "-pi", "pi"
         periodic = "true"
+        if round(pl_min + np.pi,1) == 0.0: pl_min = "-pi"
+        if round(pl_max - np.pi,1) == 0.0: pl_max = "pi" 
     else: periodic = "false"
 
     # change the plumed nbins to the correct format (irrespective of periodicity)
     pl_nx = pl_nx - 1
     
     #Save to external_bias.dat file
-    external_bias_vector = np.array([pl_x, pl_Bias, pl_F_bias]).T       
+    external_bias_vector = np.array([pl_x, pl_Bias, pl_F_bias]).T if periodic is False else np.array([pl_x[:-1], pl_Bias[:-1], pl_F_bias[:-1]]).T  
     head_text = f"#! FIELDS {cv_name} external.bias der_{cv_name}\n#! SET min_{cv_name} {pl_min}\n#! SET max_{cv_name} {pl_max}\n#! SET nbins_{cv_name} {pl_nx}\n#! SET periodic_{cv_name} {periodic}"
     np.savetxt(f"external_bias{file_name_extension}.dat", external_bias_vector, fmt="%.8f", delimiter="   ", header=head_text, comments="")
 
@@ -285,7 +424,7 @@ def find_total_bias_from_hills(grid, HILLS, nhills=-1, periodic=False):
         for pos_m in pos_meta: Bias += height_meta * np.exp( - np.square(grid - pos_m) / (2*sigma_meta2) )
    
     return Bias
-    
+
 def get_random_move(grid_min, grid_max):
     random.seed()
     index = random.randint(0, 500)
@@ -296,20 +435,20 @@ def set_up_folder(folder_path, remove_folder=False, print_info=False, copy_files
     
     if os.path.isdir(folder_path): 
         if remove_folder is False: 
-            if print_info:print(f"*** Folder already exists: {folder_path} *** Moving into folder.") 
-            os.chdir(folder_path)
-            return os.getcwd()
+            if print_info: print(f"*** Folder already exists: {folder_path} *** Moving into folder.") 
         else: 
             if print_info: print(f"*** Removing folder: {folder_path} *** Creating a new folder and moving into it.")
             shutil.rmtree(folder_path)
-    os.mkdir(folder_path)
-    os.chdir(folder_path)
+            os.mkdir(folder_path)
+    else: os.makedirs(folder_path)        
     
+    os.chdir(folder_path)
+
     if len(copy_files_path) > 0:
         for file in copy_files_path:
             if os.path.exists(file): shutil.copy(file, folder_path)
             else: print(f"*** File {file} does not exist. ***")
-            
+
     return os.getcwd()
 
 ####  ---- Read simulation Data  ----  ####
@@ -324,23 +463,23 @@ for _read_simulation_data_ in [0]:
         
         # add extension to the file names
         if extension != "": hills_path, pos_path = hills_path + extension, pos_path + extension
-        
+
         #### ~~~~~ Copy hills and position Data ~~~~~ ####
-        
+
         if n_pos_per_window is None: n_pos_per_window = 10
         n_pos_per_window = int(n_pos_per_window)
         n_pos_analysed = int(n_pos_analysed)
         
         # make a copy of the position and hills file, and read the data from the copy, ignoring lines starting with #. If copy already exists, remove it first.
         pos_path_cp = pos_path + "_cp"
-        if os.path.exists(pos_path_cp): os.system("rm " + pos_path_cp)
+        if os.path.exists(pos_path_cp): os.system(f"rm {pos_path_cp}")
                 
         if metad_h is not None and metad_h > 0: 
             hills_path_cp = hills_path + "_cp"
-            if os.path.exists(hills_path_cp): os.system("rm " + hills_path_cp)
+            if os.path.exists(hills_path_cp): os.system(f"rm {hills_path_cp}")
         
-        os.system("cp " + pos_path + " " + pos_path_cp)        
-        if metad_h is not None and metad_h > 0: os.system("cp " + hills_path + " " + hills_path_cp)        
+        os.system(f"cp {pos_path} {pos_path_cp}")        
+        if metad_h is not None and metad_h > 0: os.system(f"cp {hills_path} {hills_path_cp}")
         
         #### ~~~~~ Load position Data ~~~~~ ####
 
@@ -367,7 +506,7 @@ for _read_simulation_data_ in [0]:
         if len(pos) <= n_pos_analysed: 
             print(f"The position data is smaller than the number of positions already analysed {len(pos) = } <= {n_pos_analysed = }")
             return None, None
-            
+
         # cut position data, removing the number of positions already analysed
         if n_pos_analysed > 0: pos = pos[n_pos_analysed:]
         assert len(pos) > n_pos_per_window, f"The position data: {pos = } is empty ({len(pos) = }) (ec3)"
@@ -393,7 +532,7 @@ for _read_simulation_data_ in [0]:
             hills = np.array(hills, dtype=float)
             
             #### ~~~~~ Data Loadin Finished  --> Now cut data where necessary ~~~~~ ####
-            
+
             # find the time between positions and hills
             dt_pos, dt_hills = float(pos[1][0]) - float(pos[0][0]), float(hills[2][0]) - float(hills[1][0])
             
@@ -402,18 +541,18 @@ for _read_simulation_data_ in [0]:
         
             #### ~~~~~ If n_pos_analysed > 0 find the data after n_pos_analysed ~~~~~ ####        
             if n_pos_analysed > 0:
-                
+
                 # find poitions sim start time and expected hills start time
                 t_pos_0 = pos[0][0]
                 t_hills_0 = round(t_pos_0 - dt_pos, 4)  # the hill corresponding to the first position is deposited at t_pos_0 - dt_pos
             
                 # find the index of the first hill. 
                 t_hills_slided = np.array([round(hills[i,0] - t_hills_0, 4) for i in range(len(hills))])
-                index = np.where(t_hills_slided == 0.0)
-                assert len(index[0]) == 1, f"Could not find the (first) hill corresponding to the first position: t_pos_0 - dt_pos = {t_pos_0} - {dt_pos} = {t_hills_0 = } in the hills file: {hills_path} \n{hills[:5] = } \n{hills[-5:] = }\n{t_hills_slided = }"
+                t_index = np.where(t_hills_slided == 0.0)
+                assert len(t_index[0]) == 1, f"Could not find the (first) hill corresponding to the first position: t_pos_0 - dt_pos = {t_pos_0} - {dt_pos} = {t_hills_0 = } in the hills file: {hills_path} \n{hills[:5] = } \n{hills[-5:] = }\n{t_hills_slided = }\n{round(hills[1,0] - t_hills_0, 4) = }"
             
                 # cut hills data, removing the hills before the first hill corresponding to the first position
-                hills = hills[index[0][0]:]
+                hills = hills[t_index[0][0]:]
             
             # check if t_pos_0 - dt_pos == t_hills_0
             assert round(pos[0][0] - dt_pos, 4) == round(hills[0][0], 4), f"The first time in the position data and the first time in the hills data don't match: pos[0][0] - dt_pos = {pos[0][0]} - {dt_pos} = {pos[0][0] - dt_pos} != {hills[0][0] = }"
@@ -421,20 +560,20 @@ for _read_simulation_data_ in [0]:
             #### ~~~~~ Cut from the end to make len(hills) * n_pos_per_window = len(pos) ~~~~~ ####        
 
             len_hills, len_pos = len(hills), len(pos)
-            if len_hills * n_pos_per_window != len_pos:    
-                
-                #  if there are too many hills lines, remove extra hills lines
+            if len_hills * n_pos_per_window != len_pos:
+
+                # if there are too many hills lines, remove extra hills lines
                 if len_hills * n_pos_per_window > len_pos: 
                     extra_hills = int(np.ceil((len_hills * n_pos_per_window - len_pos) / n_pos_per_window))
                     hills = hills[:-extra_hills] # this will require removing some positions with the next if statement
                     len_hills = len(hills)
                 
-                # if there are too many position lines, remove extra position lines    
+                # if there are too many position lines, remove the extra position lines
                 if len_hills * n_pos_per_window < len_pos: 
                     extra_positions = int(len_pos - len_hills * n_pos_per_window)
                     pos = pos[:-extra_positions]
                     len_pos = len(pos)
-                
+
                 # if the lengths still don't match, print a warning message and return None        
                 if len_hills * n_pos_per_window != len_pos: 
                     extra_hills = int(np.ceil((len_hills * n_pos_per_window - len_pos) / n_pos_per_window))
@@ -445,8 +584,8 @@ for _read_simulation_data_ in [0]:
                 #### ~~~~~ Make sure the end time of the position and hills data match (t_pos_end - dt_hills = t_hills_end) ~~~~~ ####        
                 if round((pos[-1][0] - dt_hills) - hills[-1][0], 4) != 0.0:
                     print(f"Error in cutting the hills data: The (last time in the hills data) + (time between hills) = ({hills[-1][0] +  dt_hills}) does not match the last time in the position data ({pos[-1][0]})")
-                    return None, None            
-                        
+                    return None, None
+
             # consistency checks                                       
             assert round((pos[-1][0] - dt_hills) - hills[-1][0], 4) == 0.0, f"The last time in the position data and the last time in the hills data don't match: t_pos_end - dt_hills = {pos[-1][0] - dt_hills} != {hills[-1][0] = }"
             assert len(hills) > 1, f"The hills data: {hills = } is empty (after data has been cut)"
@@ -455,7 +594,7 @@ for _read_simulation_data_ in [0]:
 
             # remove the copies of the hills and position files
             os.system("rm " + hills_path_cp)
-        
+
         # if metad_h is None or meta_h <= 0, hills is returned as None    
         else: hills = None
         os.system("rm " + pos_path_cp)
@@ -466,7 +605,7 @@ for _read_simulation_data_ in [0]:
         
         # add extension to the file names
         if extension != "": pos_path = pos_path + extension
-        
+
         n_pos_analysed = int(n_pos_analysed)
         
         # copy the position file and read the data from the copy, ignoring lines starting with #. If copy already exists, remove it first.
@@ -500,17 +639,21 @@ for _read_simulation_data_ in [0]:
         return pos
 
     def read_plumed_grid_file(filename):
-        
-        with open(filename, "r") as f: external_bias = f.read()    
-        
+
+        with open(filename, "r") as f: external_bias = f.read()
         # read comment lines
         comment_lines =  [line for line in external_bias.strip().split('\n') if line.startswith("#")]
+        periodic = [ cl.split()[-1] for cl in comment_lines if "periodic" in cl][0]
         
         # read data
         filtered_lines = [line for line in external_bias.strip().split('\n') if not line.startswith("#")]
         data_array = np.array([list(map(float, line.split())) for line in filtered_lines if line.strip() != ""])
     
-        return [data_array[:, i] for i in range(len(data_array[0]))]
+        if periodic == "flase": return [data_array[:, i] for i in range(len(data_array[0]))]
+        elif periodic == "true": 
+            # new_data_array is data array concatenated with the first line of data array
+            new_data_array = np.concatenate((data_array, data_array[:1]), axis=0)
+            return [new_data_array[:, i] for i in range(len(new_data_array[0]))]
 
     def get_file_path(file_name, file_type):
         if file_name != "": print(f"\n\n *** Can not find {file_type} file (path): \"{file_name}\" ***\nPlease enter the {file_type} name (path) or \'exit\' to sys.exit(): ")
@@ -540,19 +683,25 @@ def find_periodic_point(x_coord, min_grid, max_grid, periodic, periodic_range):
     list: list of input coord and if applicable periodic copies
 
     """
-    if isinstance(x_coord, (float, int)): coord_list = [x_coord]
-    elif isinstance(x_coord, (list, np.ndarray)): coord_list = list(x_coord)
+    if isinstance(x_coord, (float, int)): x_coord = [x_coord]
+    elif isinstance(x_coord, (list, np.ndarray)): x_coord = list(x_coord)
     else: raise ValueError("Input coordinate has to be a float, int, list or numpy array.")
     
     
     if periodic == 1:
         grid_length = max_grid - min_grid
-        #There are potentially 2 points, 1 original and 1 periodic copy.
-        if x_coord < min_grid+periodic_range: coord_list.append(x_coord + grid_length)
-        elif x_coord > max_grid-periodic_range: coord_list.append(x_coord - grid_length)
-        return coord_list
+        coord_list = []
+        
+        for xi in x_coord:
+            # Add original coordinate
+            coord_list.append(xi)
+            # There is potentially 1 more point (periodic copy).
+            if xi < min_grid+periodic_range: coord_list.append(xi + grid_length)
+            elif xi > max_grid-periodic_range: coord_list.append(xi - grid_length)
+        return np.array(coord_list)
+    
     else:
-        return x_coord
+        return np.array(x_coord)
 
 def find_hp_force(hp_centre, hp_kappa, grid, min_grid, max_grid, grid_space, periodic):
     """Find 1D harmonic potential force equivalent to f = hp_kappa * (grid - hp_centre). 
@@ -709,8 +858,9 @@ def window_forces(grid, pos, pos_meta, sigma_meta2, height_meta, kT, const, bw2,
         Bias_i = np.zeros(len(grid))
         
         for j in range(len(pos_meta)):
-            Bias_i += height_meta * np.exp( - np.square(grid - pos_meta[j]) / (2*sigma_meta2) )
-            F_bias_i += 1 / sigma_meta2 * np.multiply(Bias_i, (grid - pos_meta[j]))
+            kernel_meta = height_meta * np.exp( - np.square(grid - pos_meta[j]) / (2*sigma_meta2) )
+            Bias_i += kernel_meta
+            F_bias_i += 1 / sigma_meta2 * np.multiply(kernel_meta, (grid - pos_meta[j]))
     else: F_bias_i, Bias_i = None, None
     
     # Estimate the biased proabability density
@@ -762,8 +912,8 @@ def MFI_forces(HILLS, position, n_pos_per_window, const, bw2, kT, grid, Gamma_Fa
             height_meta = HILLS[i, 3] * Gamma_Factor  # Height of Gaussian
             pos_meta = find_periodic_point(np.array([s]), grid_min, grid_max, periodic, periodic_range) if periodic else np.array([s])
         data = position[i * n_pos_per_window: (i + 1) * n_pos_per_window]  # positons of window of constant bias force.
-        pos = find_periodic_point(data, grid_min, grid_max, periodic, periodic_range) if periodic else data
-                
+        pos = find_periodic_point(np.array(data), grid_min, grid_max, periodic, periodic_range) if periodic else data
+                        
         # Find forces of window
         [PD_i, F_PD_i, Bias_i, F_bias_i] = window_forces(grid, pos, pos_meta, sigma_meta2, height_meta, kT, const, bw2, PD_limit)
 
@@ -1279,7 +1429,7 @@ def bootstrapping_error(grid, force_array, n_bootstrap, periodic=False, FES_cuto
         if iteration > 0:
             sd_fes = np.sqrt(M2/iteration)
             if PD_cutoff is not None or FES_cutoff is not None: sd_fes *= cutoff
-            sd_fes_prog[iteration] = np.sum(sd_fes) / averaging_denominator 
+            sd_fes_prog[iteration] = np.sum(sd_fes) / averaging_denominator if averaging_denominator > 0 else np.nan
         else: sd_fes_prog[iteration] = 0
         
         # print progress
@@ -1354,7 +1504,7 @@ def weighted_bootstrapping_error(grid, force_array, n_bootstrap, periodic=False,
             var_fes = np.divide(sum_var_num , sum_PD, out=np.zeros_like(PD), where=sum_PD>1) * BC
             sd_fes = np.sqrt(var_fes) * cutoff if PD_cutoff is not None or FES_cutoff is not None else np.sqrt(var_fes)
 
-            sd_fes_prog[iteration] = np.sum(sd_fes) / averaging_denominator 
+            sd_fes_prog[iteration] = np.sum(sd_fes) / averaging_denominator if averaging_denominator > 0 else np.nan
         else: sd_fes_prog[iteration] = 0
         
         # print progress
@@ -1574,6 +1724,27 @@ def get_avr_error_prog(path_data=None, n_surf=4, total_campaigns=50, time_budget
         
     if return_avr_prog: return time, ofe_mean, ofe_ste, aad_mean, aad_ste
 
+def analyse_independent_simulations_and_get_avr_error_prog(path_data=None, n_surf=4, 
+                                                           total_campaigns=None, n_sim_per_camp=None, time_budget=100, 
+                                                           include_aad=True, simulation_type="", return_avr_prog=False,
+                                                            ):
+
+    # iterate over simulation campaigns. One campaign has n_sim_per_camp simulations
+    
+    
+    
+    
+    # initialize t min and max, and data lists
+    
+    
+    # identify the data path
+    
+    
+
+
+
+    return
+
 def weighted_average(data, factor=1.5, only_last=False):
     
     len_data = len(data)
@@ -1660,293 +1831,295 @@ for _save_and_load_ in [0]:
         """
         with open(name, "rb") as fr:
             return pickle.load(fr)
-        
+
 ####  ---- Useful functions  ----  ####
 
-def zero_to_nan(input_array):
-    """Function to turn all zero-elements to np.nan. Works for any shapes.
+for _functions_ in [1]:
 
-    Args:
-        input_array (array of arbitrary shape): non specific array
+    def zero_to_nan(input_array):
+        """Function to turn all zero-elements to np.nan. Works for any shapes.
 
-    Returns:
-        array: input array with zero-elements turned to np.nan
-    """
-    output_array = np.zeros_like(input_array)
-    for ii in range(len(input_array)):
-        for jj in range(len(input_array[ii])):
-            if input_array[ii][jj] <= 0: output_array[ii][jj] = np.nan
-            else: output_array[ii][jj] = input_array[ii][jj]
-    return output_array
+        Args:
+            input_array (array of arbitrary shape): non specific array
 
-@njit
-def index(position, min_grid, grid_space):
-    """Finds (approximate) index of a position in a grid. Independent of CV-type.
+        Returns:
+            array: input array with zero-elements turned to np.nan
+        """
+        output_array = np.zeros_like(input_array)
+        for ii in range(len(input_array)):
+            for jj in range(len(input_array[ii])):
+                if input_array[ii][jj] <= 0: output_array[ii][jj] = np.nan
+                else: output_array[ii][jj] = input_array[ii][jj]
+        return output_array
 
-    Args:
-        position (float): position of interest
-        min_grid (float): minimum value of grid
-        grid_space (float): grid spacing
+    @njit
+    def index(position, min_grid, grid_space):
+        """Finds (approximate) index of a position in a grid. Independent of CV-type.
 
-    Returns:
-        int: index of position
-    """
-    return int((position-min_grid)//grid_space) + 1
+        Args:
+            position (float): position of interest
+            min_grid (float): minimum value of grid
+            grid_space (float): grid spacing
 
-def gaus_1d(x, *parameters):
-    
-    n_G = int(len(parameters)/3)
-    amp_list = np.asarray(parameters[:n_G])
-    mu_list = np.asarray(parameters[n_G:2*n_G])
-    sigma_list = np.asarray(parameters[2*n_G:])
-     
-    return np.sum([amp * np.exp(-((x - mu) ** 2) / (2 * sigma ** 2)) for amp, mu, sigma in zip(amp_list, mu_list, sigma_list)], axis=0)
+        Returns:
+            int: index of position
+        """
+        return int((position-min_grid)//grid_space) + 1
+
+    def gaus_1d(x, *parameters):
         
-def Gauss_fitting_to_CVdata(grid, position, probcutoff=0.0075, min_peak_distance=20, initial_sgima_guess=0.1, periodic=False, print_info=False, show_plot=False):
-    
-    # make a histogram and find the peaks
-    histo, histo_grid = np.histogram(position, bins=grid)
-    histo_grid = [ c + (grid[1]-grid[0])/2 for c in histo_grid[:-1] ]
-    histo = histo / len(position)
-    histo = np.where(histo < probcutoff, 0, histo)
-    peaks, _ = find_peaks(histo, distance=min_peak_distance)  
-    n_G = len(peaks)
-    
-    # initial guess for the parameters of the Gaussians
-    amp_0 = [ histo[p] for p in peaks ]
-    mu_0 = [ histo_grid[p] for p in peaks ]
-    sigma_0 = [initial_sgima_guess for _ in peaks ]   
-
-    # bounds for the parameters of the Gaussians
-    height_bounds = 0, 1
-    position_bounds = min(grid)*1.5, max(grid)*1.5
-    sigma_bounds = grid[1] - grid[0], (grid[-1] - grid[0])/4
-    bounds= ( np.array([height_bounds[0]]*n_G + [position_bounds[0]]*n_G + [sigma_bounds[0]]*n_G).flatten(), np.array([height_bounds[1]]*n_G + [position_bounds[1]]*n_G + [sigma_bounds[1]]*n_G).flatten() )
-    
-    # fit the histogram to the sum of Gaussians 
-    popt, _ = curve_fit(gaus_1d, histo_grid, histo, p0=np.array([amp_0, mu_0, sigma_0]).flatten(), bounds=bounds)
-
-    # if periodic and the first and last peak are too close (with pbc), delete smaller one.
-    if periodic == True:
-        if (peaks[0] - (peaks[-1] - len(histo) ) < min_peak_distance):  #if the first and last peak are too close (with pbc), delete smaller one.
-            if histo[peaks[0]]>=histo[peaks[-1]]: peaks, popt = np.delete(peaks,-1), np.delete(popt,range(n_G,len(popt),n_G))
-            else: peaks, popt=np.delete(peaks,0), np.delete(popt,range(0,len(popt),n_G))
-            n_G -= 1
-
-    # remove the parameter of peaks that are outsite of the grid 
-    height_list, position_list, sigma_list = popt[:n_G], popt[n_G:2*n_G], popt[2*n_G:]
-    valid_indices = [i for i, pos in enumerate(position_list) if min(grid) <= pos <= max(grid)]
-    position_list = [position_list[i] for i in valid_indices]
-    sigma_list = [sigma_list[i] for i in valid_indices]
-    height_list = [height_list[i] for i in valid_indices]
-    
-    if show_plot:
-        plt.figure(figsize=(18,6))
-        plt.subplot(1,2,1)
-        plt.scatter(position, range(len(position)),s=0.5, alpha=0.2)
-        plt.xlabel("CV"); plt.ylabel("count"); plt.title("CV-Trajectory and peaks")
-        for p in peaks: plt.axvline(x = grid[p], color = 'r')
-        # plt.xlim(min(grid), max(grid))
+        n_G = int(len(parameters)/3)
+        amp_list = np.asarray(parameters[:n_G])
+        mu_list = np.asarray(parameters[n_G:2*n_G])
+        sigma_list = np.asarray(parameters[2*n_G:])
         
-        plt.subplot(1,2,2)
-        plt.bar(histo_grid, histo, width=(grid[1]-grid[0]), color='grey', alpha=0.5)
-        plt.scatter(grid[peaks], histo[peaks], color='r', s=5)
-        for i in range(n_G):
-            G_i = gaus_1d(histo_grid,height_list[i],position_list[i],sigma_list[i])            
-            plt.plot(histo_grid,np.where( G_i > 1E-5, G_i, np.nan) ,label=str(i)+": h="+str(round(height_list[i],5))+", cv="+str(round(position_list[i],2))+", sigma="+str(round(sigma_list[i], 3)), linewidth=3, alpha=0.5)
-        plt.legend()          
-        plt.xlabel("CV"); plt.ylabel("relative count"); plt.title("Histogram and fitted Gaussians")	
-        # plt.xlim(min(grid), max(grid))
-        # plt.yscale('log')
-        plt.suptitle("Peaks at CV = " + str(peaks))
-        plt.tight_layout()
-    
-    return height_list, position_list, sigma_list
-
-def Gauss_fitting_to_fes(grid, fes, min_peak_distance=None, initial_sgima_guess=0.1, height_scaling=1, sigma_scaling=1, periodic=False, fix_G_position=False, print_info=False, show_plot=False):
-    
-    if print_info: start = time.time()
-    
-    if min_peak_distance is None: min_peak_distance = len(grid)//25
-    
-    if periodic: grid, fes, grid_length = np.concatenate((grid, grid + (grid[-1] - grid[0]) )), np.concatenate((fes, fes)), max(grid) - min(grid)
-    
-    # find the peaks and inv_peaks (basins) of the fes
-    pos_fes = np.array(fes)
-    fes = -fes
-    fes = fes - np.min(fes)
-    peaks, _ = find_peaks(fes, distance=min_peak_distance)  
-    inv_peak, _ = find_peaks(-fes, distance=min_peak_distance)
-    inv_peak = np.concatenate(( [0], inv_peak, [len(fes)-1] ))
-    n_G = len(peaks)
-
-    # bounds for the parameters of the Gaussians
-    height_bounds = 0, np.max(fes) * 1.5
-    position_bounds = min(grid)*1.5, max(grid)*1.5
-    sigma_bounds = grid[1] - grid[0], (grid[-1] - grid[0])/4
-    if fix_G_position: bounds = ( [height_bounds[0], sigma_bounds[0]], [height_bounds[1], sigma_bounds[1]] )
-    else: bounds = ( [height_bounds[0], position_bounds[0], sigma_bounds[0]], [height_bounds[1], position_bounds[1], sigma_bounds[1]] )
-    height_list , position_list, sigma_list = [], [], []
-    
-    # Cut the fes at the height of the smaller neighboring inv_peak to aviod fitting the whole FES.
-    fes_cut_list, to_fit_list = [], []
-    for i, p in enumerate(peaks): 
-        
-        fes_cut = np.array(fes)
-        # find index of neighboring inv_peaks. Use lower inv_peak as cut. 
-        for j in range(len(inv_peak)):
-            if inv_peak[j] > p: 
-                if pos_fes[inv_peak[j]] < pos_fes[inv_peak[j-1]]:   # if the inv_peak on the right is lower
-                    cut, cut_i = fes[inv_peak[j]], inv_peak[j]
-                    fes_cut[cut_i:] = cut                            # cut the fes at the height of the lower inv_peak ( for indexes > lower inv_peak)
-                    for k in range(len(fes_cut[:p])):
-                        if fes_cut[p-k] < cut: 
-                            fes_cut[:p-k+1] = cut 				   # cut the fes at the height of the lower inv_peak ( for indexes < higher inv_peak)	
-                            break
-                else: 												# if the inv_peak on the left is lower
-                    cut, cut_i = fes[inv_peak[j-1]], inv_peak[j-1]
-                    fes_cut[:cut_i] = cut							# cut the fes at the height of the lower inv_peak ( for indexes < lower inv_peak)
-                    for k in range(len(fes_cut[p:])):
-                        if fes_cut[p+k] < cut: 
-                            fes_cut[p+k-1:] = cut					# cut the fes at the height of the lower inv_peak ( for indexes > higher inv_peak)
-                            break
-                break
-        
-        fes_cut_list.append(fes_cut)
-        to_fit_list.append((fes_cut - min(fes_cut))*height_scaling)
-    
-    if print_info: print("time start-up: ", round(time.time()-start,6), "s"); time1 = time.time()
-    
-    # Find optimal parameters for each fes_cut           
-    for i, fes_i in enumerate(to_fit_list):
-        
-        if fix_G_position:  # if fix_G_position = True, use the position of the minima of the basin  as mu for faster curve_fit() 
-     
-            def Gauss_temp(x, *prms): #prms=amp, sigma
-                return prms[0] * np.exp(-((x - x[peaks[i]]) ** 2) / (2 * prms[1] ** 2))   
+        return np.sum([amp * np.exp(-((x - mu) ** 2) / (2 * sigma ** 2)) for amp, mu, sigma in zip(amp_list, mu_list, sigma_list)], axis=0)
             
-            bounds = ( [height_bounds[0], sigma_bounds[0]], [height_bounds[1], sigma_bounds[1]] )
-            initial_guess = np.array([max(fes_i), initial_sgima_guess] )
-            prms = curve_fit(Gauss_temp,grid,fes_i,p0=initial_guess,bounds=bounds)[0][:3]
-            height_list.append(prms[0])
-            position_list.append(grid[peaks[i]])       
-            sigma_list.append(prms[1])        
-        else:   
-            initial_guess = np.array([max(fes_i), grid[np.argmax(fes_i)], initial_sgima_guess] )
-            prms = curve_fit(gaus_1d,grid,fes_i,p0=initial_guess,bounds=bounds)[0][:3]
-            height_list.append(prms[0])
-            position_list.append(prms[1])       
-            sigma_list.append(prms[2])
-                
-    if print_info: print("time optim: ", round(time.time()-time1,6), "s")
+    def Gauss_fitting_to_CVdata(grid, position, probcutoff=0.0075, min_peak_distance=20, initial_sgima_guess=0.1, periodic=False, print_info=False, show_plot=False):
+        
+        # make a histogram and find the peaks
+        histo, histo_grid = np.histogram(position, bins=grid)
+        histo_grid = [ c + (grid[1]-grid[0])/2 for c in histo_grid[:-1] ]
+        histo = histo / len(position)
+        histo = np.where(histo < probcutoff, 0, histo)
+        peaks, _ = find_peaks(histo, distance=min_peak_distance)  
+        n_G = len(peaks)
+        
+        # initial guess for the parameters of the Gaussians
+        amp_0 = [ histo[p] for p in peaks ]
+        mu_0 = [ histo_grid[p] for p in peaks ]
+        sigma_0 = [initial_sgima_guess for _ in peaks ]   
 
-    # if periodic and the first and last peak are too close (with pbc), delete smaller one.
-    if periodic == True:
+        # bounds for the parameters of the Gaussians
+        height_bounds = 0, 1
+        position_bounds = min(grid)*1.5, max(grid)*1.5
+        sigma_bounds = grid[1] - grid[0], (grid[-1] - grid[0])/4
+        bounds= ( np.array([height_bounds[0]]*n_G + [position_bounds[0]]*n_G + [sigma_bounds[0]]*n_G).flatten(), np.array([height_bounds[1]]*n_G + [position_bounds[1]]*n_G + [sigma_bounds[1]]*n_G).flatten() )
         
-        # set the parameters of the first Gaussian to the parameters of the first Gaussian of the periodic extension
-        n_copy = len(height_list)//2
-        height_list[0], sigma_list[0] = height_list[n_copy], sigma_list[n_copy]
-        fes_cut_list[0], to_fit_list[0] = np.concatenate((fes_cut_list[n_copy][len(grid)//2:], fes_cut_list[n_copy][:len(grid)//2])), np.concatenate((to_fit_list[n_copy][len(grid)//2:], to_fit_list[n_copy][:len(grid)//2]))
-        
-        # remove the periodic extension 
-        grid, pos_fes, fes = grid[:len(grid)//2], pos_fes[:len(fes)//2], fes[:len(fes)//2]
-        fes_cut_list = [fes_cut[:len(fes_cut)//2] for fes_cut in fes_cut_list]
-        to_fit_list = [to_fit[:len(to_fit)//2] for to_fit in to_fit_list]
-        peaks, _ = find_peaks(fes, distance=min_peak_distance)
+        # fit the histogram to the sum of Gaussians 
+        popt, _ = curve_fit(gaus_1d, histo_grid, histo, p0=np.array([amp_0, mu_0, sigma_0]).flatten(), bounds=bounds)
+
+        # if periodic and the first and last peak are too close (with pbc), delete smaller one.
+        if periodic == True:
+            if (peaks[0] - (peaks[-1] - len(histo) ) < min_peak_distance):  #if the first and last peak are too close (with pbc), delete smaller one.
+                if histo[peaks[0]]>=histo[peaks[-1]]: peaks, popt = np.delete(peaks,-1), np.delete(popt,range(n_G,len(popt),n_G))
+                else: peaks, popt=np.delete(peaks,0), np.delete(popt,range(0,len(popt),n_G))
+                n_G -= 1
+
+        # remove the parameter of peaks that are outsite of the grid 
+        height_list, position_list, sigma_list = popt[:n_G], popt[n_G:2*n_G], popt[2*n_G:]
         valid_indices = [i for i, pos in enumerate(position_list) if min(grid) <= pos <= max(grid)]
-
-        height_list, position_list, sigma_list, fes_cut_list, n_G = [height_list[i] for i in valid_indices], [position_list[i] for i in valid_indices], [sigma_list[i] for i in valid_indices], [fes_cut_list[i] for i in valid_indices], len(valid_indices)        
+        position_list = [position_list[i] for i in valid_indices]
+        sigma_list = [sigma_list[i] for i in valid_indices]
+        height_list = [height_list[i] for i in valid_indices]
         
-        if (peaks[0] - (peaks[-1] - len(fes) ) < min_peak_distance):  #if the first and last peak are too close (with pbc), delete smaller one. 
-            if fes[peaks[0]]>=fes[peaks[-1]]: peaks, height_list , position_list, sigma_list = np.delete(peaks,-1), height_list[:-1] , position_list[:-1], sigma_list[:-1]
-            else: peaks, height_list , position_list, sigma_list = np.delete(peaks,0), height_list[1:] , position_list[1:], sigma_list[1:]
-            n_G -= 1
+        if show_plot:
+            plt.figure(figsize=(18,6))
+            plt.subplot(1,2,1)
+            plt.scatter(position, range(len(position)),s=0.5, alpha=0.2)
+            plt.xlabel("CV"); plt.ylabel("count"); plt.title("CV-Trajectory and peaks")
+            for p in peaks: plt.axvline(x = grid[p], color = 'r')
+            # plt.xlim(min(grid), max(grid))
             
-    # remove peaks that are too small. 
-    valid_indices = [i for i, h in enumerate(height_list) if h > max(pos_fes)/100]
-    height_list, position_list, sigma_list, fes_cut_list, n_G = [height_list[i] for i in valid_indices], [position_list[i] for i in valid_indices], [sigma_list[i] for i in valid_indices], [fes_cut_list[i] for i in valid_indices], len(valid_indices)
-    
-    # # remove the parameter of peaks that are outsite of the grid   # is that necessary? Could there be centre of Gaussians outside of the grid?
-    # for _remove_outliers_ in [0]:
-    #     valid_indices = [i for i, pos in enumerate(position_list) if min(grid) <= pos <= max(grid)]
-    #     height_list, position_list, sigma_list, fes_cut_list, n_G = [height_list[i] for i in valid_indices], [position_list[i] for i in valid_indices], [sigma_list[i] for i in valid_indices], [fes_cut_list[i] for i in valid_indices], len(valid_indices)
-
-    if print_info: print_info("Parameters found.\n" + str(n_G) + " Basins found.") if n_G > 0 else print("No basins found.")
-    if print_info: print("Time Total: ", round(time.time()-start,6), "s")      
-      
-    if show_plot:
-        Gauss_list = [ gaus_1d(grid, height_list[i], position_list[i], sigma_list[i]) for i in range(n_G) ]
-        area_list = [ np.trapz(G, dx = grid[1]-grid[0]) for G in Gauss_list ]
-       
-        plt.figure(figsize=(23,6))
+            plt.subplot(1,2,2)
+            plt.bar(histo_grid, histo, width=(grid[1]-grid[0]), color='grey', alpha=0.5)
+            plt.scatter(grid[peaks], histo[peaks], color='r', s=5)
+            for i in range(n_G):
+                G_i = gaus_1d(histo_grid,height_list[i],position_list[i],sigma_list[i])            
+                plt.plot(histo_grid,np.where( G_i > 1E-5, G_i, np.nan) ,label=str(i)+": h="+str(round(height_list[i],5))+", cv="+str(round(position_list[i],2))+", sigma="+str(round(sigma_list[i], 3)), linewidth=3, alpha=0.5)
+            plt.legend()          
+            plt.xlabel("CV"); plt.ylabel("relative count"); plt.title("Histogram and fitted Gaussians")	
+            # plt.xlim(min(grid), max(grid))
+            # plt.yscale('log')
+            plt.suptitle("Peaks at CV = " + str(peaks))
+            plt.tight_layout()
         
-        # list of 40 colors
-        colors = ['g', 'r', 'c', 'm', 'y', 'k', 'orange', 'pink', 'brown', 'purple', 'olive', 'lime', 'teal', 'indigo', 'lavender', 'salmon', 'gold', 'lightblue', 'darkgreen', 'darkred', 'darkblue', 'darkorange', 'darkviolet', 'darkturquoise', 'darkmagenta', 'darkkhaki', 'darkolivegreen', 'darkgoldenrod', 'darkslategray', 'darkseagreen', 'darkslateblue', 'darkorchid', 'darkcyan', 'darkred', 'darkblue', 'darkorange', 'darkviolet', 'darkturquoise', 'darkmagenta']
-            
-        plt.subplot(1 ,3,1)
-        plt.plot(grid, pos_fes, linewidth=5, label="FES", alpha=0.2, color="orange")   
-        plt.plot(grid, [np.nan for _ in grid] , label= str(n_G) + " Basins", alpha=0.7, color="grey")
-        
-        for i, fes_i in enumerate(fes_cut_list):
-            i_max = np.argmax(fes_i)
-            basin_i = np.where(fes_i < (min(fes_i) + 1E-3), np.nan, -fes_i - (-fes_i[i_max] - pos_fes[i_max]) )
-            plt.plot(grid, basin_i, alpha=0.7, color=colors[i])
-            
-            plt.plot(grid, np.where(to_fit_list[i] > 1E-3, to_fit_list[i] + max(fes), np.nan), color=colors[i], alpha=0.7)        
-            plt.plot(grid, np.where(Gauss_list[i] > 1E-3, Gauss_list[i] + max(fes), np.nan), color="pink", linewidth=3, alpha=0.6)
-            
-            if periodic and i==0 and Gauss_list[0][0] > max(pos_fes)/1000:
+        return height_list, position_list, sigma_list
 
-                fes_cut_i, max_fes_cut_i = np.array([np.nan for _ in grid]), np.nanmax(basin_i)
-                for j in range(1,len(fes_cut_i)+1):
-                    if pos_fes[-j] < max_fes_cut_i: fes_cut_i[-j] = pos_fes[-j]
-                    else: break
-                plt.plot(grid, fes_cut_i, alpha=0.7, color=colors[i])
-    
-                G_cut_i = np.where(gaus_1d(grid, height_list[i], position_list[i]+grid_length, sigma_list[i]) > 1E-3, gaus_1d(grid, height_list[i], position_list[i]+grid_length, sigma_list[i]) + max(fes), np.nan)
-                plt.plot(grid, G_cut_i, color="pink", linewidth=3, alpha=0.6)
-                plt.plot(grid, -fes_cut_i*height_scaling + (np.nanmax(G_cut_i)-np.nanmax(-fes_cut_i*height_scaling)), alpha=0.7, color=colors[i])
-                   
-            if periodic and i==len(fes_cut_list)-1 and Gauss_list[-1][-1] > max(pos_fes)/1000:
+    def Gauss_fitting_to_fes(grid, fes, min_peak_distance=None, initial_sgima_guess=0.1, height_scaling=1, sigma_scaling=1, periodic=False, fix_G_position=False, print_info=False, show_plot=False):
+        
+        if print_info: start = time.time()
+        
+        if min_peak_distance is None: min_peak_distance = len(grid)//25
+        
+        if periodic: grid, fes, grid_length = np.concatenate((grid, grid + (grid[-1] - grid[0]) )), np.concatenate((fes, fes)), max(grid) - min(grid)
+        
+        # find the peaks and inv_peaks (basins) of the fes
+        pos_fes = np.array(fes)
+        fes = -fes
+        fes = fes - np.min(fes)
+        peaks, _ = find_peaks(fes, distance=min_peak_distance)  
+        inv_peak, _ = find_peaks(-fes, distance=min_peak_distance)
+        inv_peak = np.concatenate(( [0], inv_peak, [len(fes)-1] ))
+        n_G = len(peaks)
+
+        # bounds for the parameters of the Gaussians
+        height_bounds = 0, np.max(fes) * 1.5
+        position_bounds = min(grid)*1.5, max(grid)*1.5
+        sigma_bounds = grid[1] - grid[0], (grid[-1] - grid[0])/4
+        if fix_G_position: bounds = ( [height_bounds[0], sigma_bounds[0]], [height_bounds[1], sigma_bounds[1]] )
+        else: bounds = ( [height_bounds[0], position_bounds[0], sigma_bounds[0]], [height_bounds[1], position_bounds[1], sigma_bounds[1]] )
+        height_list , position_list, sigma_list = [], [], []
+        
+        # Cut the fes at the height of the smaller neighboring inv_peak to aviod fitting the whole FES.
+        fes_cut_list, to_fit_list = [], []
+        for i, p in enumerate(peaks): 
+            
+            fes_cut = np.array(fes)
+            # find index of neighboring inv_peaks. Use lower inv_peak as cut. 
+            for j in range(len(inv_peak)):
+                if inv_peak[j] > p: 
+                    if pos_fes[inv_peak[j]] < pos_fes[inv_peak[j-1]]:   # if the inv_peak on the right is lower
+                        cut, cut_i = fes[inv_peak[j]], inv_peak[j]
+                        fes_cut[cut_i:] = cut                            # cut the fes at the height of the lower inv_peak ( for indexes > lower inv_peak)
+                        for k in range(len(fes_cut[:p])):
+                            if fes_cut[p-k] < cut: 
+                                fes_cut[:p-k+1] = cut 				   # cut the fes at the height of the lower inv_peak ( for indexes < higher inv_peak)	
+                                break
+                    else: 												# if the inv_peak on the left is lower
+                        cut, cut_i = fes[inv_peak[j-1]], inv_peak[j-1]
+                        fes_cut[:cut_i] = cut							# cut the fes at the height of the lower inv_peak ( for indexes < lower inv_peak)
+                        for k in range(len(fes_cut[p:])):
+                            if fes_cut[p+k] < cut: 
+                                fes_cut[p+k-1:] = cut					# cut the fes at the height of the lower inv_peak ( for indexes > higher inv_peak)
+                                break
+                    break
+            
+            fes_cut_list.append(fes_cut)
+            to_fit_list.append((fes_cut - min(fes_cut))*height_scaling)
+        
+        if print_info: print("time start-up: ", round(time.time()-start,6), "s"); time1 = time.time()
+        
+        # Find optimal parameters for each fes_cut           
+        for i, fes_i in enumerate(to_fit_list):
+            
+            if fix_G_position:  # if fix_G_position = True, use the position of the minima of the basin  as mu for faster curve_fit() 
+        
+                def Gauss_temp(x, *prms): #prms=amp, sigma
+                    return prms[0] * np.exp(-((x - x[peaks[i]]) ** 2) / (2 * prms[1] ** 2))   
                 
-                fes_cut_i, max_fes_cut_i = np.array([np.nan for _ in grid]), np.nanmax(basin_i)
-                for j in range(len(fes_cut_i)):
-                    if pos_fes[j] < max_fes_cut_i: fes_cut_i[j] = pos_fes[j]
-                    else: break
-                plt.plot(grid, fes_cut_i, alpha=0.7, color=colors[i])
+                bounds = ( [height_bounds[0], sigma_bounds[0]], [height_bounds[1], sigma_bounds[1]] )
+                initial_guess = np.array([max(fes_i), initial_sgima_guess] )
+                prms = curve_fit(Gauss_temp,grid,fes_i,p0=initial_guess,bounds=bounds)[0][:3]
+                height_list.append(prms[0])
+                position_list.append(grid[peaks[i]])       
+                sigma_list.append(prms[1])        
+            else:   
+                initial_guess = np.array([max(fes_i), grid[np.argmax(fes_i)], initial_sgima_guess] )
+                prms = curve_fit(gaus_1d,grid,fes_i,p0=initial_guess,bounds=bounds)[0][:3]
+                height_list.append(prms[0])
+                position_list.append(prms[1])       
+                sigma_list.append(prms[2])
+                    
+        if print_info: print("time optim: ", round(time.time()-time1,6), "s")
+
+        # if periodic and the first and last peak are too close (with pbc), delete smaller one.
+        if periodic == True:
+            
+            # set the parameters of the first Gaussian to the parameters of the first Gaussian of the periodic extension
+            n_copy = len(height_list)//2
+            height_list[0], sigma_list[0] = height_list[n_copy], sigma_list[n_copy]
+            fes_cut_list[0], to_fit_list[0] = np.concatenate((fes_cut_list[n_copy][len(grid)//2:], fes_cut_list[n_copy][:len(grid)//2])), np.concatenate((to_fit_list[n_copy][len(grid)//2:], to_fit_list[n_copy][:len(grid)//2]))
+            
+            # remove the periodic extension 
+            grid, pos_fes, fes = grid[:len(grid)//2], pos_fes[:len(fes)//2], fes[:len(fes)//2]
+            fes_cut_list = [fes_cut[:len(fes_cut)//2] for fes_cut in fes_cut_list]
+            to_fit_list = [to_fit[:len(to_fit)//2] for to_fit in to_fit_list]
+            peaks, _ = find_peaks(fes, distance=min_peak_distance)
+            valid_indices = [i for i, pos in enumerate(position_list) if min(grid) <= pos <= max(grid)]
+
+            height_list, position_list, sigma_list, fes_cut_list, n_G = [height_list[i] for i in valid_indices], [position_list[i] for i in valid_indices], [sigma_list[i] for i in valid_indices], [fes_cut_list[i] for i in valid_indices], len(valid_indices)        
+            
+            if (peaks[0] - (peaks[-1] - len(fes) ) < min_peak_distance):  #if the first and last peak are too close (with pbc), delete smaller one. 
+                if fes[peaks[0]]>=fes[peaks[-1]]: peaks, height_list , position_list, sigma_list = np.delete(peaks,-1), height_list[:-1] , position_list[:-1], sigma_list[:-1]
+                else: peaks, height_list , position_list, sigma_list = np.delete(peaks,0), height_list[1:] , position_list[1:], sigma_list[1:]
+                n_G -= 1
                 
-                G_cut_i = np.where(gaus_1d(grid, height_list[i], position_list[i]-grid_length, sigma_list[i]) > 1E-3, gaus_1d(grid, height_list[i], position_list[i]-grid_length, sigma_list[i]) + max(fes), np.nan)   
-                plt.plot(grid, G_cut_i, color="pink", linewidth=3, alpha=0.6)
-                plt.plot(grid, -fes_cut_i*height_scaling + (np.nanmax(G_cut_i)-np.nanmax(-fes_cut_i*height_scaling)), alpha=0.7, color=colors[i])
+        # remove peaks that are too small. 
+        valid_indices = [i for i, h in enumerate(height_list) if h > max(pos_fes)/100]
+        height_list, position_list, sigma_list, fes_cut_list, n_G = [height_list[i] for i in valid_indices], [position_list[i] for i in valid_indices], [sigma_list[i] for i in valid_indices], [fes_cut_list[i] for i in valid_indices], len(valid_indices)
         
-            
-        plt.plot(grid, [np.nan for _ in grid] , label= str(n_G) + " Gaussians", alpha=0.6, color="pink", linewidth=3)
-        plt.title("FES | Basins | Fitted Gaussians"); plt.xlabel("CV"); plt.ylabel("FES | Gaussians [kJ/mol]");
-        plt.legend()
-            
-        plt.subplot(1,3,2)
-        # plt.plot(grid, pos_fes, linewidth=5, alpha=0.3, label="FES")   
-        for i in range(n_G): 
-            plt.fill_between(grid, pos_fes, pos_fes + Gauss_list[i], color=colors[i] , alpha=0.5, label="G" + str(i) + ": h=" + str(round(height_list[i],1)) + " cv=" + str(round(position_list[i],1)) + " sigma=" + str(round(sigma_list[i], 3)))
-            if periodic and i==0 and Gauss_list[0][0] > max(pos_fes)/1000: plt.fill_between(grid, pos_fes, pos_fes + gaus_1d(grid, height_list[i], position_list[i] + grid_length, sigma_list[i]), color=colors[i] , alpha=0.5)
-            elif periodic and i==n_G-1 and Gauss_list[-1][-1] > max(pos_fes)/1000: plt.fill_between(grid, pos_fes, pos_fes + gaus_1d(grid, height_list[i], position_list[i] - grid_length, sigma_list[i]), color=colors[i] , alpha=0.5)
-        plt.legend()
-        plt.title("FES and fitted Gaussians added"); plt.xlabel("CV"); plt.ylabel("FES [kJ/mol]")
+        # # remove the parameter of peaks that are outsite of the grid   # is that necessary? Could there be centre of Gaussians outside of the grid?
+        # for _remove_outliers_ in [0]:
+        #     valid_indices = [i for i, pos in enumerate(position_list) if min(grid) <= pos <= max(grid)]
+        #     height_list, position_list, sigma_list, fes_cut_list, n_G = [height_list[i] for i in valid_indices], [position_list[i] for i in valid_indices], [sigma_list[i] for i in valid_indices], [fes_cut_list[i] for i in valid_indices], len(valid_indices)
+
+        if print_info: print_info("Parameters found.\n" + str(n_G) + " Basins found.") if n_G > 0 else print("No basins found.")
+        if print_info: print("Time Total: ", round(time.time()-start,6), "s")      
         
-        plt.subplot(1,3,3)
-        i_small_area = np.argmin(area_list)  
-        for i in range(n_G): 
-            G_i = gaus_1d(grid,height_list[i_small_area],position_list[i],sigma_list[i_small_area])
-            plt.fill_between(grid , pos_fes, pos_fes + G_i, color=colors[i] , alpha=0.5, label="G" + str(i) + ": h=" + str(round(height_list[i],1)) + " cv=" + str(round(position_list[i],1)) + " sigma=" + str(round(sigma_list[i], 3)))
-            if periodic and i==0 and G_i[0] > max(pos_fes)/1000:        plt.fill_between(grid, pos_fes, pos_fes + gaus_1d(grid, height_list[i_small_area], position_list[i] + grid_length, sigma_list[i_small_area]), color=colors[i] , alpha=0.5)
-            elif periodic and i==n_G-1 and G_i[-1] > max(pos_fes)/1000: plt.fill_between(grid, pos_fes, pos_fes + gaus_1d(grid, height_list[i_small_area], position_list[i] - grid_length, sigma_list[i_small_area]), color=colors[i] , alpha=0.5)
-        plt.legend()
-        plt.title(f"FES and smallest fitted Gaussians added (G{i_small_area})"); plt.xlabel("CV"); plt.ylabel("FES [kJ/mol]")
-        plt.show()
+        if show_plot:
+            Gauss_list = [ gaus_1d(grid, height_list[i], position_list[i], sigma_list[i]) for i in range(n_G) ]
+            area_list = [ np.trapz(G, dx = grid[1]-grid[0]) for G in Gauss_list ]
+        
+            plt.figure(figsize=(23,6))
+            
+            # list of 40 colors
+            colors = ['g', 'r', 'c', 'm', 'y', 'k', 'orange', 'pink', 'brown', 'purple', 'olive', 'lime', 'teal', 'indigo', 'lavender', 'salmon', 'gold', 'lightblue', 'darkgreen', 'darkred', 'darkblue', 'darkorange', 'darkviolet', 'darkturquoise', 'darkmagenta', 'darkkhaki', 'darkolivegreen', 'darkgoldenrod', 'darkslategray', 'darkseagreen', 'darkslateblue', 'darkorchid', 'darkcyan', 'darkred', 'darkblue', 'darkorange', 'darkviolet', 'darkturquoise', 'darkmagenta']
+                
+            plt.subplot(1 ,3,1)
+            plt.plot(grid, pos_fes, linewidth=5, label="FES", alpha=0.2, color="orange")   
+            plt.plot(grid, [np.nan for _ in grid] , label= str(n_G) + " Basins", alpha=0.7, color="grey")
+            
+            for i, fes_i in enumerate(fes_cut_list):
+                i_max = np.argmax(fes_i)
+                basin_i = np.where(fes_i < (min(fes_i) + 1E-3), np.nan, -fes_i - (-fes_i[i_max] - pos_fes[i_max]) )
+                plt.plot(grid, basin_i, alpha=0.7, color=colors[i])
+                
+                plt.plot(grid, np.where(to_fit_list[i] > 1E-3, to_fit_list[i] + max(fes), np.nan), color=colors[i], alpha=0.7)        
+                plt.plot(grid, np.where(Gauss_list[i] > 1E-3, Gauss_list[i] + max(fes), np.nan), color="pink", linewidth=3, alpha=0.6)
+                
+                if periodic and i==0 and Gauss_list[0][0] > max(pos_fes)/1000:
 
-    return height_list, position_list, sigma_list
+                    fes_cut_i, max_fes_cut_i = np.array([np.nan for _ in grid]), np.nanmax(basin_i)
+                    for j in range(1,len(fes_cut_i)+1):
+                        if pos_fes[-j] < max_fes_cut_i: fes_cut_i[-j] = pos_fes[-j]
+                        else: break
+                    plt.plot(grid, fes_cut_i, alpha=0.7, color=colors[i])
+        
+                    G_cut_i = np.where(gaus_1d(grid, height_list[i], position_list[i]+grid_length, sigma_list[i]) > 1E-3, gaus_1d(grid, height_list[i], position_list[i]+grid_length, sigma_list[i]) + max(fes), np.nan)
+                    plt.plot(grid, G_cut_i, color="pink", linewidth=3, alpha=0.6)
+                    plt.plot(grid, -fes_cut_i*height_scaling + (np.nanmax(G_cut_i)-np.nanmax(-fes_cut_i*height_scaling)), alpha=0.7, color=colors[i])
+                    
+                if periodic and i==len(fes_cut_list)-1 and Gauss_list[-1][-1] > max(pos_fes)/1000:
+                    
+                    fes_cut_i, max_fes_cut_i = np.array([np.nan for _ in grid]), np.nanmax(basin_i)
+                    for j in range(len(fes_cut_i)):
+                        if pos_fes[j] < max_fes_cut_i: fes_cut_i[j] = pos_fes[j]
+                        else: break
+                    plt.plot(grid, fes_cut_i, alpha=0.7, color=colors[i])
+                    
+                    G_cut_i = np.where(gaus_1d(grid, height_list[i], position_list[i]-grid_length, sigma_list[i]) > 1E-3, gaus_1d(grid, height_list[i], position_list[i]-grid_length, sigma_list[i]) + max(fes), np.nan)   
+                    plt.plot(grid, G_cut_i, color="pink", linewidth=3, alpha=0.6)
+                    plt.plot(grid, -fes_cut_i*height_scaling + (np.nanmax(G_cut_i)-np.nanmax(-fes_cut_i*height_scaling)), alpha=0.7, color=colors[i])
+            
+                
+            plt.plot(grid, [np.nan for _ in grid] , label= str(n_G) + " Gaussians", alpha=0.6, color="pink", linewidth=3)
+            plt.title("FES | Basins | Fitted Gaussians"); plt.xlabel("CV"); plt.ylabel("FES | Gaussians [kJ/mol]");
+            plt.legend()
+                
+            plt.subplot(1,3,2)
+            # plt.plot(grid, pos_fes, linewidth=5, alpha=0.3, label="FES")   
+            for i in range(n_G): 
+                plt.fill_between(grid, pos_fes, pos_fes + Gauss_list[i], color=colors[i] , alpha=0.5, label="G" + str(i) + ": h=" + str(round(height_list[i],1)) + " cv=" + str(round(position_list[i],1)) + " sigma=" + str(round(sigma_list[i], 3)))
+                if periodic and i==0 and Gauss_list[0][0] > max(pos_fes)/1000: plt.fill_between(grid, pos_fes, pos_fes + gaus_1d(grid, height_list[i], position_list[i] + grid_length, sigma_list[i]), color=colors[i] , alpha=0.5)
+                elif periodic and i==n_G-1 and Gauss_list[-1][-1] > max(pos_fes)/1000: plt.fill_between(grid, pos_fes, pos_fes + gaus_1d(grid, height_list[i], position_list[i] - grid_length, sigma_list[i]), color=colors[i] , alpha=0.5)
+            plt.legend()
+            plt.title("FES and fitted Gaussians added"); plt.xlabel("CV"); plt.ylabel("FES [kJ/mol]")
+            
+            plt.subplot(1,3,3)
+            i_small_area = np.argmin(area_list)  
+            for i in range(n_G): 
+                G_i = gaus_1d(grid,height_list[i_small_area],position_list[i],sigma_list[i_small_area])
+                plt.fill_between(grid , pos_fes, pos_fes + G_i, color=colors[i] , alpha=0.5, label="G" + str(i) + ": h=" + str(round(height_list[i],1)) + " cv=" + str(round(position_list[i],1)) + " sigma=" + str(round(sigma_list[i], 3)))
+                if periodic and i==0 and G_i[0] > max(pos_fes)/1000:        plt.fill_between(grid, pos_fes, pos_fes + gaus_1d(grid, height_list[i_small_area], position_list[i] + grid_length, sigma_list[i_small_area]), color=colors[i] , alpha=0.5)
+                elif periodic and i==n_G-1 and G_i[-1] > max(pos_fes)/1000: plt.fill_between(grid, pos_fes, pos_fes + gaus_1d(grid, height_list[i_small_area], position_list[i] - grid_length, sigma_list[i_small_area]), color=colors[i] , alpha=0.5)
+            plt.legend()
+            plt.title(f"FES and smallest fitted Gaussians added (G{i_small_area})"); plt.xlabel("CV"); plt.ylabel("FES [kJ/mol]")
+            plt.show()
 
-####  ---- Print progress  ----  ####
+        return height_list, position_list, sigma_list
+
+    ####  ---- Print progress  ----  ####
 
 for _print_progress_ in [0]:
     

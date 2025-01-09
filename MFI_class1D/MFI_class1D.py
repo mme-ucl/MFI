@@ -50,19 +50,21 @@ class MFI1D:
         hills_file: str = "HILLS" # path to the hills file (either already existing or to be using in the plumed input file). ID is added automatically. 
         position_file: str = "position" # path to the position (cv) file (either already existing or to be using in the plumed input file). ID is added automatically.
         hills: np.ndarray = field(default=None) # hills data
-        position: np.ndarray = field(default=None) # position (cv) data       
-        base_forces: np.ndarray = field(default=None)  # [PD, PD2, Force, ofv_num] # if provided, the forces are patched to the base_forces for the error calculation.
-         
+        position: np.ndarray = field(default=None) # position (cv) data
+        base_forces: np.ndarray = field(default=None)  # [PD, PD2, Force, ofv_num] # if provided, the forces are patched to the base_forces before the error calculation.
+
         ### System (to be simulated) parameters
-        System: str = None # The system that is simulated.
+        System: str =  "Langevin" # The system that is used to run the simulating. The supported systems are: ["Langevin", "Langevin1D", "gmx", "gromacs", "GMX", "GROMACS"]
         cv_name: str = "p.x" # name of the collective variable used in the plumed files.
-        trajectory_xtc_file_path: str = None # path to an existing trajectory file, to find initial strucutres for the simulation
+        plumed_dat_text: str = field(default_factory=lambda: "p: DISTANCE ATOMS=1,2 COMPONENTS\nff: MATHEVAL ARG=p.x FUNC=(4/3*(-14*exp(-0.25*(x+3.5)^4)-25*exp(-0.25*(x-3.5)^4)-10*exp(-(x+0.5)^2)-2*sin(-8*x)+exp(-x-4.5)^2+exp(x-4.5)^2)) PERIODIC=NO\nbb: BIASVALUE ARG=ff\n")
+        trajectory_xtc_file_path_list: List[str] = field(default_factory=lambda: []) # list of paths to an existing trajectory files, to find initial strucutres for the simulation
         structure_gro_file_path: str = None # path to an existing structure file.
         mdp_file_path: str = None # path to the mdp file.
-        top_file_path: str = None # path to the topology file            
+        top_file_path: str = None # path to the topology file.
         tpr_file_path: str = None # path to the tpr file.
         pdb_file_path: str = None # path to the pdb file.
         find_sim_init_structure: bool = False # if True, the initial structure for the simulation is found from the trajectory file. Otherwise, the structure from the gro file is used. 
+        find_structure_text: str = None # This is the text that will be written to the plumed.dat file. This text should include everything upto the lines containing the UPDADE_IF and DUMPATOMS commands. If None, plumed_dat_text will be used.
         make_tpr_input_file: bool = False # if True, the tpr file is made from the mdp file and the gro file.
 
         #Biasing parameters
@@ -72,7 +74,7 @@ class MFI1D:
         metad_width: float = None # width of the Gaussian hill for the metadynamics bias in the units of the collective variable
         metad_height: float = None # height of the Gaussian hill for the metadynamics bias.
         biasfactor: float = None # biasfactor for the metadynamics bias.
-        WellTempered: bool = True  # if True, the well-tempered metadynamics is used.
+        WellTempered: bool = True # if True, the well-tempered metadynamics is used.
         external_bias_file: str = None # path to the external bias file.
         hp_centre: float = None; hp_kappa: float = None # harmonic potential parameters. Kappa is the force constant, and centre specifies the location of the harmonic potential.
         lw_centre: float = None; lw_kappa: float = None # lower wall parameters (just the lower half of a harmonic potential). Kappa is the force constant, and centre specifies the location of the lower wall.
@@ -102,7 +104,7 @@ class MFI1D:
         non_exploration_penalty: float = None  # grid points that have not been explored are assigned this penalty. If None, the penalty is not applied.  (what about FES_cutoff?)
         base_time: float = 0 # simulation time in ns before the current simulation used for the error calculation.
         main_error_type: str = None # the main error type used for the error calculation. If None, the main error type is the AAD if y is provided, otherwise the main error type bootstrapped error, if calculated, otherwise the main error type is Aofe (average on the fly error).
-                
+
         ### Variables fort the calculation of the absolute deviation to a reference force and FES
         y: np.ndarray = field(default=None)
         dy: np.ndarray = field(default=None)
@@ -113,8 +115,8 @@ class MFI1D:
         guaranteed_sim_time: float = None  # guaranteed simulation time in ns. Simulations will be run until this time is reached (exceptions for exploration phase and umbrella sampling simulations).
         max_sim_time: float = None # maximum simulation time in ns. 
         time_budget: float = None # time budget in ns. The simulations campaign will be stoped if this time is reached.
-                
-        ### Boolean Variables for saving, printing and plotting            
+
+        ### Boolean Variables for saving, printing and plotting
         save_error_progression: bool = True # if True, the error progression is saved as error_progression{ID}.pkl
         save_force_terms: bool = True # if True, the force terms [PD, PD2, Force, ofv_num] are saved as force_terms{ID}.pkl
         save_results: bool = False # if True, the results are saved as results{ID}.pkl . The results include (n_pos_analysed,force_terms, Avr_Error_list, Maps (FES, cutoff, ofe, AAD, ...)(if record_maps), intermediate force terms (if record_forces_e))
@@ -128,6 +130,12 @@ class MFI1D:
         # save_video: bool = False
 
     def __post_init__(self):
+
+        # check if system is supported and set up the simulation files path dictionary
+        supported_systems = ["Langevin","Langevin1D", "gmx", "gromacs", "GMX", "GROMACS"]
+        if self.System not in supported_systems: raise ValueError(f"System {self.System} is not supported. The supported systems are: {supported_systems}")
+        self.sim_files_path = {"trajectory_xtc_file_path_list": self.trajectory_xtc_file_path_list, "structure_gro_file_path": self.structure_gro_file_path, 
+                               "mdp_file_path": self.mdp_file_path, "top_file_path": self.top_file_path, "tpr_file_path": self.tpr_file_path, "pdb_file_path":self.pdb_file_path}
         
         # Set up the grid
         if self.grid is None: self.find_grid()
@@ -174,7 +182,7 @@ class MFI1D:
             self.record_maps = True
             self.Avr_Error_info.append("FES_st_dev")
             self.FES_st_dev_index = self.Avr_Error_info.index("FES_st_dev")
-        
+
         if self.main_error_type is None: 
             if self.y is not None: self.main_error_type = "AAD"
             else: self.main_error_type = "ST_ERR"
@@ -184,7 +192,8 @@ class MFI1D:
         self.Avr_Error_list = np.empty((0, len(self.Avr_Error_info))) # [time, ratio_explored, Aofe, AAD, AAD_Force, ABS_error, FES_st_dev]
         if self.record_maps: self.Maps_list = np.empty((0, len(self.Avr_Error_info), self.nbins))   ### [FES, cutoff, ofe, AD, AAD_Force, ABS_error, Avr_FES_st_dev]
         if self.record_forces_e: self.forces_e_list = np.empty((0,4, self.nbins))  # forces_e = [PD_i, PD2_i, Force_i, ofv_num_i ]        
-        if self.calculate_error_change: # if calculate_error_change is True, initialise the arrays for saving the error change 
+        # if calculate_error_change is True, initialise the arrays for saving the error change
+        if self.calculate_error_change: 
             self.d_Aofe = np.empty((0,4))
             if self.y is not None: self.d_AAD = np.empty((0,4))
             if self.weighted_avr_error_change: 
@@ -219,7 +228,7 @@ class MFI1D:
         if self.simulation_folder_path is None: self.simulation_folder_path = os.getcwd() + "/"
         if self.simulation_folder_path[-1] != "/": self.simulation_folder_path += "/"
         lib1.set_up_folder(self.simulation_folder_path)
-        
+
         # set up variables
         self.sim_time = 0
         self.phase = None
@@ -260,45 +269,48 @@ class MFI1D:
         if save_instance_path is None: save_instance_path = self.simulation_folder_path + f"MFI_instance{self.ID}.pkl"
 
         # laod the instance
-        with open(save_instance_path, 'rb') as file: 
-            return dill.load(file)      
-            
-    @property
-    def grid_info(self):
-        return f"grid_min: {self.grid_min}, grid_max: {self.grid_max}, nbins: {self.nbins}"
+        with open(save_instance_path, 'rb') as file:
+            return dill.load(file)
 
-    def run_simulation(self, assign_process=False, simulation_path=None, file_extension=None):     
-        
+    def run_simulation(self, assign_process=False, simulation_path=None, file_extension=None, n_cores_per_simulation=None, sim_files_path=None):     
+
         if simulation_path is None: simulation_path = self.simulation_folder_path
         if simulation_path is not None and simulation_path != "": lib1.set_up_folder(simulation_path)
         if file_extension is None: file_extension = self.ID
-        
-        # if self.System is None or self.simulation_steps is None: raise ValueError("\n ***** The reference force or/and the number of steps are not provided ***** \n")
-        if self.simulation_steps is None: raise ValueError("\n ***** The number of steps are not provided ***** \n")
-        
-        if self.System not in ["GROMACS", "gromacs", "Gromacs"]:
-            self.y_string = self.System
+        if sim_files_path is None: sim_files_path = self.sim_files_path
 
-        # if self.System is None or self.simulation_steps is None: raise ValueError("\n ***** The reference force or/and the number of steps are not provided ***** \n")
-        ### Add option to run simulations with GROMACS
-        ### Add option to run simulations with GROMACS
-        ### Add option to run simulations with GROMACS
-        
-        
+        # set up the simulation steps and grid
+        if self.simulation_steps is None: raise ValueError("\n ***** The number of steps are not provided ***** \n")
         if self.pl_grid is None: self.pl_grid, self.pl_min, self.pl_max, self.pl_n, self.pl_extra = lib1.get_plumed_grid_1D(self.grid, self.periodic)
         else: 
             if self.pl_n is None: self.pl_n = len(self.pl_grid)
-            if self.pl_min is None or self.pl_max is None: self.pl_min, self.pl_max = self.pl_grid[0], self.pl_grid[-1]
-                    
+            if self.pl_min is None or self.pl_max is None: self.pl_min, self.pl_max = self.pl_grid[0], self.pl_grid[-1]        
+
+        # set up the initial position. If not provided, the initial position is randomly selected from the grid.
+        if self.initial_position is None:
+            np.random.seed()
+            i_pos = round(self.grid_min + self.grid_length / 1000 * np.random.randint(0, 1000), 3)
+        else: i_pos = self.initial_position[0]
+
+        # if assign_process is True, the simulation is started in a separate process, and the process PID is returned            
         start_sim = False if assign_process else self.start_sim
 
-        simulation = lib1.RunLangevin1D(analytical_function=self.y_string, initial_position=self.initial_position, n_steps=self.simulation_steps, pl_grid=self.pl_grid,  
-                                        temperature=self.kT, time_step=self.time_step, metad_width=self.metad_width, metad_height=self.metad_height, biasfactor=self.biasfactor, metad_pace=self.metad_pace, 
-                                        position_pace=self.position_pace, n_pos_per_window=self.n_pos_per_window, 
+        # start the simulation instance and start the simulation if start_sim is True (and assign_process is False)
+        simulation = lib1.Run_Simulation(# plumed grid
+                                        pl_grid=self.pl_grid, periodic=self.periodic, 
+                                        # simulation parameters
+                                        System=self.System, cv_name=self.cv_name, n_steps=self.simulation_steps, time_step=self.time_step, temperature=self.kT, n_cores_per_simulation=n_cores_per_simulation,
+                                        make_tpr_input_file=self.make_tpr_input_file, find_sim_init_structure=self.find_sim_init_structure, initial_position=i_pos, find_structure_text=self.find_structure_text,
+                                        # metadynamics biasing parameters
+                                        plumed_dat_text=self.plumed_dat_text, metad_width=self.metad_width, metad_height=self.metad_height, biasfactor=self.biasfactor,
+                                        metad_pace=self.metad_pace, position_pace=self.position_pace, n_pos_per_window=self.n_pos_per_window, 
+                                        # static biasing parameters
+                                        external_bias_file=self.external_bias_file, 
                                         hp_centre=self.hp_centre, hp_kappa=self.hp_kappa, lw_centre=self.lw_centre, lw_kappa=self.lw_kappa, uw_centre=self.uw_centre, uw_kappa=self.uw_kappa, 
-                                        external_bias_file=self.external_bias_file, file_extension=file_extension,
-                                        start_sim=start_sim, print_info=self.print_info)
-            
+                                        # information about the simulation files, wether to start the simulation, and wether to print information
+                                        file_extension=file_extension, sim_files_path=sim_files_path, start_sim=start_sim, print_info=self.print_info)
+
+        # if assign_process is True, start the simulation and return the process PID    
         if assign_process: self.process = simulation.start_sim_return_process()
 
     def make_external_bias(self, FES=None, Bias=None, Bias_sf=None, gaus_filter_sigma=None, FES_cutoff=None, external_bias_file=None, Force=None, error=None, PD=None, bias_type=None):
@@ -450,11 +462,11 @@ class MFI1D:
         #Get position data of window   
         if self.hills is not None: 
             pos_meta, height_meta = self.hills[self.i, 1], self.hills[self.i, 3] * self.Gamma_Factor  # centre position of Gaussian and height of Gaussian
-            pos_meta = lib1.find_periodic_point_numba(np.array([pos_meta]), self.grid_min, self.grid_max, self.periodic, self.periodic_range) if self.periodic else np.array([pos_meta])
+            pos_meta = lib1.find_periodic_point(np.array([pos_meta]), self.grid_min, self.grid_max, self.periodic, self.periodic_range) if self.periodic else np.array([pos_meta])
         else: pos_meta, height_meta = None, None
         
         pos = self.position[self.i * self.n_pos_per_window: (self.i+1) * self.n_pos_per_window, 1]  # positons of window of constant bias force.
-        pos = lib1.find_periodic_point_numba(np.array(pos), self.grid_min, self.grid_max, self.periodic, self.periodic_range) if self.periodic else np.array(pos)
+        pos = lib1.find_periodic_point(np.array(pos), self.grid_min, self.grid_max, self.periodic, self.periodic_range) if self.periodic else np.array(pos)
         time_i = self.position[(self.i+1) * self.n_pos_per_window - 1, 0]
 
         return time_i, pos, pos_meta, height_meta
@@ -597,12 +609,12 @@ class MFI1D:
         plt.subplot(1, 4, 1)
         plt.plot(self.grid, self.PD)
         plt.title("Probability Density"); plt.xlabel("Position"); plt.ylabel("PD [-]")
-        plt.ylim(0.01, max(self.PD) * 1.1)
+        plt.ylim(self.PD_cutoff, max(self.PD) * 1.1) if self.PD_cutoff is not None else plt.ylim(1, max(self.PD) * 1.1)
         plt.yscale('log')
         
         plt.subplot(1, 4, 2)
         plt.plot(self.grid, self.FES, label="MFI FES")
-        plt.plot(self.grid, self.y, label="Ref. FES")
+        if self.y is not None: plt.plot(self.grid, self.y, label="Ref. FES")
         plt.legend()
         plt.title("Free Energy Surface"); plt.xlabel("Position"); plt.ylabel("FES [kJ/mol]")
         
@@ -661,6 +673,82 @@ class MFI1D:
                     ax4_2.legend(loc="upper right", framealpha=0.3, fontsize=10 )
             ax4_2.set_yscale('log')
 
+        plt.tight_layout()
+        if save_path != "": plt.savefig(save_path)
+        if show: plt.show()
+
+    def plot_errors(self, error_type=["Aofe", "AAD_Force", "AAD", "ABS_error"], save_path="", error_force_log=True, error_fes_log=True, show=True, more_aofe=None, more_aad=None, t_compare=None, aofe_compare=None, aad_compare=None, aofe_lim=None, aad_lim=None):
+        
+        plt.figure(figsize=(10, 4))
+        ax = plt.subplot(1, 1, 1)
+        err_arr = np.array(self.Avr_Error_list)
+
+        # plot Average on-the-fly error (Aofe)
+        ax.plot(err_arr[:, 0], err_arr[:, 2], color="black", label="Aofe"); 
+        
+        # if available, plot average absolute deviation of the Force (AAD_Force)
+        if "AAD_Force" in error_type and "AAD_Force" in self.Avr_Error_info:
+            ax.plot(err_arr[:, 0], err_arr[:, self.aad_force_index], color="grey", alpha=0.7, label="AAD Force")
+        
+        # if available, plot Aofe for comparison
+        if aofe_compare is not None and t_compare is not None: 
+            t_index = np.argmin(np.abs(t_compare - err_arr[-1, 0]))
+            ax.plot(t_compare[:t_index], aofe_compare[:t_index], color="black", linestyle="--", alpha=0.5, label="Compare Sim")
+        ax.set_ylabel("Error of Force [kJ/mol]"); ax.set_xlabel("Time [ns]"); ax.set_title("Error Evolution")
+        
+        # if available, plot additional Aofe (more_aofe) (e.g. from other simulations)
+        if more_aofe is not None: 
+            more_aofe = np.array(more_aofe) 
+            if len(np.shape(more_aofe)) == 2: ax.plot(more_aofe[0], more_aofe[1], color="black", alpha=0.5, label="Base Sim")
+            elif len(np.shape(more_aofe)) == 3: [ax.plot(more_aofe[i][0], more_aofe[i][1], color="black", alpha=0.3 + 0.4*(i/len(more_aofe)), label=f"Base Sim {i}") for i in range(len(more_aofe)) ]
+            else: raise ValueError("more_aofe has wrong shape")
+            if aofe_lim is not None: 
+                if isinstance(aofe_lim, (int, float)): ax.set_ylim(0,aofe_lim)
+                elif isinstance(aofe_lim, list) and len(aofe_lim) == 2: ax.set_ylim(aofe_lim)
+                else: raise ValueError("aofe_lim is supposed to be a number (upper limit) of a list [lower limit, upper limit]")
+                
+        ax.legend(loc="upper center", framealpha=0.3, fontsize=10 )
+        if error_force_log: ax.set_yscale('log')
+
+        # if available, plot error of the FES (AAD / ABS_error / FES_st_dev)
+        if ("AAD" in error_type and "AAD" in self.Avr_Error_info) or ("ABS_error" in error_type and "ABS_error" in self.Avr_Error_info) or ("FES_st_dev" in error_type and "FES_st_dev" in self.Avr_Error_info):
+            ax_2 = ax.twinx()
+ 
+        
+            # if available, plot Average Absolute Deviation (AAD) of the FES
+            if "AAD" in error_type and "AAD" in self.Avr_Error_info: 
+                
+                # plot AAD
+                ax_2.plot(err_arr[:, 0], err_arr[:, self.aad_index], color="orange", alpha=0.7, label="AAD"); 
+                
+                # if available, plot AAD for comparison
+                if aad_compare is not None and t_compare is not None:
+                    t_index = np.argmin(np.abs(t_compare - err_arr[-1, 0]))
+                    ax_2.plot(t_compare[:t_index], aad_compare[:t_index], color="orange", linestyle="--", alpha=0.5, label="Compare Sim")
+                
+                # if available, plot additional AAD (more_aad) (e.g. from other simulations)
+                if more_aad is not None:
+                    more_aad = np.array(more_aad)
+                    if len(np.shape(more_aad)) == 2: ax_2.plot(more_aad[0], more_aad[1], color="orange", alpha=0.5, label="Base Sim")
+                    elif len(np.shape(more_aad)) == 3: [ax_2.plot(more_aad[i][0], more_aad[i][1], color="red", alpha=0.3 + 0.4*(i/len(more_aad)), label=f"Base Sim {i}") for i in range(len(more_aad)) ]
+                    else: raise ValueError("more_aad has wrong shape")
+                    if aad_lim is not None:
+                        if isinstance(aad_lim, (int, float)): ax_2.set_ylim(0,aad_lim)
+                        elif isinstance(aad_lim, list) and len(aad_lim) == 2: ax_2.set_ylim(aad_lim)
+                        else: raise ValueError("aad_lim is supposed to be a number (upper limit) of a list [lower limit, upper limit]")
+            
+            # if available, plot Average Bootstrap Error (ABS_error)            
+            if "ABS_error" in error_type and "ABS_error" in self.Avr_Error_info:
+                ax_2.plot(err_arr[:, 0], err_arr[:, self.abs_error_index], color="red", label="ABS Error")
+            
+            # if available, plot Average FES Standard Deviation (FES_st_dev)    
+            if "FES_st_dev" in error_type and "FES_st_dev" in self.Avr_Error_info:
+                ax_2.plot(err_arr[:, 0], err_arr[:, self.FES_st_dev_index], color="purple", label="FES st. dev.")
+           
+            ax_2.set_ylabel("Error of FES [kJ/mol]", color="red"); ax_2.tick_params(axis='y', labelcolor="red"); ax_2.spines['right'].set_color('red')  
+            if error_fes_log: ax_2.set_yscale('log')
+            ax_2.legend(loc="upper right", framealpha=0.3, fontsize=10 )
+            
         plt.tight_layout()
         if save_path != "": plt.savefig(save_path)
         if show: plt.show()
@@ -885,7 +973,7 @@ class MFI1D:
 
 ##### ~~~~~ SRTR ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #####
 
-    def print_SRTR_info(self, info, AAD_check=None):
+    def print_SRTR_info(self, info):
      
         if info == "sim_start":
       
@@ -903,7 +991,6 @@ class MFI1D:
             if self.y is not None: print(f"AAD: {self.AAD:5.3f} | ", end="")
             if self.bootstrap_iter is not None and self.bootstrap_iter > 0:  print(f"ABS: {self.ABS_error:5.3f} | ", end="") 
             print(f"Reason for termination: {self.reason_for_termination}")
-            if AAD_check is not None and AAD_check - self.AAD > self.FES_cutoff/100: print(f"\n*** ATTENTION: {AAD_check = :.4f}, {self.AAD = :.4f},  Difference in AAD {AAD_check - self.AAD:.6f}  <<<----------------------------------------------- ")
 
         elif info == "update_progress":
             
@@ -912,7 +999,10 @@ class MFI1D:
                 if self.y is not None: print(f"AAD: {self.AAD:5.3f} | ", end="") 
                 if self.bootstrap_iter is not None and self.bootstrap_iter > 0: print(f"ABS: {self.ABS_error:5.3f} ", end="") 
                 print("")
-            else: print(f"S{len(self.force_terms)-1:2} | t={self.sim_time:5.2f}ns | t_tot={self.base_time+self.sim_time:5.2f}ns | n_pos: {len(self.position):4}/{self.n_pos_analysed[0]:5} : Aofe: {self.Aofe:4.2f} | AAD: {self.AAD:4.2f}")
+            else: 
+                print(f"S{len(self.force_terms)-1:2} | t={self.sim_time:5.2f}ns | t_tot={self.base_time+self.sim_time:5.2f}ns | n_pos: {len(self.position):4}/{self.n_pos_analysed[0]:5} : Aofe: {self.Aofe:4.2f} | ", end="")
+                if self.y is not None: print(f"AAD: {self.AAD:4.2f} | ", end="")  
+                print("")
         
         elif info == "restart_SRTR":
         
@@ -935,7 +1025,7 @@ class MFI1D:
         self.current_path = lib1.set_up_folder(self.campaign_path, remove_folder=(not restart_SRTR))
         
         # initialise lists and vaiables
-        self.force_terms = np.array([np.array(self.base_forces)]) if self.base_forces is not None else np.array([np.zeros((4, self.nbins))])
+        self.force_terms = np.array([np.zeros((4, self.nbins))])
         self.goal_reached, self.print_info = False, False
         
         # lists for calculating the change in the error
@@ -1039,7 +1129,11 @@ class MFI1D:
                         Force_static = np.zeros(self.nbins)
                     PD_sim, PD2_sim, Force_sim, ofv_num_sim, _, _, _ = lib1.MFI_forces(self.hills, self.position[:,-1], self.n_pos_per_window, self.const, self.bw2, self.kT, self.grid, self.Gamma_Factor, Force_static, periodic=self.periodic, PD_limit = self.PD_limit, return_FES=False)
 
-                self.patch_and_find_error_SRTR(PD_sim, PD2_sim, Force_sim, ofv_num_sim, np.zeros(self.nbins), np.zeros(self.nbins))
+                self.patch_and_find_error_SRTR(np.array([PD_sim, PD2_sim, Force_sim, ofv_num_sim]), np.array([np.zeros(self.nbins), np.zeros(self.nbins)]))
+                
+                if self.System != "Langevin": 
+                    new_traj_path = lib1.get_trajectory_xtc_file_path(self.current_path, System=self.System)
+                    if new_traj_path is not None: self.sim_files_path["trajectory_xtc_file_path_list"] = [new_traj_path] + self.sim_files_path["trajectory_xtc_file_path_list"].copy()
                 
                 if self.phase == "exploration": 
                     existing_bias += lib1.find_total_bias_from_hills(self.grid, self.hills, periodic=self.periodic)
@@ -1124,7 +1218,7 @@ class MFI1D:
         # if applicable, add harmonic potential to Force_static_x , Force_static_y and Bias_static
         self.make_harmonic_bias()
         
-        # set bias and bias_force to zero            
+        # set bias and bias_force to zero             
         self.Bias, self.Force_bias = np.zeros(self.nbins), np.zeros(self.nbins)
         
         # Start New Langevin Simulation ~~~~~ ###
@@ -1134,6 +1228,10 @@ class MFI1D:
         n_pos = lib1.wait_for_positions(10, sleep_between_checks=0.1, position_path=self.position_file)
         
         self.print_SRTR_info("sim_start")
+        
+        if self.System != "Langevin": 
+            new_traj_path = lib1.get_trajectory_xtc_file_path(self.current_path, System=self.System)
+            if new_traj_path is not None: self.sim_files_path["trajectory_xtc_file_path_list"] = [new_traj_path] + self.sim_files_path["trajectory_xtc_file_path_list"].copy()
 
     def get_new_simulation_parameters_SRTR(self):
         
@@ -1155,7 +1253,6 @@ class MFI1D:
             # self.metad_width = round((self.grid_max - self.grid_min) / 100,5)
             _, _, sigma_list = lib1.Gauss_fitting_to_fes(self.grid, self.FES)
             self.metad_width = round(np.median(sigma_list),5)
-            print(f"NEW SIM : {self.metad_width = }")
             
             # set the metad_height to FES_cutoff / 30
             self.metad_height = round(min(self.metad_height_exploration/5, self.FES_cutoff / 20),2)
@@ -1186,7 +1283,6 @@ class MFI1D:
         # self.metad_width = round((self.grid_max - self.grid_min) / 50,5)
         _, _, sigma_list = lib1.Gauss_fitting_to_fes(self.grid, self.FES)
         self.metad_width = round(np.median(sigma_list),5)
-        print(f"NEW SIM : {self.metad_width = }")
         
         # set the metad_height to FES_cutoff / 30
         self.metad_height = round(min(self.metad_height_exploration/20, self.FES_cutoff / 100),2)
@@ -1197,23 +1293,41 @@ class MFI1D:
         
         return
 
-    def patch_and_find_error_SRTR(self, PD_i, PD2_i, Force_i, ofv_num_i, F_bias_i, Bias_i):
+    def patch_and_find_error_SRTR(self, force_terms_e, bias_terms_e, patch_realtime_forces=True):
+
+        # record bias potential and bias force 
+        self.Force_bias += bias_terms_e[0]
+        self.Bias += bias_terms_e[1]    
+
+        # if patch_realtime_forces is True, patch the force terms of simulation i with the (new) force_terms_e. If False, force_terms_e is the new force terms of the entire simulation.
+        if patch_realtime_forces: 
+            # record last force terms (_e) of latest simulation  
+            if self.record_forces_e: [self.PD_e, self.PD2_e, self.Force_e, self.ofv_num_e] = force_terms_e
+            # Patch forces of latest simulation with the (new) force_terms_e
+            self.force_terms[-1] = lib1.patch_forces(force_terms_e, self.force_terms[-1], PD_limit=self.PD_limit)    
+            # Patch forces of all simulations
+            self.force_terms[0] = lib1.patch_forces(force_terms_e, self.force_terms[0], PD_limit=self.PD_limit)        
+            # record n_pos_analysed of latest simulation
+            self.n_pos_analysed[-1] += len(self.position)
+            
+        else: 
+            if self.record_forces_e: 
+                PD_sim, PD2_sim, Force_sim, ofv_num_sim = force_terms_e
+                [self.PD_e, self.PD2_e, self.ofv_num_e] = [PD_sim - self.PD, PD2_sim - self.PD2, ofv_num_sim - self.ofv_num]
+                self.Force_e = np.divide(np.multiply(Force_sim, PD_sim) - np.multiply(self.Force, self.PD), self.PD_e, out=np.zeros_like(self.PD_e), where=self.PD_e > self.PD_limit)
+            self.force_terms[-1] = force_terms_e
+            # Patch forces of all simulations
+            self.force_terms[0] = lib1.patch_forces(self.force_terms[1:], PD_limit=self.PD_limit)
+            # record n_pos_analysed of latest simulation
+            self.n_pos_analysed[-1] = len(self.position)
         
-        # save results_i
-        if self.record_forces_e: [self.PD_e, self.PD2_e, self.Force_e, self.ofv_num_e] = [PD_i, PD2_i, Force_i, ofv_num_i]
-        self.Force_bias += F_bias_i
-        self.Bias += Bias_i        
-        self.n_pos_analysed[-1] += len(self.position)
+        # record n_pos_analysed and sim_time
         self.n_pos_analysed[0] = sum(self.n_pos_analysed[1:])
         self.sim_time = self.position[-1, 0] / 1000
         
-        #Patch forces 
-        self.force_terms[-1] = lib1.patch_forces(np.array([PD_i, PD2_i, Force_i, ofv_num_i]), self.force_terms[-1], PD_limit=self.PD_limit)
-        self.force_terms[0] = lib1.patch_forces(np.array([PD_i, PD2_i, Force_i, ofv_num_i]), self.force_terms[0], PD_limit=self.PD_limit)
-        self.PD, self.PD2, self.Force, self.ofv_num = self.force_terms[0]
-        
         # get new error and difference in error
-        self.calculate_errors(self.force_terms[0])
+        self.PD, self.PD2, self.Force, self.ofv_num = self.force_terms[0]
+        self.calculate_errors()
         self.calculate_difference_in_error()
 
     def check_termination_criteria_SRTR(self, ReInit_criteria, Strike_factor=100):
@@ -1303,30 +1417,22 @@ class MFI1D:
         return True          
          
     def re_analyse_SRTR(self):
-    
-        # check if aad for all data patched at once is the same as the one calculated in real time
-        self.hills, self.position = lib1.read_data(self.hills_file, self.position_file, n_pos_analysed=0, n_pos_per_window=self.n_pos_per_window, metad_h=self.metad_height)
-        PD, PD2, Force, ofv_num, F_bias, Bias, _ = lib1.MFI_forces(self.hills, self.position[:,-1], self.n_pos_per_window, self.const, self.bw2, self.kT, self.grid, self.Gamma_Factor, self.Force_static, periodic=self.periodic, PD_limit = self.PD_limit, return_FES=False)
-        self.force_terms[-1] = np.array([PD, PD2, Force, ofv_num])
+        # Re-analyse all the data again in one go. This is done to increase the numerical accuray and to check if the results are consistent. (minor inconsistencies might arrise due to additional data egnerated since the last check)
+        # error_old = self.AAD if self.y is not None else self.Aofe
+        # prev_n_pos_analysed = self.n_pos_analysed[-1]
         
-        # Force_terms_check = lib1.patch_forces(self.forces_sim, PD_limit=self.PD_limit)
-        # FES_check = lib1.intg_1D(Force_terms_check[2], self.grid_dx)
-        # cutoff_check = np.ones(self.nbins) 
-        # if self.FES_cutoff is not None: cutoff_check = np.where(FES_check < self.FES_cutoff, cutoff_check, 0)
-        # if self.PD_cutoff is not None: cutoff_check = np.where(Force_terms_check[0] > self.PD_cutoff, cutoff_check, 0)
-        # AAD_check = np.sum(np.abs( FES_check - self.y) * cutoff_check ) / np.sum(cutoff_check)
+        # load entire simulation data and analyse in one go
+        self.load_data(n_pos_analysed=0)
+        PD_sim, PD2_sim, Force_sim, ofv_num_sim, Force_bias_sim, Bias_sim, _ = lib1.MFI_forces(self.hills, self.position[:,-1], self.n_pos_per_window, self.const, self.bw2, self.kT, self.grid, self.Gamma_Factor, self.Force_static, periodic=self.periodic, PD_limit = self.PD_limit, return_FES=False)
         
-        # return AAD_check, Bias, F_bias    
-        
-        self.force_terms[0] = lib1.patch_forces(self.force_terms[1:], PD_limit=self.PD_limit)
-        self.PD, self.PD2, self.Force, self.ofv_num = self.force_terms[0]
-        self.FES = lib1.intg_1D(self.Force, self.grid_dx)
-        self.cutoff = np.ones(self.nbins)
-        if self.FES_cutoff is not None: self.cutoff = np.where(self.FES < self.FES_cutoff, self.cutoff, 0)
-        if self.PD_cutoff is not None: self.cutoff = np.where(self.PD > self.PD_cutoff, self.cutoff, 0)
-        AAD_check = np.sum(np.abs( self.FES - self.y) * self.cutoff ) / np.sum(self.cutoff)
-        if self.use_VNORM: AAD_check /= (np.sum(self.cutoff) / self.nbins)
-        return AAD_check
+        # patch results with existing results and calculate error
+        self.patch_and_find_error_SRTR(np.array([PD_sim, PD2_sim, Force_sim, ofv_num_sim]), np.array([Force_bias_sim, Bias_sim]), patch_realtime_forces=False) 
+
+        # # check if aad for all data patched at once is the same as the one calculated in real time
+        # error_new = self.AAD if self.y is not None else self.Aofe
+        # if abs(error_new - error_old)/error_new > 0.1: 
+        #     print(f"\n*** ATTENTION ***: \nSignificant difference in Re-Analysis: {error_old = :.4f} -> {error_new = :.4f}, has a {abs(error_new - error_old)/error_new:.2%} difference")
+        #     print(f"n_pos_analysed: {prev_n_pos_analysed} -> {len(self.position)}")
 
     def stop_simulation_SRTR(self):
         
@@ -1334,10 +1440,10 @@ class MFI1D:
         os.killpg(os.getpgid(self.process.pid), signal.SIGTERM)                        
         
         # take hills and position files and analyse in one go                      
-        AAD_check = self.re_analyse_SRTR()
+        self.re_analyse_SRTR()
         
         # print info
-        self.print_SRTR_info("sim_end", AAD_check=AAD_check)
+        self.print_SRTR_info("sim_end")
         
         # save simulation results
         if self.save_force_terms: lib1.save_pkl(self.force_terms[-1], f"force_terms{self.SIM_ID}.pkl")  
@@ -1371,8 +1477,8 @@ class MFI1D:
                       
                 # load and analyse the data
                 self.load_data(n_pos_analysed=self.n_pos_analysed[-1])  # provide the path to the hills and position files if in different folder              
-                PD_i, PD2_i, Force_i, ofv_num_i, Force_bias_i, Bias_i, _ = lib1.MFI_forces(self.hills, self.position[:,-1], self.n_pos_per_window, self.const, self.bw2, self.kT, self.grid, self.Gamma_Factor, np.array(self.Force_static-self.Force_bias), periodic=self.periodic, PD_limit = self.PD_limit, return_FES=False)
-                self.patch_and_find_error_SRTR(PD_i, PD2_i, Force_i, ofv_num_i, Force_bias_i, Bias_i)
+                PD_e, PD2_e, Force_e, ofv_num_e, Force_bias_e, Bias_e, _ = lib1.MFI_forces(self.hills, self.position[:,-1], self.n_pos_per_window, self.const, self.bw2, self.kT, self.grid, self.Gamma_Factor, np.array(self.Force_static-self.Force_bias), periodic=self.periodic, PD_limit = self.PD_limit, return_FES=False)               
+                self.patch_and_find_error_SRTR(np.array([PD_e, PD2_e, Force_e, ofv_num_e]), np.array([Force_bias_e, Bias_e]))
                 
                 # check termination criteria    
                 stop_sim = self.check_termination_criteria_SRTR(ReInit_criteria)
@@ -1387,6 +1493,7 @@ class MFI1D:
     class MFI_parallel:
         parent: 'MFI1D'  # Reference to the enclosing MFI1D instance
         workers: int
+        n_cores_per_simulation: int = None
         
         simulation_folder_path_list: Optional[List[str]] = None        
         simulation_steps_list: Optional[List[int]] = None
@@ -1402,9 +1509,7 @@ class MFI1D:
         
         
         def __post_init__(self):
-            
-            self.patent.record_forces_e = True
-            
+                        
             parent_params = [asdict(self.parent) for _ in range(self.workers)]
             
             if self.simulation_folder_path_list is not None:
@@ -1448,7 +1553,6 @@ class MFI1D:
                 sim_i.analyse_data()
             print("All simulations analysed")
 
-                
         def patch_simulations(self):
             
             print("Patching simulations")
@@ -1495,6 +1599,7 @@ class MFI1D:
     class MFI_parallel_RTR:
         parent: 'MFI1D'  # Reference to the enclosing MFI1D instance
         workers: int
+        n_cores_per_simulation: int = None
         ID: str = ""
         goal: float = 0.25
         main_error_type: str = None
@@ -1539,6 +1644,9 @@ class MFI1D:
             if self.ID != "": self.parent.ID = self.ID
             self.ID = self.parent.ID
             
+            # copy the parent sim_files_path to add new trajectory file paths to the sim_files_path["trajectory_xtc_file_path_list"].
+            self.sim_files_path = self.parent.sim_files_path.copy()
+            
             # set simulation times (total budget, guaranteed simulation time, max simulation time)
             if self.time_budget is not None: self.parent.time_budget = self.time_budget
             if self.parent.time_budget is None: 
@@ -1565,7 +1673,6 @@ class MFI1D:
             self.parent.record_forces_e = False
             if self.main_error_type is not None: self.parent.main_error_type = self.main_error_type
             self.main_error_type = self.parent.main_error_type
-            self.parent.base_forces = np.zeros((4, self.parent.nbins))
             
             # lists for calculating the change in the error
             if self.parent.calculate_error_change == False:
@@ -1645,20 +1752,20 @@ class MFI1D:
                     self.sim[i].simulation_folder_path = self.campaign_path + f"simulation{SIM_ID}/"
                     self.sim[i].hills_file = self.sim[i].simulation_folder_path + f"HILLS{SIM_ID}"
                     self.sim[i].position_file = self.sim[i].simulation_folder_path + f"position{SIM_ID}"              
-                   
+
                     # check if HILLS file exists
                     if os.path.exists(self.sim[i].hills_file): self.sim[i].metad_height = 1
 
                     # laod data
                     print(f"\nLoading simulation folder: {sim_folder}")
                     self.sim[i].load_data(n_pos_analysed=0)
-                    
+
                     # find bias from hills
                     if self.sim[i].metad_height is not None and self.sim[i].metad_height > 0: 
                         Bias_sim = lib1.find_total_bias_from_hills(self.sim[i].grid, self.sim[i].hills, periodic=self.sim[i].periodic)
                         Force_bias_sim = np.gradient(Bias_sim, self.sim[i].grid_dx)
                     else: Force_bias_sim, Bias_sim = np.zeros(self.sim[i].nbins), np.zeros(self.sim[i].nbins)
-                    
+ 
                     # load force terms
                     os.chdir(self.sim[i].simulation_folder_path)
                     if os.path.exists(f"force_terms{SIM_ID}.pkl"): PD_sim, PD2_sim, Force_sim, ofv_num_sim = lib1.load_pkl(f"force_terms{SIM_ID}.pkl")
@@ -1672,10 +1779,17 @@ class MFI1D:
                         else: 
                             print("without external bias. ")
                             Force_static = np.zeros(self.sim[0].nbins)
+                            
+                        print(f"{self.sim[0].grid.shape = }, {Force_static.shape = }")
                         PD_sim, PD2_sim, Force_sim, ofv_num_sim, _, _, _ = lib1.MFI_forces(self.sim[i].hills, self.sim[i].position[:,-1], self.sim[i].n_pos_per_window, self.sim[i].const, self.sim[i].bw2, self.sim[i].kT, self.sim[i].grid, self.sim[i].Gamma_Factor, Force_static, periodic=self.sim[i].periodic, PD_limit = self.sim[i].PD_limit, return_FES=False)
-      
+
                     # patch forces and find error 
                     self.patch_and_find_error(i, np.array([PD_sim, PD2_sim, Force_sim, ofv_num_sim]), np.array([Force_bias_sim, Bias_sim]) )
+
+                    # if trajectory files is in folder, add the path to the list of trajectory files
+                    if self.parent.System != "Langevin": 
+                        new_traj_path = lib1.get_trajectory_xtc_file_path(self.current_path, System=self.parent.System)
+                        if new_traj_path is not None: self.sim_files_path["trajectory_xtc_file_path_list"] = [new_traj_path] + self.sim_files_path["trajectory_xtc_file_path_list"].copy()    
 
                     # check if exploration phase is completed
                     if self.sim[0].phase == "exploration":
@@ -2018,7 +2132,6 @@ class MFI1D:
                 # self.sim[i].metad_width = round(self.sim[i].grid_length / 100, 5)
                 _, _, sigma_list = lib1.Gauss_fitting_to_fes(self.sim[0].grid, self.sim[0].FES)
                 self.sim[i].metad_width = round(min(sigma_list)/4,5)
-                print(f"NEW SIM : {self.sim[i].metad_width = }")
                 
                 self.sim[i].metad_height = round(min(self.metad_height_exploration/5, self.sim[i].FES_cutoff / 20),2) 
                 
@@ -2053,7 +2166,6 @@ class MFI1D:
                 # self.sim[i].metad_width = round((self.sim[i].grid_length) / 50,5)
                 _, _, sigma_list = lib1.Gauss_fitting_to_fes(self.sim[0].grid, self.sim[0].FES)
                 self.sim[i].metad_width = round(min(sigma_list)/4,5)
-                print(f"NEW SIM : {self.sim[i].metad_width = }")
                 
                 self.sim[i].metad_height = round(min(self.metad_height_exploration/10, self.sim[i].FES_cutoff / 30),2)
                 
@@ -2072,7 +2184,7 @@ class MFI1D:
             if i == 0: 
                 sim0_params = copy.deepcopy(self.parent_params)
                 sim0_params['record_maps'] = True
-                self.parent_params['record_forces_e'] = False  # only save forcs_e for sim[0]. This could be changed by adding a variable base_forces_e, so that forces_e_list is not created for for every simulation (which would be very expensive as number of sim grows).
+                self.parent_params['record_forces_e'] = False  # only save forcs_e for sim[0]. 
                 self.parent_params['bootstrap_iter'] = None
                 self.parent_params['calculate_FES_st_dev'] = False  # could also be removed?
                 
@@ -2084,8 +2196,8 @@ class MFI1D:
                 if self.sim[0].y is not None: self.sim[0].AAD_0 = 10
                 if self.sim[0].y is not None: self.sim[0].Avr_Error_list.append(self.sim[0].AAD_0)
                 if self.sim[0].dy is not None: self.sim[0].Avr_Error_list.append(self.sim[0].Aofe_0)
-                if self.sim[0].bootstrap_iter is not None and self.sim[0].bootstrap_iter > 0: self.sim[0].Avr_Error_list.append(self.sim[0].AAD_0)
-                if self.sim[0].calculate_FES_st_dev: self.sim[0].Avr_Error_list.append(self.sim[0].AAD_0)
+                if self.sim[0].bootstrap_iter is not None and self.sim[0].bootstrap_iter > 0: self.sim[0].Avr_Error_list.append(10)
+                if self.sim[0].calculate_FES_st_dev: self.sim[0].Avr_Error_list.append(10)
                 self.sim[0].Avr_Error_list = np.array([self.sim[0].Avr_Error_list])
                 self.sim[0].phase = "exploration"
                 return
@@ -2130,7 +2242,7 @@ class MFI1D:
             if i > self.workers: self.set_up_new_sim(i)
                             
             # run simulation                
-            self.sim[i].run_simulation(assign_process=True, file_extension=self.sim[i].SIM_ID)
+            self.sim[i].run_simulation(assign_process=True, file_extension=self.sim[i].SIM_ID, n_cores_per_simulation=self.n_cores_per_simulation, sim_files_path=self.sim_files_path)
             self.active_sim.append(0)
             
             # wait for simulations to have at elast X hills   # this should be changed to wait for positions. Not urgent as initial simulations start in exploration stage
@@ -2141,48 +2253,58 @@ class MFI1D:
             if i > self.workers: self.updating_lines[i] = None
             self.print_live("start_simulation", i, time=str(round(time.time() - time_start,2)))
             
+            # Add the path of the trajectory file to the list of trajectory files
+            if self.parent.System != "Langevin": 
+                new_traj_path = lib1.get_trajectory_xtc_file_path(self.sim[i].simulation_folder_path, System=self.parent.System)                
+                if new_traj_path is not None: self.sim_files_path["trajectory_xtc_file_path_list"] = [new_traj_path] + self.sim_files_path["trajectory_xtc_file_path_list"].copy()    
+            
             # Move back to campaign folder
             os.chdir(self.campaign_path)
 
         def patch_and_find_error(self, i, force_terms_e, bias_terms_e, patch_realtime_forces=True):
             
+            # record bias potential and bias force 
+            self.sim[i].Force_bias += bias_terms_e[0]
+            self.sim[i].Bias += bias_terms_e[1]
+                          
+            # if patch_realtime_forces is True, patch the force terms of simulation i with the (new) force_terms_e. If False, force_terms_e is the new force terms of the entire simulation.
             if patch_realtime_forces:
-                # record last results of simulation i
-                self.sim[i].Force_bias += bias_terms_e[0]
-                self.sim[i].Bias += bias_terms_e[1]
+                # record last force terms (_e) of simulation i
+                if self.sim[0].record_forces_e: [self.sim[0].PD_e, self.sim[0].PD2_e, self.sim[0].Force_e, self.sim[0].ofv_num_e] = force_terms_e
+                #Patch forces of Simulation
+                self.sim[0].force_terms[i] = lib1.patch_forces(self.sim[0].force_terms[i], force_terms_e, PD_limit=self.sim[i].PD_limit) 
+                # record n_pos_analysed of simulation i
                 self.sim[i].n_pos_analysed.append(len(self.sim[i].position))
                 self.sim[i].n_pos_analysed[0] = sum(self.sim[i].n_pos_analysed[1:])
-                self.sim[0].n_pos_analysed[i] = self.sim[i].n_pos_analysed[0]
-                self.sim[0].n_pos_analysed[0] = sum(self.sim[0].n_pos_analysed[1:])  
-                new_sim_time = self.sim[i].position[-1, 0] / 1000 - self.sim[i].sim_time              
-                self.sim[i].sim_time += new_sim_time
-                self.sim[0].sim_time += new_sim_time        
-                if len(self.sim[i].n_pos_analysed) > 2 and self.sim[i].sim_time < 0.01: raise ValueError(f"Simulation {i} has unexpected low sim_time = {self.sim[i].sim_time}, n_pos_analysed = {self.sim[i].n_pos_analysed}. Please check if all simulations are running correctly")
-                
-                #Patch forces of Simulation i and get new error
-                if self.sim[0].record_forces_e: [self.sim[0].PD_e, self.sim[0].PD2_e, self.sim[0].Force_e, self.sim[0].ofv_num_e] = force_terms_e
-                self.sim[0].force_terms[i] = lib1.patch_forces(self.sim[0].force_terms[i], force_terms_e, PD_limit=self.sim[i].PD_limit) 
-                self.sim[i].PD, self.sim[i].PD2, self.sim[i].Force, self.sim[i].ofv_num = self.sim[0].force_terms[i]        
-                self.sim[i].calculate_errors()  
+
             else:
-                self.sim[i].Force_bias += bias_terms_e[0]
-                self.sim[i].Bias += bias_terms_e[1]
-                
+                # record force terms of entire simulation. if record_forces_e is True, calculate the difference between the new (whole) force terms and the previous force terms.
                 if self.sim[0].record_forces_e: 
                     PD_sim, PD2_sim, Force_sim, ofv_num_sim = force_terms_e
                     [self.sim[0].PD_e, self.sim[0].PD2_e, self.sim[0].ofv_num_e] = [PD_sim - self.sim[i].PD, PD2_sim - self.sim[i].PD2, ofv_num_sim - self.sim[i].ofv_num]
                     self.sim[0].Force_e = np.divide(np.multiply(Force_sim, PD_sim) - np.multiply(self.sim[i].Force, self.sim[i].PD), self.sim[0].PD_e, out=np.zeros_like(self.sim[0].PD_e), where=self.sim[0].PD_e > self.sim[0].PD_limit)
-                    
                 self.sim[0].force_terms[i] = force_terms_e
-                self.sim[i].PD, self.sim[i].PD2, self.sim[i].Force, self.sim[i].ofv_num = force_terms_e 
-                self.sim[i].calculate_errors()
+                # record n_pos_analysed of simulation i
+                self.sim[i].n_pos_analysed.append(len(self.sim[i].position)-self.sim[i].n_pos_analysed[0])
+                self.sim[i].n_pos_analysed[0] = len(self.sim[i].position)
+
+            # record n_pos_analysed and sim_time
+            self.sim[0].n_pos_analysed[i] = self.sim[i].n_pos_analysed[0]
+            self.sim[0].n_pos_analysed[0] = sum(self.sim[0].n_pos_analysed[1:]) 
+            new_sim_time = self.sim[i].position[-1, 0] / 1000 - self.sim[i].sim_time
+            self.sim[i].sim_time += new_sim_time
+            self.sim[0].sim_time += new_sim_time                  
+            if len(self.sim[i].n_pos_analysed) > 2 and self.sim[i].sim_time < 0.01: raise ValueError(f"Simulation {i} has unexpected low sim_time = {self.sim[i].sim_time}, n_pos_analysed = {self.sim[i].n_pos_analysed}. Please check if all simulations are running correctly")
             
-            # Patch results with all other results         
+            # calculate errors of simulation i
+            self.sim[i].PD, self.sim[i].PD2, self.sim[i].Force, self.sim[i].ofv_num = self.sim[0].force_terms[i]        
+            self.sim[i].calculate_errors()             
+                             
+            # Patch sim i results with all other results and calculate error of all simulations         
             self.sim[0].force_terms[0] = lib1.patch_forces(self.sim[0].force_terms[1:], PD_limit=self.sim[i].PD_limit)
             self.sim[0].PD, self.sim[0].PD2, self.sim[0].Force, self.sim[0].ofv_num = self.sim[0].force_terms[0]
             self.sim[0].calculate_errors()
             
-            #check termination criteria. If met, stop simulation and start new one
             #calculate difference in error for simulation and combined results
             if len(self.sim[i].Avr_Error_list) > 1 or i > self.workers: self.sim[i].calculate_difference_in_error()
             if len(self.sim[0].Avr_Error_list) > 1: self.sim[0].calculate_difference_in_error()
@@ -2228,32 +2350,32 @@ class MFI1D:
                     self.reason_for_termination = "Exploration stage completed"
                     return True
                 else: return False
-                
+            
             if self.sim[i].phase == "metad" and self.sim[i].sim_time > self.guaranteed_sim_time:
-                
+    
                 if self.sim[0].phase == "flat":
                     self.reason_for_termination = "Metad phase completed (with other sim)"
                     return True
                 
-                if self.sim[0].bootstrap_iter is not None and self.sim[0].bootstrap_iter > 0 and not np.isnan(self.sim[0].Avr_Error_list[-1, self.sim[0].abs_error_index]):
+                # if self.sim[0].bootstrap_iter is not None and self.sim[0].bootstrap_iter > 0 and not np.isnan(self.sim[0].Avr_Error_list[-1, self.sim[0].abs_error_index]):
                                         
-                    if self.sim[0].Avr_Error_list[-1, self.sim[0].abs_error_index] < self.sim[0].FES_cutoff / 40: 
-                        self.sim[0].phase = "flat"
-                        self.reason_for_termination = f"Metad phase completed (abs_error={self.sim[0].Avr_Error_list[-1, self.sim[0].abs_error_index]:.4f})"
-                        return True
+                #     if self.sim[0].Avr_Error_list[-1, self.sim[0].abs_error_index] < self.sim[0].FES_cutoff / 40: 
+                #         self.sim[0].phase = "flat"
+                #         self.reason_for_termination = f"Metad phase completed (abs_error={self.sim[0].Avr_Error_list[-1, self.sim[0].abs_error_index]:.4f})"
+                #         return True
                 
-                elif self.sim[0].calculate_FES_st_dev:
-                    if self.sim[0].Avr_Error_list[-1, self.sim[0].FES_st_dev_index] < self.sim[0].FES_cutoff / 40: 
-                        self.sim[0].phase = "flat"
-                        self.reason_for_termination = f"Metad phase completed (var_fes={self.sim[0].Avr_Error_list[-1, self.sim[0].FES_st_dev_index]:.4f})"
-                        return True
+                # elif self.sim[0].calculate_FES_st_dev:
+                #     if self.sim[0].Avr_Error_list[-1, self.sim[0].FES_st_dev_index] < self.sim[0].FES_cutoff / 40: 
+                #         self.sim[0].phase = "flat"
+                #         self.reason_for_termination = f"Metad phase completed (var_fes={self.sim[0].Avr_Error_list[-1, self.sim[0].FES_st_dev_index]:.4f})"
+                #         return True
                     
-                elif self.sim[0].record_maps:
-                    st_dev = np.sum(np.sqrt(np.var(np.array(self.sim[0].Maps_list)[-30:,0], axis=0) * self.sim[0].Maps_list[-1][1])) / np.count_nonzero(self.sim[0].Maps_list[-1][1])
-                    if st_dev < self.sim[0].FES_cutoff/40: 
-                        self.sim[0].phase = "flat"
-                        self.reason_for_termination = f"Metad phase completed (var_fes={st_dev:.4f})"
-                        return True                     
+                # elif self.sim[0].record_maps:
+                #     st_dev = np.sum(np.sqrt(np.var(np.array(self.sim[0].Maps_list)[-30:,0], axis=0) * self.sim[0].Maps_list[-1][1])) / np.count_nonzero(self.sim[0].Maps_list[-1][1])
+                #     if st_dev < self.sim[0].FES_cutoff/40: 
+                #         self.sim[0].phase = "flat"
+                #         self.reason_for_termination = f"Metad phase completed (var_fes={st_dev:.4f})"
+                #         return True                     
                     
                 else: 
                     vol_last, min_vol_last_5 = self.sim[0].Avr_Error_list[-1,1], np.min(self.sim[0].Avr_Error_list[-5:,1])
@@ -2291,22 +2413,27 @@ class MFI1D:
 
         def re_analyse_data(self, i):
             
-            # check if aad for all results calculated in real time is the same as the one calculated after the simulation finished.
+            # # Re-analyse all the data again in one go. This is done to increase the numerical accuray and to check if the results are consistent. (minor inconsistencies might arrise due to additional data egnerated since the last check)
+            # if not (self.reason_for_termination == "Exploration stage completed" or self.reason_for_termination.startswith("Metad phase completed") or self.goal_reached):
+            #     error_old = self.sim[0].AAD if self.sim[0].y is not None else self.sim[0].Aofe
+            #     error_sim_i_old = self.sim[i].AAD if self.sim[i].y is not None else self.sim[i].Aofe
+            #     prev_n_pos_analysed = self.sim[i].n_pos_analysed[0]
+            
+            # load the entire simulation data and analyse in one go
             self.sim[i].load_data(n_pos_analysed=0)
-                
-            # calculate results in one go
             PD_sim, PD2_sim, Force_sim, ofv_num_sim, Force_bias_sim, Bias_sim, _ = lib1.MFI_forces(self.sim[i].hills, self.sim[i].position[:,-1], self.sim[i].n_pos_per_window, self.sim[i].const, self.sim[i].bw2, self.sim[i].kT, self.sim[i].grid, self.sim[i].Gamma_Factor, self.sim[i].Force_static, periodic=self.sim[i].periodic, PD_limit = self.sim[i].PD_limit)
             
-            self.sim[i].n_pos_analysed.append(len(self.sim[i].position)-self.sim[i].n_pos_analysed[0])
-            self.sim[i].n_pos_analysed[0] = len(self.sim[i].position)
-            self.sim[0].n_pos_analysed[i] = self.sim[i].n_pos_analysed[0]
-            self.sim[0].n_pos_analysed[0] = sum(self.sim[0].n_pos_analysed[1:]) 
-            new_sim_time = self.sim[i].position[-1, 0] / 1000 - self.sim[i].sim_time
-            self.sim[i].sim_time += new_sim_time
-            self.sim[0].sim_time += new_sim_time  
-            
+            # patch results with existing results and calculate error
             self.patch_and_find_error(i, np.array([PD_sim, PD2_sim, Force_sim, ofv_num_sim]), np.array([Force_bias_sim, Bias_sim]), patch_realtime_forces=False) 
             
+            # # check if aad for all data patched at once is the same as the one calculated in real time
+            # if not (self.reason_for_termination == "Exploration stage completed" or self.reason_for_termination.startswith("Metad phase completed") or self.goal_reached):
+            #     error_new = self.sim[0].AAD if self.sim[0].y is not None else self.sim[0].Aofe
+            #     if abs(error_new - error_old)/error_new > 0.1: print(f"\n*** ATTENTION ***: \nSignificant difference in Re-Analysis of ALL SIM: {error_old = :.4f} -> {error_new = :.4f}, has a {abs(error_new - error_old)/error_new:.2%} difference")
+            #     error_sim_i_new = self.sim[i].AAD if self.sim[i].y is not None else self.sim[i].Aofe
+            #     if abs(error_sim_i_new - error_sim_i_old)/error_sim_i_new > 0.1: print(f"*** ATTENTION ***: \nSignificant difference in Re-Analysis of SIM {i}: {error_sim_i_old = :.4f} -> {error_sim_i_new = :.4f}, has a {abs(error_sim_i_new - error_sim_i_old)/error_sim_i_new:.2%} difference")
+            #     print(f"n_pos_analysed: {prev_n_pos_analysed} -> {len(self.sim[i].position)}")
+                
         def terminate_simulation(self, i):
             
             # kill simulation process. Wait to confirm it shut down
@@ -2322,10 +2449,8 @@ class MFI1D:
             else: self.re_analyse_data(i)
                         
             # save force terms
-            if self.parent.save_force_terms: lib1.save_pkl(self.sim[0].force_terms[i], self.sim[i].simulation_folder_path  + f"force_terms{self.sim[i].SIM_ID}.pkl")
-            
-            if self.goal_reached: self.print_live("goal_reached")
-                
+            if self.parent.save_force_terms: lib1.save_pkl(self.sim[0].force_terms[i], self.sim[i].simulation_folder_path + f"force_terms{self.sim[i].SIM_ID}.pkl")
+                            
             # check if simulation was terminated successfully    
             if self.sim[i].process.poll() is None: self.print_live(""); self.print_live(""); self.print_live("\n\n******* Failed to terminate the process *******"); self.print_live(""); self.print_live(""); self.remove_text = False
             else: self.active_sim[i-1] = 0
@@ -2345,8 +2470,7 @@ class MFI1D:
             if Reinitialise: 
                 for i_terminate in sim_indexes_to_terminate: self.terminate_simulation(i_terminate)
                 _ = self.check_termination_criteria_PRTR(0)
-                if self.goal_reached: self.print_live("goal_reached")     
-                else:              
+                if not self.goal_reached:              
                     for i_start in range(len(self.active_sim)+1, len(self.active_sim)+1+self.workers): self.start_simulation(i_start)
             else: time.sleep(0.1) 
             
@@ -2385,7 +2509,6 @@ class MFI1D:
                     stop_sim = self.check_termination_criteria_PRTR(i)
 
                     if self.goal_reached: # terminate all simulations
-                        self.print_live("goal_reached")
                         for ii, value in enumerate(self.active_sim): self.terminate_simulation(ii+1) if value == 1 else None
                         break 
 
@@ -2407,6 +2530,7 @@ class MFI1D:
                 if self.live_plot: self.plot_live()    
                 
             # after goal_reached, terminate all processes:
+            if self.goal_reached: self.print_live("goal_reached")
             self.terminate_all_processes()
                         
             #make video

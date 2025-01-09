@@ -9,8 +9,6 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import numpy as np
 import pickle
-from numba import jit, njit
-import numba
 
 import random
 import time
@@ -26,11 +24,11 @@ from typing import Union, List, Optional
 
 @dataclass
 class Run_Simulation:
-    """Class for running Alanine Dipeptide simulation."""
+    """Class for running simulations."""
     
     for init_parameters in [0]:
         
-        # Variables for the plumed grid 
+        # Variables for the plumed grid
         pl_X: np.ndarray = field(default = None)
         pl_Y: np.ndarray = field(default = None)
         pl_min: list = field(default_factory=lambda: [-3.0, -3.0])
@@ -51,7 +49,7 @@ class Run_Simulation:
         n_cores_per_simulation: int = None
         start_sim: bool = True
         friction: float = 1
-        
+
         # Variables for the metadynamics
         plumed_dat_text: str = None  # This is the text that will be written to the plumed.dat file. This text should include everything upto the lines specifying the Bias (metad adn/or static bias)
         metad_width: list = field(default_factory=lambda: [0.1, 0.1])
@@ -60,7 +58,7 @@ class Run_Simulation:
         metad_pace: int = 500
         position_pace: int = 50
         n_pos_per_window: int = 10
-        
+
         # Variables for static bias
         hp_centre_x: float = None; hp_centre_y: float = None; hp_kappa_x: float = None; hp_kappa_y: float = None # harmonic potential
         lw_centre_x: float = None; lw_centre_y: float = None; lw_kappa_x: float = None; lw_kappa_y: float = None # lower wall
@@ -80,7 +78,7 @@ class Run_Simulation:
         find_structure_text: str = None # This is the text that will be written to the plumed_traj.dat file. If the text is the same as plumed_dat_text (defined above), this field can be left to None, and plumed_dat_text will be used.
     
     def __post_init__(self):
-        
+
         # Define the plumed grid
         if (self.pl_X is None or self.pl_Y is None) and (self.pl_min is None or self.pl_max is None or self.pl_n is None): print("\n ***** Please either plumed grid or plumed min, max, and nbins. ***** \n")
         elif self.pl_X is None or self.pl_Y is None: 
@@ -123,9 +121,10 @@ class Run_Simulation:
             input_file_text += f"\nperiodic on min {self.pl_min} max {self.pl_max}" if (self.periodic[0]) or (self.periodic[1]) else "\nperiodic false"                   
             with open("input" ,"w") as f: print( input_file_text,file=f)        
               
-        # Metadynamics bias. To activate, the height needs to be a positive number
+        # Write the plumed file
         cv_str = f"{self.cv_name[0]},{self.cv_name[1]}"
         plumed_file_text = str(self.plumed_dat_text)
+        # Metadynamics bias. To activate, the height needs to be a positive number
         if self.metad_height is not None and self.metad_height > 0: plumed_file_text += f"METAD ARG={cv_str} PACE={self.metad_pace} SIGMA={self.metad_width[0]},{self.metad_width[1]} HEIGHT={self.metad_height} BIASFACTOR={self.biasfactor} GRID_MIN={pl_min[0]},{pl_min[1]} GRID_MAX={pl_max[0]},{pl_max[1]} GRID_BIN={self.pl_n[0]-1},{self.pl_n[1]-1} TEMP={self.temperature*120} FILE=HILLS{self.file_extension}\n"
         # Harmonic potential bias. To activate, the force constant (kappa) needs to be a positive number
         if self.hp_kappa_x is not None or self.hp_kappa_y is not None: plumed_file_text += f"RESTRAINT ARG={cv_str} KAPPA={self.hp_kappa_x},{self.hp_kappa_y} AT={self.hp_centre_x},{self.hp_centre_y} LABEL=restraint\n"
@@ -152,7 +151,6 @@ class Run_Simulation:
         
         if self.find_structure_text is None: find_structure_text = str(self.plumed_dat_text)
         else: find_structure_text = str(self.find_structure_text)
-        
         
         # set the distance for the initial position where the structure is searched. If not found, distance is doubled until a structure is found or 10 attempts are made. 
         d_pos_x = self.initial_position_accuracy[0] if self.initial_position_accuracy[0] is not None else (self.pl_max[0] - self.pl_min[0])/100
@@ -242,10 +240,10 @@ class Run_Simulation:
         else: self.sim_files_path["tpr_file_path"] = new_input_tpr_file_path
                 
     def start_simulation(self):
-        
+
         process = subprocess.Popen(self.terminal_input, shell=True, preexec_fn=os.setsid)
         if self.print_info: print("Simulation started with Terminal input:", self.terminal_input) 
-        
+
         # Write simulation info text. If self.print_info, print the information about the simulation
         if self.print_info: start = time.time()
         if self.print_info or self.save_simulation_data_file is not None:
@@ -264,7 +262,7 @@ class Run_Simulation:
                 live_print_progress(start, n_lines, tot_pos, bar_length=50, variable_name='Simulated time', variable=n_lines*self.time_step*self.position_pace/1_000)
         else: process.wait()
         if self.print_info: print(f"\n{self.System} simulation finished in {format_seconds(time.time()-start)}.")
-        
+
         # if self.save_simulation_data_file is given save the data
         if self.save_simulation_data_file is not None:
             if info is None: info = f"\nRunning {self.System} simulation: n_steps={self.n_steps:,}, ipos={self.initial_position[0]},{self.initial_position[1]}, Pos_t={self.position_pace}, T={self.temperature}, t_Tot={self.n_steps*self.time_step/1000:,.2f}ns"
@@ -273,12 +271,13 @@ class Run_Simulation:
             save_pkl([HILLS, pos, external_bias, info], self.save_simulation_data_file)        
             
     def start_sim_return_process(self, print_info=False):
+        # Start the simulation and return the process so that it can be interupted later.
         if self.print_info: print("Simulation started with Terminal input:", self.terminal_input) 
         process = subprocess.Popen(self.terminal_input, shell=True, preexec_fn=os.setsid)
         if print_info: print("Simulation started with pid:", process.pid, os.getpgid(process.pid))
         return process
     
-def get_trajectory_xtc_file_path_list(simulation_path=None, System="gromacs"):
+def get_trajectory_xtc_file_path(simulation_path=None, System="gromacs"):
     
     if simulation_path is not None: os.chdir(simulation_path)
     current_path = os.getcwd() + "/"
@@ -436,7 +435,7 @@ def make_external_bias_2D(X, Y, FES=None, Bias=None, Bias_sf=1, gaus_filter_sigm
             if max_Bias > FES_cutoff: Bias = np.where(Bias < (max_Bias - FES_cutoff), 0, Bias - (max_Bias - FES_cutoff))
         pl_Bias[pl_ext[0]:-pl_ext[1], pl_ext[2]:-pl_ext[3]] = Bias
     
-    # Modify Bias by scaling factor and/or gaussian filter
+    # Modify Bias by scaling factor and/or gaussian filter    
     if gaus_filter_sigma is not None: 
         if periodic[0] and periodic[1]: pl_Bias = gaussian_filter(pl_Bias, sigma=gaus_filter_sigma, mode='wrap')
         else: pl_Bias = gaussian_filter(pl_Bias, sigma=gaus_filter_sigma)
@@ -519,9 +518,6 @@ def get_random_move(grid_min, grid_max):
     random.seed()
     index = random.randint(0, 500)
     coordinate = grid_min + ( (grid_max - grid_min) / 500) * index
-    
-    print(f"\n     -------> NEW random move: {coordinate = } <-------\n")
-    
     return round(coordinate,2)
 
 def set_up_folder(folder_path, remove_folder=False, print_info=False, copy_files_path=[]):
@@ -541,7 +537,7 @@ def set_up_folder(folder_path, remove_folder=False, print_info=False, copy_files
         for file in copy_files_path:
             if os.path.exists(file): shutil.copy(file, folder_path)
             else: print(f"*** File {file} does not exist. ***")
-        
+
     return os.getcwd()
 
 ####  ---- Read simulation Data  --------------------------------------------------------  ####
@@ -559,6 +555,7 @@ for _read_simulation_data_ in [0]:
 
         #### ~~~~~ Copy hills and position Data ~~~~~ ####
 
+        if n_pos_per_window is None: n_pos_per_window = 10
         n_pos_per_window = int(n_pos_per_window)
         n_pos_analysed = int(n_pos_analysed)
         
@@ -571,7 +568,7 @@ for _read_simulation_data_ in [0]:
             if os.path.exists(hills_path_cp): os.system(f"rm {hills_path_cp}")
         
         os.system(f"cp {pos_path} {pos_path_cp}")        
-        if metad_h is not None and metad_h > 0: os.system(f"cp {hills_path} {hills_path_cp}")        
+        if metad_h is not None and metad_h > 0: os.system(f"cp {hills_path} {hills_path_cp}")
         
         #### ~~~~~ Load position Data ~~~~~ ####
 
@@ -589,17 +586,17 @@ for _read_simulation_data_ in [0]:
         if len(pos[-1]) < len(pos[-2]): pos = pos[:-1]  
         last_index_pos_line = len(pos[-2])-1
         if len(pos[-1][last_index_pos_line]) < len(pos[-2][last_index_pos_line]) / 2: pos = pos[:-1]
-        
         assert len(pos) > n_pos_per_window, f"The position data: {pos = } is empty ({len(pos) = }) (ec2)"
 
         # turn position data into a numpy array
         pos = np.array(pos, dtype=float)
-        
+
+        # check if there are more positions than the number of positions already analysed
         if len(pos) <= n_pos_analysed: 
             print(f"The position data is smaller than the number of positions already analysed {len(pos) = } <= {n_pos_analysed = }")
             return None, None
-        
-        # cut position data, removing the number of positions already analysed    
+
+        # cut position data, removing the number of positions already analysed
         if n_pos_analysed > 0: pos = pos[n_pos_analysed:]
         assert len(pos) > n_pos_per_window, f"The position data: {pos = } is empty ({len(pos) = }) (ec3)"
             
@@ -641,7 +638,7 @@ for _read_simulation_data_ in [0]:
                 # find the index of the first hill. 
                 t_hills_slided = np.array([round(hills[i,0] - t_hills_0, 4) for i in range(len(hills))])
                 t_index = np.where(t_hills_slided == 0.0)
-                assert len(t_index[0]) == 1, f"Could not find the (first) hill corresponding to the first position: t_pos_0 - dt_pos = {t_pos_0} - {dt_pos} = {t_hills_0 = } in the hills file: {hills_path} \n{hills[:5] = } \n{hills[-5:] = }\n{round(hills[1,0] - t_hills_0, 4) = }"
+                assert len(t_index[0]) == 1, f"Could not find the (first) hill corresponding to the first position: t_pos_0 - dt_pos = {t_pos_0} - {dt_pos} = {t_hills_0 = } in the hills file: {hills_path} \n{hills[:5] = } \n{hills[-5:] = }\n{t_hills_slided = }\n{round(hills[1,0] - t_hills_0, 4) = }"
             
                 # cut hills data, removing the hills before the first hill corresponding to the first position
                 hills = hills[t_index[0][0]:]
@@ -654,30 +651,30 @@ for _read_simulation_data_ in [0]:
             len_hills, len_pos = len(hills), len(pos)
             if len_hills * n_pos_per_window != len_pos:
 
-                # if there are to many hills, remove the extra hills
+                # if there are too many hills lines, remove the extra hills lines
                 if len_hills * n_pos_per_window > len_pos: 
                     extra_hills = int(np.ceil((len_hills * n_pos_per_window - len_pos) / n_pos_per_window))
                     hills = hills[:-extra_hills] # this will require removing some positions with the next if statement
                     len_hills = len(hills)
                 
-                # if there too many position lines, remove the extra position lines   
+                # if there are too many position lines, remove the extra position lines
                 if len_hills * n_pos_per_window < len_pos: 
                     extra_positions = int(len_pos - len_hills * n_pos_per_window)
                     pos = pos[:-extra_positions]
                     len_pos = len(pos)
-                        
+
                 # if the lengths still don't match, print a warning message and return None        
                 if len_hills * n_pos_per_window != len_pos: 
                     extra_hills = int(np.ceil((len_hills * n_pos_per_window - len_pos) / n_pos_per_window))
                     extra_positions = int(len_pos - len_hills * n_pos_per_window)
                     print(f"Attention: Problem with reading new data and cutting hills/position: {len(hills) = },  {len(pos) = }, {n_pos_per_window = }, {extra_hills = }, {extra_positions = }")
                     return None, None           
-            
+
                 #### ~~~~~ Make sure the end time of the position and hills data match (t_pos_end - dt_hills = t_hills_end) ~~~~~ ####        
                 if round((pos[-1][0] - dt_hills) - hills[-1][0], 4) != 0.0:
                     print(f"Error in cutting the hills data: The (last time in the hills data) + (time between hills) = ({hills[-1][0] +  dt_hills}) does not match the last time in the position data ({pos[-1][0]})")
                     return None, None
-             
+
             # consistency checks                                       
             assert round((pos[-1][0] - dt_hills) - hills[-1][0], 4) == 0.0, f"The last time in the position data and the last time in the hills data don't match: t_pos_end - dt_hills = {pos[-1][0] - dt_hills} != {hills[-1][0] = }"
             assert len(hills) > 1, f"The hills data: {hills = } is empty (after data has been cut)"
@@ -692,7 +689,7 @@ for _read_simulation_data_ in [0]:
         os.system("rm " + pos_path_cp)
 
         return hills, pos
-  
+
     def read_position(pos_path = "position", n_pos_analysed = 0, extension=""):
         
         # add extension to the file names
@@ -729,10 +726,10 @@ for _read_simulation_data_ in [0]:
         # remove the copy of the position file and return the position data
         os.system("rm " + pos_path_cp)
         return pos
-        
+
     def read_plumed_grid_file(filename):
-                
-        with open(filename, "r") as f: external_bias = f.read()    
+
+        with open(filename, "r") as f: external_bias = f.read()
         # read comment lines
         comment_lines =  [line for line in external_bias.strip().split('\n') if line.startswith("#")]
         
@@ -1646,7 +1643,7 @@ for _save_and_load_ in [0]:
 
     def save_npy(object, file_name):
         """Saves np.array in a file with .npy format
-        
+
         Args:
             object (np.array): object to be saved. Must be a numpy array.
             file_name (string): Name of file
@@ -1704,7 +1701,7 @@ for _functions_ in [1]:
         output_array = np.zeros_like(input_array)
         for ii in range(len(input_array)):
             for jj in range(len(input_array[ii])):
-                if input_array[ii][jj] <= 0: output_array[ii][jj] = np.nan
+                if input_array[ii][jj] == 0: output_array[ii][jj] = np.nan
                 else: output_array[ii][jj] = input_array[ii][jj]
         return output_array
 
@@ -2069,17 +2066,20 @@ for _functions_ in [1]:
         interpolator = interp1d(distances, path, axis=0, kind='linear')
         return interpolator(np.linspace(0, distances[-1], num_points))
     
-    def create_valley_surface(X, Y, path=None, FES=None, path_type="transition", valley_depth=10, valley_width=None, sharpness_exponent=6, n_images=15, n_points_interp=100, force_convergence_goal=0.2, max_steps=1000, step_size=None, print_info=False):
+    def create_valley_surface(X, Y, path=None, FES=None, FES_gaus_filter=None, periodic=[False, False], path_type="transition", valley_depth=15, valley_width=None, sharpness_exponent=6, n_images=15, n_points_interp=100, force_convergence_goal=0.2, max_steps=1000, step_size=None, print_info=False, return_path=False):
         
+        # Set default values if not specified, and print info
         if valley_width is None: valley_width = ((X[0, -1] - X[0, 0]) / 10 + (Y[-1, 0] - Y[0, 0]) / 10 ) / 2  # 
         if step_size is None: step_size = valley_width / 20
-        
         if print_info: print(f"{valley_width = }, {step_size = }")
         
         # if path is not provided, use the FES to find a path between the energy minima
         if path is None: 
             if FES is None: raise ValueError("Either path or FES must be provided.")
             
+            filter_mode = "wrap" if (periodic[0] or periodic[1]) else "reflect"
+            if FES_gaus_filter is not None: FES = gaussian_filter(FES, sigma=FES_gaus_filter, mode=filter_mode)
+                        
             # Find the basins of the FES
             basin_indices, _ = Find_basins_of_fes_2D(X, Y, FES)
             if len(basin_indices) < 2: raise ValueError("Could not find multiple basins in the FES.")
@@ -2097,9 +2097,9 @@ for _functions_ in [1]:
         # make sure path is a numpy array
         path = np.array(path)
         
+        #### ---- Create the valley surface from the path
         # Interpolate the path to get more points
         if n_points_interp is not None and n_points_interp > 0 and len(path) < n_points_interp: path = interpolate_path(path, num_points=n_points_interp)
-
         # Compute arrray of all grid points (shape = ( n_grid_points, 2))   
         points = np.column_stack((X.ravel(), Y.ravel()))
         # Compute distances from each grid point to each point if the path (shape = (n_grid_points, n_path_points))
@@ -2111,6 +2111,7 @@ for _functions_ in [1]:
         valley_function = lambda d: - valley_depth * np.exp(-(d / valley_width)**sharpness_exponent)
         
         # Find the valley depth as function of the distance to the path and reshape it to the shape of the grid
+        if return_path: return valley_function(min_distances).reshape(X.shape), path
         return valley_function(min_distances).reshape(X.shape)
 
 ####  ---- Print progress  --------------------------------------------------------  ####
