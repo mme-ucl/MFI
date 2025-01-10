@@ -1321,7 +1321,7 @@ for _MFI_functions_ in [1]:
 
 for _stat_analy_ in [1]:
 
-    def bootstrapping_error(X, Y, force_array, n_bootstrap, periodic=[False, False], FES_cutoff=None, PD_cutoff=None, PD_limit=1E-10, use_VNORM=False, get_progression=False, print_progress=False):
+    def bootstrapping_error(X, Y, force_array, n_bootstrap, base_force_array=None, periodic=[False, False], FES_cutoff=None, PD_cutoff=None, PD_limit=1E-10, use_VNORM=False, get_progression=False, print_progress=False):
         
         # Get grid variables
         nbins_yx = X.shape
@@ -1331,7 +1331,21 @@ for _stat_analy_ in [1]:
         # Get the correct shape of the force array (Needs to be [PD, FX, FY], but sometimes it is [PD, PD2, FX, FY, OFV_X, OFV_Y])
         if force_array.shape[-3] == 6: force_array = force_array[:,[0,2,3]]
         if force_array.shape[-3] != 3: raise ValueError("force_array should have shape (n_forces, 3) or (n_forces, 6)")
+    
+        if base_force_array is not None:
+            if base_force_array.shape[-3] == 6: base_force_array = base_force_array[:,[0,2,3]]
+            if base_force_array.shape[-3] != 3: raise ValueError("base_force_array should have shape (n_forces, 3) or (n_forces, 6)")
             
+            # combine base_force_array and force_array
+            force_array = np.concatenate((force_array, base_force_array), axis=0)
+            
+        if len(force_array) > 20: 
+            
+            block_size = int(len(force_array) // 20 + 1)
+            # print(f"The number of force terms ({len(force_array)}) is larger than 25. Will use blocks of {block_size} to have ", end="")
+            force_array = make_force_terms_blocks(force_array, block_size)
+            # print(f"{len(force_array)} force terms.")
+
         #Define constants and initialise arrays
         n_forces = force_array.shape[0]
         avr_sd_fes_prog = np.zeros(n_bootstrap) if get_progression else None

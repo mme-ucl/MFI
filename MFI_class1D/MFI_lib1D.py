@@ -1369,7 +1369,7 @@ def find_hp_centre(grid, error_map, cutoff_map=None, gaussian_sigma=3, prev_hp_c
 
 ####  ---- Statistical Analysis of Error progression collections  ----  ####
 
-def bootstrapping_error(grid, force_array, n_bootstrap, periodic=False, FES_cutoff=None, PD_cutoff=None, use_VNORM=False, set_fes_minima=None, print_progress=False):
+def bootstrapping_error(grid, force_array, n_bootstrap, base_force_array=None, periodic=False, FES_cutoff=None, PD_cutoff=None, use_VNORM=False, set_fes_minima=None, print_progress=False):
     """Algorithm to determine bootstrap error
 
     Args:
@@ -1386,7 +1386,21 @@ def bootstrapping_error(grid, force_array, n_bootstrap, periodic=False, FES_cuto
     # Get the correct shape of the force array (Needs to be [PD, F], but sometimes it is [PD, PD2, F, OFV])
     if force_array.shape[-2] == 4: force_array = force_array[:,[0,2]]
     if force_array.shape[-2] != 2: raise ValueError("force_array should have shape (n_forces, 3) or (n_forces, 6)")
-
+    
+    if base_force_array is not None:
+        if base_force_array.shape[-2] == 4: base_force_array = base_force_array[:,[0,2]]
+        if base_force_array.shape[-2] != 2: raise ValueError("base_force_array should have shape (n_forces, 3) or (n_forces, 6)")
+        
+        # combine base_force_array and force_array
+        force_array = np.concatenate((force_array, base_force_array), axis=0)
+        
+    if len(force_array) > 20: 
+        
+        block_size = int(len(force_array) // 20 + 1)
+        # print(f"The number of force terms ({len(force_array)}) is larger than 25. Will use blocks of {block_size} to have ", end="")
+        force_array = make_force_terms_blocks(force_array, block_size)
+        # print(f"{len(force_array)} force terms.")
+        
     #Define constants and initialise arrays
     nbins = len(grid)
     dx = grid[1] - grid[0]
@@ -1437,7 +1451,7 @@ def bootstrapping_error(grid, force_array, n_bootstrap, periodic=False, FES_cuto
        
     return [FES_0, FES_avr, sd_fes, sd_fes_prog]
 
-def weighted_bootstrapping_error(grid, force_array, n_bootstrap, periodic=False, FES_cutoff=None, PD_cutoff=None, use_VNORM=False, set_fes_minima=None, print_progress=False):
+def weighted_bootstrapping_error(grid, force_array, n_bootstrap, base_force_array=None, periodic=False, FES_cutoff=None, PD_cutoff=None, use_VNORM=False, set_fes_minima=None, print_progress=False):
     """Algorithm to determine bootstrap error
 
     Args:
@@ -1454,6 +1468,13 @@ def weighted_bootstrapping_error(grid, force_array, n_bootstrap, periodic=False,
     # Get the correct shape of the force array (Needs to be [PD, Force], but sometimes it is [PD, PD2, Force, OFV])
     if force_array.shape[-2] == 4: force_array = force_array[:,[0,2]]
     if force_array.shape[-2] != 2: raise ValueError("force_array should have shape (n_forces, 3) or (n_forces, 6)")
+    
+    if base_force_array is not None:
+        if base_force_array.shape[-2] == 4: base_force_array = base_force_array[:,[0,2]]
+        if base_force_array.shape[-2] != 2: raise ValueError("base_force_array should have shape (n_forces, 3) or (n_forces, 6)")
+        
+        # combine base_force_array and force_array
+        force_array = np.concatenate((force_array, base_force_array), axis=0)
 
     #Define constants and initialise arrays
     dx = grid[1] - grid[0]

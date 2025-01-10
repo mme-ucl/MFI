@@ -52,6 +52,7 @@ class MFI1D:
         hills: np.ndarray = field(default=None) # hills data
         position: np.ndarray = field(default=None) # position (cv) data
         base_forces: np.ndarray = field(default=None)  # [PD, PD2, Force, ofv_num] # if provided, the forces are patched to the base_forces before the error calculation.
+        base_forces_e_list: np.ndarray = field(default=None)  # [PD, PD2, Force, ofv_num] # if provided, the forces are patched to the forces_e_list in the bootstrapped error calculation.
 
         ### System (to be simulated) parameters
         System: str =  "Langevin" # The system that is used to run the simulating. The supported systems are: ["Langevin", "Langevin1D", "gmx", "gromacs", "GMX", "GROMACS"]
@@ -507,7 +508,7 @@ class MFI1D:
         
         # if specified, calculate Average Absolute Deviation (AAD) of the force
         if self.dy is not None: 
-            self.AD_Force = abs(self.Force - self.dy)*self.cutoff
+            self.AD_Force = abs(Force_tot - self.dy)*self.cutoff
             self.AAD_Force = np.sum(self.AD_Force) / self.space_explored if self.space_explored > 0 else np.nan
             if self.use_VNORM and self.space_explored > 0: self.AAD_Force /= self.ratio_explored
         
@@ -527,7 +528,8 @@ class MFI1D:
 
             if self.bootstrap_iter is not None:
                 if self.forces_e_list.shape[0] > 2:
-                    _, _, self.BS_error, _ = lib1.bootstrapping_error(grid=self.grid, force_array=self.forces_e_list, n_bootstrap=self.bootstrap_iter, periodic=self.periodic, FES_cutoff=self.FES_cutoff, PD_cutoff=self.PD_cutoff, use_VNORM=self.use_VNORM, print_progress=False)
+                    if self.base_forces_e_list is None: _, _, self.BS_error, _ = lib1.bootstrapping_error(grid=self.grid, force_array=self.forces_e_list, n_bootstrap=self.bootstrap_iter, periodic=self.periodic, FES_cutoff=self.FES_cutoff, PD_cutoff=self.PD_cutoff, use_VNORM=self.use_VNORM, print_progress=False)
+                    else: _, _, self.BS_error, _ = lib1.bootstrapping_error(grid=self.grid, force_array=self.forces_e_list, base_force_array=self.base_forces_e_list, n_bootstrap=self.bootstrap_iter, periodic=self.periodic, FES_cutoff=self.FES_cutoff, PD_cutoff=self.PD_cutoff, use_VNORM=self.use_VNORM, print_progress=False)
                     self.ABS_error = np.sum(self.BS_error) / self.space_explored if self.space_explored > 0 else np.nan
                     if self.use_VNORM and self.space_explored > 0: ABS_error /= self.ratio_explored
                 else: self.BS_error, self.ABS_error = np.zeros(self.nbins), np.nan
@@ -730,7 +732,7 @@ class MFI1D:
                 if more_aad is not None:
                     more_aad = np.array(more_aad)
                     if len(np.shape(more_aad)) == 2: ax_2.plot(more_aad[0], more_aad[1], color="orange", alpha=0.5, label="Base Sim")
-                    elif len(np.shape(more_aad)) == 3: [ax_2.plot(more_aad[i][0], more_aad[i][1], color="red", alpha=0.3 + 0.4*(i/len(more_aad)), label=f"Base Sim {i}") for i in range(len(more_aad)) ]
+                    elif len(np.shape(more_aad)) == 3: [ax_2.plot(more_aad[i][0], more_aad[i][1], color="orange", alpha=0.3 + 0.4*(i/len(more_aad)), label=f"Base Sim {i}") for i in range(len(more_aad)) ]
                     else: raise ValueError("more_aad has wrong shape")
                     if aad_lim is not None:
                         if isinstance(aad_lim, (int, float)): ax_2.set_ylim(0,aad_lim)

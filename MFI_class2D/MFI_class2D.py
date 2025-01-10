@@ -56,6 +56,7 @@ class MFI2D:
         hills: np.ndarray = field(default=None) # hills data
         position: np.ndarray = field(default=None) # position (cv) data
         base_forces: np.ndarray = field(default=None)  # [PD, PD2, Force_x, Force_y, ofv_num_x, ofv_num_y] # if provided, the forces are patched to the base_forces before the error calculation.
+        base_forces_e_list: np.ndarray = field(default=None)  # [PD, PD2, Force, ofv_num] # if provided, the forces are patched to the forces_e_list in the bootstrapped error calculation.
 
         ### System (to be simulated) parameters
         System: str = "Langevin2D" # The system that is used to run the simulating. The supported systems are: ["Langevin", "Langevin2D", "gmx", "gromacs", "GMX", "GROMACS"]
@@ -601,7 +602,8 @@ class MFI2D:
            
             if self.bootstrap_iter is not None and self.bootstrap_iter > 0:
                 if self.forces_e_list.shape[0] > 2:
-                    _, _, self.BS_error, _ = lib2.bootstrapping_error(X=self.X, Y=self.Y, force_array=self.forces_e_list, n_bootstrap=self.bootstrap_iter, periodic=self.periodic, FES_cutoff=self.FES_cutoff, PD_cutoff=self.PD_cutoff, PD_limit=self.PD_limit, use_VNORM=self.use_VNORM, get_progression=False, print_progress=False)
+                    if self.base_forces_e_list is None: _, _, self.BS_error, _ = lib2.bootstrapping_error(X=self.X, Y=self.Y, force_array=self.forces_e_list, n_bootstrap=self.bootstrap_iter, periodic=self.periodic, FES_cutoff=self.FES_cutoff, PD_cutoff=self.PD_cutoff, PD_limit=self.PD_limit, use_VNORM=self.use_VNORM, get_progression=False, print_progress=False)
+                    else: _, _, self.BS_error, _ = lib2.bootstrapping_error(X=self.X, Y=self.Y, force_array=self.forces_e_list, base_force_array=self.base_forces_e_list, n_bootstrap=self.bootstrap_iter, periodic=self.periodic, FES_cutoff=self.FES_cutoff, PD_cutoff=self.PD_cutoff, PD_limit=self.PD_limit, use_VNORM=self.use_VNORM, get_progression=False, print_progress=False)
                     self.ABS_error = np.sum(self.BS_error) / self.space_explored if self.space_explored > 0 else np.nan
                     if self.use_VNORM and self.space_explored > 0: self.ABS_error /= self.ratio_explored
                 else: self.BS_error, self.ABS_error = np.zeros(self.nbins_yx), np.nan
