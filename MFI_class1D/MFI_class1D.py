@@ -1,6 +1,7 @@
 
 import os
 import multiprocessing
+from multiprocessing import Process, Manager
 import matplotlib.pyplot as plt
 import numpy as np
 import signal
@@ -222,8 +223,15 @@ class MFI1D:
         self.const = self.position_pace / (self.bw) 
         
         # set up data file names
-        if self.hills_file is not None and self.ID is not None: self.hills_file = self.hills_file + self.ID
-        if self.position_file is not None and self.ID is not None: self.position_file = self.position_file + self.ID
+        # used to be if self.hills_file NOT is None. change back if resulting in errors
+        # used to be if self.hills_file NOT is None. change back if resulting in errors
+        # used to be if self.hills_file NOT is None. change back if resulting in errors
+        if self.hills_file is None and self.ID is not None: self.hills_file = self.hills_file + self.ID  # used to be if self.hills_file NOT is None. change back if resulting in errors
+        if self.position_file is None and self.ID is not None: self.position_file = self.position_file + self.ID # used to be if self.position_file NOT is None. change back if resulting in errors
+        # used to be if self.position_file NOT is None. change back if resulting in errors
+        # used to be if self.position_file NOT is None. change back if resulting in errors
+        # used to be if self.position_file NOT is None. change back if resulting in errors
+        # used to be if self.position_file NOT is None. change back if resulting in errors
 
         # set up the simulation folder path
         if self.simulation_folder_path is None: self.simulation_folder_path = os.getcwd() + "/"
@@ -968,7 +976,7 @@ class MFI1D:
                     plt.close()
                                 
         self.Force = np.divide(self.Force_num, self.PD, out=np.zeros_like(self.Force_num), where=self.PD > self.PD_limit)   # could be removed, but keep for safety.
-        self.force_terms = [self.PD, self.PD2, self.Force, self.ofv_num]
+        self.force_terms = np.array([self.PD, self.PD2, self.Force, self.ofv_num])
         
         # save results if applicable
         self.save_data(save_data_path=self.simulation_folder_path)
@@ -1503,6 +1511,7 @@ class MFI1D:
         parent: 'MFI1D'  # Reference to the enclosing MFI1D instance
         workers: int
         n_cores_per_simulation: int = None
+        ID: str = ""
         
         simulation_folder_path_list: Optional[List[str]] = None        
         simulation_steps_list: Optional[List[int]] = None
@@ -1518,11 +1527,37 @@ class MFI1D:
         
         
         def __post_init__(self):
-                        
-            parent_params = [asdict(self.parent) for _ in range(self.workers)]
             
+            # if ID is specified, set self.ID to ID
+            if self.ID != "": self.parent.ID = self.ID
+            self.ID = self.parent.ID
+            
+            # parameters that will be copied and used for all simulations (unless changed later on)
+            if self.parent.pl_grid is None: self.parent.pl_grid, self.parent.pl_min, self.parent.pl_max, self.parent.pl_n, self.parent.pl_extra = lib1.get_plumed_grid_1D(self.parent.grid, pl_min=self.parent.pl_min, pl_max=self.parent.pl_max, periodic=self.parent.periodic)
+            
+            # set path of the campaign
+            self.campaign_path = f"{self.parent.simulation_folder_path}PARALLELcampaign{self.ID}/"
+            
+            # initialise simulation parent folder
+            _ = lib1.set_up_folder(self.campaign_path)
+            
+            # Parent parameters will be used for all simulations, unless changed later on                                    
+            parent_params = [asdict(self.parent) for _ in range(self.workers)]
+                        
+            # if input parameters are specified, change it in the parent_params list
+            # specify simulation_folder_path for each simulation
             if self.simulation_folder_path_list is not None:
                 for i, path in enumerate(self.simulation_folder_path_list): parent_params[i]['simulation_folder_path'] = path
+            else:
+                for i in range(len(parent_params)): parent_params[i]['simulation_folder_path'] = f"{self.campaign_path}simulation{self.ID}_{i}/"
+            # specify the position and hills file for each simulation
+            for i in range(len(parent_params)): 
+                parent_params[i]['position_file'] = f"{parent_params[i]['simulation_folder_path']}position{self.ID}_{i}"
+                parent_params[i]['hills_file'] = f"{parent_params[i]['simulation_folder_path']}HILLS{self.ID}_{i}"  
+          
+            # specify ID for each simulation    
+            for i in range(len(parent_params)): parent_params[i]['ID'] = f"{self.ID}_{i}"
+            # change simulation parameters if specified    
             if self.initial_position_list is not None:
                 for i, pos in enumerate(self.initial_position_list): parent_params[i]['initial_position'] = pos 
             if self.simulation_steps_list is not None:
@@ -1539,10 +1574,14 @@ class MFI1D:
                 for i, pace in enumerate(self.position_pace_list): parent_params[i]['position_pace'] = pace
             if self.bw_list is not None:
                 for i, bw in enumerate(self.bw_list): parent_params[i]['bw'] = bw
-            
-            for i in range(len(parent_params)): parent_params[i]['print_info'] = False    
-            if self.parent.print_info: parent_params[0]['print_info'] = True
                 
+            # for i in range(len(parent_params)): parent_params[i]['print_info'] = False    
+            # if self.parent.print_info: parent_params[0]['print_info'] = True
+            
+            # the option "record_forces_e" should be set to True for all simulations, so that the forces can be patched later on
+            for i in range(len(parent_params)): parent_params[i]['record_forces_e'] = True
+            
+            # initialise sub simulations  
             self.sim = [self.parent.__class__(**parent_params[i]) for i in range(self.workers)]
 
         def run_parallel_sim(self):
@@ -1555,24 +1594,40 @@ class MFI1D:
                 
             for p in self.simulation_process: p.join()
             print("All simulations finished")
-            
+        
         def analyse_parallel(self):
-            for i, sim_i in enumerate(self.sim): 
-                print(f"Analysing simulation {i} / {len(self.sim)}")
-                sim_i.analyse_data()
-            print("All simulations analysed")
+
+            # Shared list to store updated simulation instances
+            manager = Manager()
+            results = manager.list()  
+
+            # Function to analyse a simulation and store the updated instance in the shared list
+            def analyse_and_store(sim, result_list):
+                sim.analyse_data()  # Perform analysis
+                result_list.append(sim)  # Append the entire instance to the shared list
+
+            # Create a process for each simulation and start them in parallel
+            processes = []
+            for sim_i in self.sim:
+                p = multiprocessing.Process(target=analyse_and_store, args=(sim_i, results))
+                p.start()
+                processes.append(p)
+
+            # Wait for all processes to finish
+            for p in processes:
+                p.join()
+
+            # Sort results by the numeric part of their "ID" attribute
+            self.sim = sorted(results, key=lambda sim: int(sim.ID.split('_')[-1]))
 
         def patch_simulations(self):
-            
-            print("Patching simulations")
-            
+                        
             force_terms_collection = []
             for sim_i in self.sim: force_terms_collection.append(sim_i.forces_e_list)
             force_terms_collection = np.array(force_terms_collection, dtype=float)
             assert len(np.shape(force_terms_collection)) == 4, "force_terms_collection must be a 4D array with dimensions (n_sim, n_iter, 4_force_terms, nbins)"
             
             n_iter = np.shape(force_terms_collection)[1]
-                       
             for i in range(n_iter):
                 for j in range(len(self.sim)):
                     self.parent.PD += force_terms_collection[j, i, 0, :]
@@ -1581,26 +1636,77 @@ class MFI1D:
                     self.parent.ofv_num += force_terms_collection[j, i, 3, :]
                 
                 self.parent.Force = np.divide(self.parent.Force_num, self.parent.PD, out=np.zeros_like(self.parent.Force_num), where=self.parent.PD>self.parent.PD_limit)
-                self.parent.sim_time = sum([self.sim[ii].Avr_Error_list[i][0] for ii in range(len(self.sim))])
-                self.parent.calculate_errors(force_terms_tot=[self.parent.PD, self.parent.PD2, self.parent.Force, self.parent.ofv_num])
+                self.parent.sim_time = sum([self.sim[ii].Avr_Error_list[i][0] - self.sim[ii].base_time for ii in range(len(self.sim))])
+                self.parent.calculate_errors()
                 
-        def plot_parallel_results(self):
-                        
-            plt.figure(figsize=(10,4))
-            plt.subplot(1,2,1)
+            # print(f"Simulations patched. Patched Error: Aofe = {self.parent.Aofe:.4f}", end="")
+            # if self.parent.y is not None: print(f", AAD = {self.parent.AAD:.4f}")
             
-            plt.plot(np.array(self.parent.Avr_Error_list)[:,0], np.array(self.parent.Avr_Error_list)[:,2], color="black", linewidth=2, alpha=0.7, label=f"Patched Sim") 
-            for i in range(len(self.sim)): plt.plot(np.array(self.sim[i].Avr_Error_list)[:,0], np.array(self.sim[i].Avr_Error_list)[:,2], label=f"Sim {i}", linewidth=0.5)
-            plt.title("Progression of Error of the mean force"); plt.xlabel("Time [ns]"); plt.ylabel("Mean Force Error [kJ/mol]"); plt.yscale("log")
+        def plot_parallel_error_progression(self, error_type=["Aofe", "AAD"], more_aofe=None, more_aad=None, y_scale_log=True, extend_final_error_to_end=True, aofe_lim=None, aad_lim=None):
+            
+            if "Aofe" in error_type:
+                plt.figure(figsize=(12,4))
+                
+                # if given, plot more_aofe (base simulations)
+                if more_aofe is not None:
+                    more_aofe = np.array(more_aofe) 
+                    if len(np.shape(more_aofe)) == 2: plt.plot(more_aofe[0], more_aofe[1], color="black", alpha=0.5, label="Base Sim")
+                    elif len(np.shape(more_aofe)) == 3: [plt.plot(more_aofe[i][0], more_aofe[i][1], color="black", alpha=0.3 + 0.4*(i/len(more_aofe)), label=f"Base Sim {i}") for i in range(len(more_aofe)) ]
+                    else: raise ValueError("more_aofe has wrong shape (This might be because the list provided in more_aofe is not homegeneous)")
 
-            if self.parent.y is not None:
-                plt.subplot(1,2,2)
-                plt.plot(self.parent.Avr_Error_list[:,0], np.array(self.parent.Avr_Error_list)[:,self.parent.aad_index], color="black", linewidth=2, alpha=0.7, label=f"Patched Sim")
-                for i in range(len(self.sim)): plt.plot(np.array(self.sim[i].Avr_Error_list)[:,0], np.array(self.sim[i].Avr_Error_list)[:,self.parent.aad_index], label=f"Sim {i}", linewidth=0.5)
-                plt.title("Progression of Avr. Abs. Deviation of the FES"); plt.xlabel("Time [ns]"); plt.ylabel("AAD [kJ/mol]"); plt.yscale("log")
-
-            plt.legend()
-            plt.tight_layout(); plt.show()
+                # plot Aofe of the patched simulations
+                plt.plot(self.parent.Avr_Error_list[:,0], self.parent.Avr_Error_list[:,2], label="Patched", color="black")
+                
+                # plot Aofe of the individual simulations
+                for sim_i in self.sim: 
+                    l1, = plt.plot(sim_i.Avr_Error_list[:,0], sim_i.Avr_Error_list[:,2], linewidth=1, label=sim_i.ID)
+                    if extend_final_error_to_end: 
+                        last_line_color = l1.get_color()
+                        plt.plot([sim_i.Avr_Error_list[-1,0], self.parent.Avr_Error_list[-1,0]], [sim_i.Avr_Error_list[-1,2], sim_i.Avr_Error_list[-1,2]], color=last_line_color, linestyle="--", alpha=0.3)
+                
+                # if specified, set a limit for the y-axis
+                if aofe_lim is not None: 
+                    if isinstance(aofe_lim, (int, float)): plt.ylim(0,aofe_lim)
+                    elif isinstance(aofe_lim, list) and len(aofe_lim) == 2: plt.ylim(aofe_lim)
+                    else: raise ValueError("aofe_lim is supposed to be a number (upper limit) of a list [lower limit, upper limit]")
+                    
+                # if specified, set the y-axis to log scale
+                if y_scale_log: plt.yscale("log")
+                
+                plt.legend(); plt.xlabel("Time [ns]"); plt.ylabel("Aofe [kJ/mol]"); plt.title("Progression of Avr. on-the-fly Error of the Force")
+                plt.show()
+                
+            if "AAD" in error_type and self.parent.y is not None:
+                plt.figure(figsize=(12,4))
+                
+                # if given, plot more_aad (base simulations)
+                if more_aad is not None:
+                    more_aad = np.array(more_aad) 
+                    if len(np.shape(more_aad)) == 2: plt.plot(more_aad[0], more_aad[1], color="black", alpha=0.5, label="Base Sim")
+                    elif len(np.shape(more_aad)) == 3: [plt.plot(more_aad[i][0], more_aad[i][1], color="black", alpha=0.3 + 0.4*(i/len(more_aad)), label=f"Base Sim {i}") for i in range(len(more_aad)) ]
+                    else: raise ValueError("more_aad has wrong shape (This might be because the list provided in more_aad is not homegeneous)")
+            
+                # plot AAD of the patched simulations
+                plt.plot(self.parent.Avr_Error_list[:,0], self.parent.Avr_Error_list[:,3], label="Patched", color="black")
+                
+                # plot AAD of the individual simulations
+                for sim_i in self.sim:
+                    l1, = plt.plot(sim_i.Avr_Error_list[:,0], sim_i.Avr_Error_list[:,3], linewidth=1, label=sim_i.ID)
+                    if extend_final_error_to_end: 
+                        last_line_color = l1.get_color()
+                        plt.plot([sim_i.Avr_Error_list[-1,0], self.parent.Avr_Error_list[-1,0]], [sim_i.Avr_Error_list[-1,3], sim_i.Avr_Error_list[-1,3]], color=last_line_color, linestyle="--", alpha=0.3)    
+                    
+                # if specified, set a limit for the y-axis
+                if aad_lim is not None:
+                    if isinstance(aad_lim, (int, float)): plt.ylim(0,aad_lim)
+                    elif isinstance(aad_lim, list) and len(aad_lim) == 2: plt.ylim(aad_lim)
+                    else: raise ValueError("aad_lim is supposed to be a number (upper limit) of a list [lower limit, upper limit]")
+                
+                # if specified, set the y-axis to log scale
+                if y_scale_log: plt.yscale("log")
+                
+                plt.legend(); plt.xlabel("Time [ns]"); plt.ylabel("AAD [kJ/mol]"); plt.title("Progression of Avr. Absolute Deviation of the FES")
+                plt.show()    
 
 ##### ~~~~~ PRTR ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #####
 

@@ -481,7 +481,7 @@ def make_external_bias_2D(X, Y, FES=None, Bias=None, Bias_sf=1, gaus_filter_sigm
             np.savetxt(f, external_bias_vector[i:i+pl_n[0]+add_extra_lines], fmt='%.9f')
             f.write("\n")
 
-    if return_array != None: return [pl_Bias[pl_ext[0]:-pl_ext[1], pl_ext[2]:-pl_ext[3]], pl_F_bias_x[pl_ext[0]:-pl_ext[1], pl_ext[2]:-pl_ext[3]], pl_F_bias_y[pl_ext[0]:-pl_ext[1], pl_ext[2]:-pl_ext[3]], f"external_bias{file_name_extension}.dat"]
+    if return_array != None: return [pl_Bias[pl_ext[0]:-pl_ext[1], pl_ext[2]:-pl_ext[3]], pl_F_bias_x[pl_ext[0]:-pl_ext[1], pl_ext[2]:-pl_ext[3]], pl_F_bias_y[pl_ext[0]:-pl_ext[1], pl_ext[2]:-pl_ext[3]], f"{os.getcwd()}/external_bias{file_name_extension}.dat"]
 
 def find_total_bias_from_hills(X, Y, HILLS, nhills=-1, periodic=[False, False]):
     #Specify grid variables
@@ -1384,6 +1384,7 @@ for _stat_analy_ in [1]:
             
             if iteration > 0:
                 sd_fes = np.sqrt(M2 /iteration)  # Bessel correction is usually (iteration-1) but we start from 0
+                
                 if PD_cutoff is not None or FES_cutoff is not None: sd_fes *= cutoff
                 
                 if get_progression or print_progress: avr_sd_fes = np.sum(sd_fes)/averaging_denominator
@@ -2243,7 +2244,7 @@ for _plot_functions_ in [0]:
             
         plt.contourf(xx, yy, zz, cmap=cmap, levels=levels); plt.colorbar(label=cbar_label); plt.xlabel(x_label); plt.ylabel(y_label); plt.title(title); plt.show()
         
-    def plot_3D_plotly(X,Y,Z, range_min=None, range_max=None, width=800, height=800, color=None, opacity=0.5, 
+    def plot_3D_plotly(X,Y,Z, range_min=None, range_max=None, width=800, height=400, color=None, opacity=0.5, 
                     title=None, x_label="x", y_label="y", z_label="Energy [kJ/mol]", colorbar_label="Free Energy [kJ/mol]"):
 
         Z1 = np.where(Z < range_max, Z, range_max) if range_max is not None else np.array(Z)
@@ -2255,7 +2256,7 @@ for _plot_functions_ in [0]:
         fig = make_subplots( rows=1, cols=1, specs=[[{'type': 'surface'}]])
         fig.add_trace(go.Surface(x=X, y=Y, z=Z1, colorscale=color, opacity=opacity, colorbar=dict(title=colorbar_label)), row=1, col=1)
         fig.update_traces(contours_z=dict(show=True, usecolormap=True, highlightcolor="limegreen", project_z=True))
-        fig.update_layout(title=title, width=width, height=height, scene=dict(xaxis_title=x_label, yaxis_title=y_label, zaxis_title=z_label) )
+        fig.update_layout(title=title, width=width, height=height, scene=dict(xaxis_title=x_label, yaxis_title=y_label, zaxis_title=z_label), margin=dict(l=0, r=0, b=0, t=0) )
         fig.update_scenes(aspectmode="manual", aspectratio=dict(x=1, y=1, z=0.5), zaxis=dict(range=[range_min, range_max]), row=1, col=1)
         fig.update_layout(font=dict(family="Helvetica, Arial, sans-serif",  size=12, color="black" ) )
         print("ready to show")

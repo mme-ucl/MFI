@@ -397,7 +397,7 @@ def make_external_bias_1D(grid_mfi, FES=None, Bias=None, Bias_sf=1, gaus_filter_
     head_text = f"#! FIELDS {cv_name} external.bias der_{cv_name}\n#! SET min_{cv_name} {pl_min}\n#! SET max_{cv_name} {pl_max}\n#! SET nbins_{cv_name} {pl_nx}\n#! SET periodic_{cv_name} {periodic}"
     np.savetxt(f"external_bias{file_name_extension}.dat", external_bias_vector, fmt="%.8f", delimiter="   ", header=head_text, comments="")
 
-    if return_array != None: return [pl_Bias[pl_extra[0]:-pl_extra[1]], pl_F_bias[pl_extra[0]:-pl_extra[1]], f"external_bias{file_name_extension}.dat"]
+    if return_array != None: return [pl_Bias[pl_extra[0]:-pl_extra[1]], pl_F_bias[pl_extra[0]:-pl_extra[1]], f"{os.getcwd()}/external_bias{file_name_extension}.dat"]
 
 def find_total_bias_from_hills(grid, HILLS, nhills=-1, periodic=False):
     #Specify grid variables

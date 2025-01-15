@@ -1,6 +1,7 @@
 
 import os
 import multiprocessing
+from multiprocessing import Process, Manager
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.ndimage import gaussian_filter
@@ -237,8 +238,16 @@ class MFI2D:
         self.const = self.position_pace / (self.bw[0] * self.bw[1])
         
         # set up data file names
-        if self.hills_file is not None and self.ID is not None: self.hills_file = self.hills_file + self.ID
-        if self.position_file is not None and self.ID is not None: self.position_file = self.position_file + self.ID
+        # used to be if self.hills_file NOT is None. change back if resulting in errors
+        # used to be if self.hills_file NOT is None. change back if resulting in errors
+        # used to be if self.hills_file NOT is None. change back if resulting in errors
+        # used to be if self.hills_file NOT is None. change back if resulting in errors
+        if self.hills_file is None and self.ID is not None: self.hills_file = self.hills_file + self.ID # used to be if self.hills_file NOT is None. change back if resulting in errors
+        if self.position_file is None and self.ID is not None: self.position_file = self.position_file + self.ID # used to be if self.position_file NOT is None. change back if resulting in errors
+        # used to be if self.position_file NOT is None. change back if resulting in errors
+        # used to be if self.position_file NOT is None. change back if resulting in errors
+        # used to be if self.position_file NOT is None. change back if resulting in errors
+        # used to be if self.position_file NOT is None. change back if resulting in errors
 
         # set up the simulation folder path
         if self.simulation_folder_path is None: self.simulation_folder_path = os.getcwd() + "/"
@@ -784,6 +793,112 @@ class MFI2D:
         plt.tight_layout()
         if save_path != "": plt.savefig(save_path)
         if show: plt.show()
+        
+    def plot_res(self, error_type=["OFE", "AD", "BS"], save_path="", show=True, more_aofe=None, more_aad=None, t_compare=None, aofe_compare=None, aad_compare=None, aofe_lim=None, aad_lim=None, error_map_gaussian_filter=None, min_PD=None, max_PD=None, min_FES=None, max_FES=None, min_ofe=None, max_ofe=None, min_AD=None, max_AD=None):
+        
+        if error_map_gaussian_filter is None: 
+            ofe_plot = self.ofe*self.cutoff
+            if self.Z is not None: ad_plot = self.AD*self.cutoff
+        else:
+            ofe_plot = gaussian_filter(self.ofe, error_map_gaussian_filter)*self.cutoff if any(self.periodic) is False else gaussian_filter(self.ofe, error_map_gaussian_filter, mode="wrap")*self.cutoff
+            if self.Z is not None: ad_plot = gaussian_filter(self.AD, error_map_gaussian_filter)*self.cutoff if any(self.periodic) is False else gaussian_filter(self.AD, error_map_gaussian_filter, mode="wrap")*self.cutoff
+        
+        min_PD = 10_000 if min_PD is None else min_PD
+        if max_ofe is None: max_ofe = np.percentile(np.array(ofe_plot)[np.nonzero(ofe_plot)], 99.0)
+        if min_ofe is None: min_ofe = np.percentile(np.array(ofe_plot)[np.nonzero(ofe_plot)], 1.0)
+        if max_AD is None and self.Z is not None: max_AD = np.percentile(np.array(ad_plot)[np.nonzero(ad_plot)], 99.9)
+        if min_AD is None and self.Z is not None: min_AD = np.percentile(np.array(ad_plot)[np.nonzero(ad_plot)], 0.1)
+        
+        level_PD = lib2.find_contour_levels(self.PD, min_level=min_PD, max_level=max_PD, error_name="PD")
+        level_fes = lib2.find_contour_levels(self.FES*self.cutoff, min_level=min_FES, max_level=max_FES, error_name="FES")
+        level_ofe = lib2.find_contour_levels(self.ofe*self.cutoff, min_level=min_ofe, max_level=max_ofe, error_name="ofe")
+        if self.Z is not None: level_aad = lib2.find_contour_levels(self.AD*self.cutoff, min_level=min_AD, max_level=max_AD, error_name="AD_FES")
+
+        if self.Z is None and "AD" in error_type: error_type.remove("AD")
+        if self.bootstrap_iter is None and "BS" in error_type: error_type.remove("BS")
+        
+        n_plots = 3 + len(error_type)
+        len_plot = 5 * n_plots
+
+        plt.figure(figsize=(len_plot, 4))
+        
+        plt.subplot(1, n_plots, 1)
+        plt.contourf(self.X,self.Y, np.where(self.PD < level_PD[0], np.nan, self.PD), levels=level_PD, cmap='coolwarm', norm=colors.LogNorm(vmin=min(level_PD), vmax=max(level_PD)))
+        plt.rcParams['ytick.minor.visible'] = False; plt.colorbar(label="PD [-]"); plt.rcParams['ytick.minor.visible'] = True; 
+        plt.title("Probability Density", fontsize=20); plt.xlabel("x"); plt.ylabel("y")
+
+        plt.subplot(1, n_plots, 2)
+        plt.contourf(self.X,self.Y, lib2.zero_to_nan(self.FES*self.cutoff), levels=level_fes, cmap='coolwarm')
+        plt.colorbar(label="FES [kJ mol$^{-1}$]"); plt.title("Estimated FES", fontsize=20); plt.xlabel("x"); plt.ylabel("y")
+
+        ax4 = plt.subplot(1, n_plots, 3)
+        ax4.plot(self.Avr_Error_list[:, 0], self.Avr_Error_list[:, 2], color="black"); plt.ylabel("Avr. ST ERR of Force [kJ/mol]")
+        for j in range(1,len(self.n_pos_analysed)): ax4.axvline(np.sum(self.n_pos_analysed[1:int(j+1)]) * self.time_step * self.position_pace / 1000, color="yellow", linestyle="--", alpha=0.7) 
+
+        plt.title("Error Evolution", fontsize=20); plt.xlabel("Time [ns]")
+        
+        if aofe_compare is not None: 
+            t_index = np.argmin(np.abs(t_compare - self.Avr_Error_list[-1, 0]))
+            ax4.plot(t_compare[:t_index], aofe_compare[:t_index], color="black", linestyle="--", alpha=0.5, label="Compare Sim")
+        
+        if more_aofe is not None: 
+            more_aofe = np.array(more_aofe) 
+            if len(np.shape(more_aofe)) == 2: ax4.plot(more_aofe[0], more_aofe[1], color="black", alpha=0.5, label="Base Sim")
+            elif len(np.shape(more_aofe)) == 3: [ax4.plot(more_aofe[i][0], more_aofe[i][1], color="black", alpha=0.3 + 0.4*(i/len(more_aofe)), label=f"Base Sim {i}") for i in range(len(more_aofe)) ]
+            else: raise ValueError("more_aofe has wrong shape")
+            if aofe_lim is not None: 
+                if isinstance(aofe_lim, (int, float)): ax4.set_ylim(0,aofe_lim)
+                elif isinstance(aofe_lim, list) and len(aofe_lim) == 2: ax4.set_ylim(aofe_lim)
+                else: raise ValueError("aofe_lim is supposed to be a number (upper limit) of a list [lower limit, upper limit]")
+                ax4.legend(loc="upper left", framealpha=0.3, fontsize=10 )
+        ax4.set_yscale('log')
+
+        if self.Z is not None:
+            ax4_2 = ax4.twinx()
+            ax4_2.plot(self.Avr_Error_list[:, 0], self.Avr_Error_list[:, self.aad_index], color="red"); plt.ylabel("Avr. Abs. Dev. of FES [kJ/mol]", color="red")
+            ax4_2.tick_params(axis='y', labelcolor="red"); ax4_2.spines['right'].set_color('red')  
+            
+            if aad_compare is not None:
+                t_index = np.argmin(np.abs(t_compare - self.Avr_Error_list[-1, 0]))
+                ax4_2.plot(t_compare[:t_index], aad_compare[:t_index], color="red", linestyle="--", alpha=0.5, label="Compare Sim")
+            
+            if more_aad is not None:
+                more_aad = np.array(more_aad)
+                if len(np.shape(more_aad)) == 2: ax4_2.plot(more_aad[0], more_aad[1], color="red", alpha=0.5, label="Base Sim")
+                elif len(np.shape(more_aad)) == 3: [ax4_2.plot(more_aad[i][0], more_aad[i][1], color="red", alpha=0.3 + 0.4*(i/len(more_aad)), label=f"Base Sim {i}") for i in range(len(more_aad)) ]
+                else: raise ValueError("more_aad has wrong shape")
+                if aad_lim is not None:
+                    if isinstance(aad_lim, (int, float)): ax4_2.set_ylim(0,aad_lim)
+                    elif isinstance(aad_lim, list) and len(aad_lim) == 2: ax4_2.set_ylim(aad_lim)
+                    else: raise ValueError("aad_lim is supposed to be a number (upper limit) of a list [lower limit, upper limit]")
+                    ax4_2.legend(loc="upper right", framealpha=0.3, fontsize=10 )
+            ax4_2.set_yscale('log')       
+
+        i_plot = 4
+        
+        if "OFE" in error_type:
+            plt.subplot(1, n_plots, i_plot)
+            plt.contourf(self.X,self.Y, lib2.zero_to_nan(ofe_plot), levels=level_ofe, cmap='coolwarm')
+            title_text = "On-The-Fly Error of the Mean Force" if error_map_gaussian_filter is None else f"On-The-Fly Error of the Mean Force\n(Gaussian Filter: {error_map_gaussian_filter})"
+            plt.colorbar(label="OFE [kJ mol$^{-1}$]"); plt.title(title_text, fontsize=20); plt.xlabel("x"); plt.ylabel("y")
+            i_plot += 1
+            
+        if "BS" in error_type:
+            plt.subplot(1, n_plots, i_plot)
+            plt.contourf(self.X,self.Y, lib2.zero_to_nan(self.BS_error), levels=level_aad, cmap='coolwarm')
+            title_text = "Bootstraped Error of FES" if error_map_gaussian_filter is None else f"Bootstraped Error of FES\n(Gaussian Filter: {error_map_gaussian_filter})"
+            plt.colorbar(label="BS [kJ mol$^{-1}$]"); plt.title(title_text, fontsize=20); plt.xlabel("x"); plt.ylabel("y")
+            i_plot += 1
+ 
+        if "AD" in error_type:     
+            plt.subplot(1, n_plots, i_plot)
+            plt.contourf(self.X,self.Y, lib2.zero_to_nan(ad_plot), levels=level_aad, cmap='coolwarm')
+            title_text = "Absolute Deviation of FES" if error_map_gaussian_filter is None else f"Absolute Deviation of FES\n(Gaussian Filter: {error_map_gaussian_filter})"
+            plt.colorbar(label="AD [kJ mol$^{-1}$]"); plt.title(title_text, fontsize=20); plt.xlabel("x"); plt.ylabel("y")
+                
+        plt.tight_layout()
+        if save_path != "": plt.savefig(save_path)
+        if show: plt.show()
 
     def plot_errors(self, error_type=["Aofe", "AAD_Force", "AAD", "ABS_error"], save_path="", error_force_log=True, error_fes_log=True, show=True, more_aofe=None, more_aad=None, t_compare=None, aofe_compare=None, aad_compare=None, aofe_lim=None, aad_lim=None):
         
@@ -983,7 +1098,7 @@ class MFI2D:
                 
         self.Force_x = np.divide(self.Force_num_x, self.PD, out=np.zeros_like(self.Force_num_x), where=self.PD > self.PD_limit)
         self.Force_y = np.divide(self.Force_num_y, self.PD, out=np.zeros_like(self.Force_num_y), where=self.PD > self.PD_limit)
-        self.force_terms = [self.PD, self.PD2, self.Force_x, self.Force_y, self.ofv_num_x, self.ofv_num_y]
+        self.force_terms = np.array([self.PD, self.PD2, self.Force_x, self.Force_y, self.ofv_num_x, self.ofv_num_y])
         
         self.save_data(save_data_path=self.simulation_folder_path)
         
@@ -1524,6 +1639,7 @@ class MFI2D:
         parent: 'MFI2D'  # Reference to the enclosing MFI2D instance
         workers: int
         n_cores_per_simulation: int = None
+        ID: str = ""
         
         simulation_folder_path_list: Optional[List[str]] = None        
         simulation_steps_list: Optional[List[int]] = None
@@ -1540,12 +1656,36 @@ class MFI2D:
         
         def __post_init__(self):
             
-            self.patent.record_forces_e = True
+            # if ID is specified, set self.ID to ID
+            if self.ID != "": self.parent.ID = self.ID
+            self.ID = self.parent.ID
             
+            # parameters that will be copied and used for all simulations (unless changed later on)
+            if self.parent.plX is None or self.parent.plY is None: self.parent.plX, self.parent.plY, self.parent.pl_min, self.parent.pl_max, self.parent.pl_n, self.parent.pl_extra = lib2.get_plumed_grid_2D(self.parent.X, self.parent.Y)
+            
+            # set path of the campaign
+            self.campaign_path = f"{self.parent.simulation_folder_path}PARALLELcampaign{self.ID}/"
+            
+            # initialise simulation parent folder
+            _ = lib2.set_up_folder(self.campaign_path)
+            
+            # Parent parameters will be used for all simulations, unless changed later on                                    
             parent_params = [asdict(self.parent) for _ in range(self.workers)]
             
+            # if input parameters are specified, change it in the parent_params list
+            # specify simulation_folder_path for each simulation
             if self.simulation_folder_path_list is not None:
                 for i, path in enumerate(self.simulation_folder_path_list): parent_params[i]['simulation_folder_path'] = path
+            else:
+                for i in range(len(parent_params)): parent_params[i]['simulation_folder_path'] = f"{self.campaign_path}simulation{self.ID}_{i}/"
+            # specify the position and hills file for each simulation
+            for i in range(len(parent_params)): 
+                parent_params[i]['position_file'] = f"{parent_params[i]['simulation_folder_path']}position{self.ID}_{i}"
+                parent_params[i]['hills_file'] = f"{parent_params[i]['simulation_folder_path']}HILLS{self.ID}_{i}"  
+          
+            # specify ID for each simulation    
+            for i in range(len(parent_params)): parent_params[i]['ID'] = f"{self.ID}_{i}"
+            # change simulation parameters if specified 
             if self.initial_position_list is not None:
                 for i, pos in enumerate(self.initial_position_list): parent_params[i]['initial_position'] = pos 
             if self.simulation_steps_list is not None:
@@ -1563,9 +1703,13 @@ class MFI2D:
             if self.bw_list is not None:
                 for i, bw in enumerate(self.bw_list): parent_params[i]['bw'] = bw
             
-            for i in range(len(parent_params)): parent_params[i]['print_info'] = False    
-            if self.parent.print_info: parent_params[0]['print_info'] = True
-                
+            # for i in range(len(parent_params)): parent_params[i]['print_info'] = False    
+            # if self.parent.print_info: parent_params[0]['print_info'] = True
+            
+            # the option "record_forces_e" should be set to True for all simulations, so that the forces can be patched later on
+            for i in range(len(parent_params)): parent_params[i]['record_forces_e'] = True
+            
+            # initialise simulation instances
             self.sim = [self.parent.__class__(**parent_params[i]) for i in range(self.workers)]
 
         def run_parallel_sim(self):
@@ -1580,22 +1724,38 @@ class MFI2D:
             print("All simulations finished")
                         
         def analyse_parallel(self):
-            for i, sim_i in enumerate(self.sim): 
-                print(f"Analysing simulation {i} / {len(self.sim)}")
-                sim_i.analyse_data()
-            print("All simulations analysed")
+
+            # Shared list to store updated simulation instances
+            manager = Manager()
+            results = manager.list()  
+
+            # Function to analyse a simulation and store the updated instance in the shared list
+            def analyse_and_store(sim, result_list):
+                sim.analyse_data()  # Perform analysis
+                result_list.append(sim)  # Append the entire instance to the shared list
+
+            # Create a process for each simulation and start them in parallel
+            processes = []
+            for sim_i in self.sim:
+                p = multiprocessing.Process(target=analyse_and_store, args=(sim_i, results))
+                p.start()
+                processes.append(p)
+
+            # Wait for all processes to finish
+            for p in processes:
+                p.join()
+
+            # Sort results by the numeric part of their "ID" attribute
+            self.sim = sorted(results, key=lambda sim: int(sim.ID.split('_')[-1]))
                 
         def patch_simulations(self):
-            
-            print("Patching simulations")
-            
+                        
             force_terms_collection = []
             for sim_i in self.sim: force_terms_collection.append(sim_i.forces_e_list)
             force_terms_collection = np.array(force_terms_collection, dtype=float)
             assert len(np.shape(force_terms_collection)) == 5, "force_terms_collection must be a 4D array with dimensions (n_sim, n_iter, 4_force_terms, nbins_y, nbins_x)"
             
             n_iter = np.shape(force_terms_collection)[1]
-                       
             for i in range(n_iter):
                 for j in range(len(self.sim)):
                     self.parent.PD += force_terms_collection[j, i, 0, :, :]
@@ -1607,26 +1767,77 @@ class MFI2D:
                 
                 self.parent.Force_x = np.divide(self.parent.Force_num_x, self.parent.PD, out=np.zeros_like(self.parent.Force_num_x), where=self.parent.PD>self.parent.PD_limit)
                 self.parent.Force_y = np.divide(self.parent.Force_num_y, self.parent.PD, out=np.zeros_like(self.parent.Force_num_y), where=self.parent.PD>self.parent.PD_limit)
-                self.parent.sim_time = sum([self.sim[ii].Avr_Error_list[i][0] for ii in range(len(self.sim))])
-                self.parent.calculate_errors(force_terms_tot=[self.parent.PD, self.parent.PD2, self.parent.Force_x, self.parent.Force_y, self.parent.ofv_num_x, self.parent.ofv_num_y])
+                self.parent.sim_time = sum([self.sim[ii].Avr_Error_list[i][0] - self.sim[ii].base_time for ii in range(len(self.sim))])
+                self.parent.calculate_errors()
+
+            # print(f"Simulations patched. Patched Error: Aofe = {self.parent.Aofe:.4f}", end="")
+            # if self.parent.Z is not None: print(f", AAD = {self.parent.AAD:.4f}")
                 
-        def plot_parallel_results(self):
+        def plot_parallel_error_progression(self, error_type=["Aofe", "AAD"], more_aofe=None, more_aad=None, y_scale_log=True, extend_final_error_to_end=True, aofe_lim=None, aad_lim=None):
             
-            plt.figure(figsize=(10,4))
-            plt.subplot(1,2,1)
+            if "Aofe" in error_type:
+                plt.figure(figsize=(12,4))
+                
+                # if given, plot more_aofe (base simulations)
+                if more_aofe is not None:
+                    more_aofe = np.array(more_aofe) 
+                    if len(np.shape(more_aofe)) == 2: plt.plot(more_aofe[0], more_aofe[1], color="black", alpha=0.5, label="Base Sim")
+                    elif len(np.shape(more_aofe)) == 3: [plt.plot(more_aofe[i][0], more_aofe[i][1], color="black", alpha=0.3 + 0.4*(i/len(more_aofe)), label=f"Base Sim {i}") for i in range(len(more_aofe)) ]
+                    else: raise ValueError("more_aofe has wrong shape (This might be because the list provided in more_aofe is not homegeneous)")
+
+                # plot Aofe of the patched simulations
+                plt.plot(self.parent.Avr_Error_list[:,0], self.parent.Avr_Error_list[:,2], label="Patched", color="black")
+                
+                # plot Aofe of the individual simulations
+                for sim_i in self.sim: 
+                    l1, = plt.plot(sim_i.Avr_Error_list[:,0], sim_i.Avr_Error_list[:,2], linewidth=1, label=sim_i.ID)
+                    if extend_final_error_to_end: 
+                        last_line_color = l1.get_color()
+                        plt.plot([sim_i.Avr_Error_list[-1,0], self.parent.Avr_Error_list[-1,0]], [sim_i.Avr_Error_list[-1,2], sim_i.Avr_Error_list[-1,2]], color=last_line_color, linestyle="--", alpha=0.3)
+                
+                # if specified, set a limit for the y-axis
+                if aofe_lim is not None: 
+                    if isinstance(aofe_lim, (int, float)): plt.ylim(0,aofe_lim)
+                    elif isinstance(aofe_lim, list) and len(aofe_lim) == 2: plt.ylim(aofe_lim)
+                    else: raise ValueError("aofe_lim is supposed to be a number (upper limit) of a list [lower limit, upper limit]")
+                    
+                # if specified, set the y-axis to log scale
+                if y_scale_log: plt.yscale("log")
+                
+                plt.legend(); plt.xlabel("Time [ns]"); plt.ylabel("Aofe [kJ/mol]"); plt.title("Progression of Avr. on-the-fly Error of the Force")
+                plt.show()
+                
+            if "AAD" in error_type and self.parent.y is not None:
+                plt.figure(figsize=(12,4))
+                
+                # if given, plot more_aad (base simulations)
+                if more_aad is not None:
+                    more_aad = np.array(more_aad) 
+                    if len(np.shape(more_aad)) == 2: plt.plot(more_aad[0], more_aad[1], color="black", alpha=0.5, label="Base Sim")
+                    elif len(np.shape(more_aad)) == 3: [plt.plot(more_aad[i][0], more_aad[i][1], color="black", alpha=0.3 + 0.4*(i/len(more_aad)), label=f"Base Sim {i}") for i in range(len(more_aad)) ]
+                    else: raise ValueError("more_aad has wrong shape (This might be because the list provided in more_aad is not homegeneous)")
             
-            plt.plot(np.array(self.parent.Avr_Error_list)[:,0], np.array(self.parent.Avr_Error_list)[:,2], color="black", linewidth=2, alpha=0.7, label=f"Patched Sim") 
-            for i in range(len(self.sim)): plt.plot(np.array(self.sim[i].Avr_Error_list)[:,0], np.array(self.sim[i].Avr_Error_list)[:,2], label=f"Sim {i}", linewidth=0.5)
-            plt.title("Progression of Error of the mean force"); plt.xlabel("Time [ns]"); plt.ylabel("Mean Force Error [kJ/mol]"); plt.yscale("log")
-
-            if self.parent.Z is not None:
-                plt.subplot(1,2,2)
-                plt.plot(np.array(self.parent.Avr_Error_list)[:,0], np.array(self.parent.Avr_Error_list)[:,self.parent.aad_index], color="black", linewidth=2, alpha=0.7, label=f"Patched Sim")
-                for i in range(len(self.sim)): plt.plot(np.array(self.sim[i].Avr_Error_list)[:,0], np.array(self.sim[i].Avr_Error_list)[:,self.parent.aad_index], label=f"Sim {i}", linewidth=0.5)
-                plt.title("Progression of Avr. Abs. Deviation of the FES"); plt.xlabel("Time [ns]"); plt.ylabel("AAD [kJ/mol]"); plt.yscale("log")
-
-            plt.legend()
-            plt.tight_layout(); plt.show()
+                # plot AAD of the patched simulations
+                plt.plot(self.parent.Avr_Error_list[:,0], self.parent.Avr_Error_list[:,3], label="Patched", color="black")
+                
+                # plot AAD of the individual simulations
+                for sim_i in self.sim:
+                    l1, = plt.plot(sim_i.Avr_Error_list[:,0], sim_i.Avr_Error_list[:,3], linewidth=1, label=sim_i.ID)
+                    if extend_final_error_to_end: 
+                        last_line_color = l1.get_color()
+                        plt.plot([sim_i.Avr_Error_list[-1,0], self.parent.Avr_Error_list[-1,0]], [sim_i.Avr_Error_list[-1,3], sim_i.Avr_Error_list[-1,3]], color=last_line_color, linestyle="--", alpha=0.3)    
+                    
+                # if specified, set a limit for the y-axis
+                if aad_lim is not None:
+                    if isinstance(aad_lim, (int, float)): plt.ylim(0,aad_lim)
+                    elif isinstance(aad_lim, list) and len(aad_lim) == 2: plt.ylim(aad_lim)
+                    else: raise ValueError("aad_lim is supposed to be a number (upper limit) of a list [lower limit, upper limit]")
+                
+                # if specified, set the y-axis to log scale
+                if y_scale_log: plt.yscale("log")
+                
+                plt.legend(); plt.xlabel("Time [ns]"); plt.ylabel("AAD [kJ/mol]"); plt.title("Progression of Avr. Absolute Deviation of the FES")
+                plt.show() 
 
 ##### ~~~~~ PRTR ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #####
 
