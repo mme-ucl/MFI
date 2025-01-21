@@ -226,8 +226,8 @@ class MFI1D:
         # used to be if self.hills_file NOT is None. change back if resulting in errors
         # used to be if self.hills_file NOT is None. change back if resulting in errors
         # used to be if self.hills_file NOT is None. change back if resulting in errors
-        if self.hills_file is None and self.ID is not None: self.hills_file = self.hills_file + self.ID  # used to be if self.hills_file NOT is None. change back if resulting in errors
-        if self.position_file is None and self.ID is not None: self.position_file = self.position_file + self.ID # used to be if self.position_file NOT is None. change back if resulting in errors
+        if (self.hills_file is None or self.hills_file == "HILLS") and self.ID is not None: self.hills_file = self.hills_file + self.ID  # used to be if self.hills_file NOT is None. change back if resulting in errors
+        if (self.position_file is None or self.position_file == "position") and self.ID is not None: self.position_file = self.position_file + self.ID # used to be if self.position_file NOT is None. change back if resulting in errors
         # used to be if self.position_file NOT is None. change back if resulting in errors
         # used to be if self.position_file NOT is None. change back if resulting in errors
         # used to be if self.position_file NOT is None. change back if resulting in errors
@@ -490,7 +490,7 @@ class MFI1D:
             if self.base_forces is not None: [PD_tot, PD2_tot, Force_tot, ofv_num_tot] = lib1.patch_forces(np.array([self.PD, self.PD2, self.Force, self.ofv_num]), self.base_forces)
             else: PD_tot, PD2_tot, Force_tot, ofv_num_tot = self.PD, self.PD2, self.Force, self.ofv_num
         
-        if self.FES_cutoff is not None or self.record_maps is True: self.FES = lib1.intg_1D(Force_tot, self.grid_dx)
+        if self.FES_cutoff is not None or self.record_maps is True or "AAD" in self.Avr_Error_info or "ABS_error" in self.Avr_Error_info: self.FES = lib1.intg_1D(Force_tot, self.grid_dx)
         if self.FES_cutoff is not None: self.cutoff = np.where(self.FES < self.FES_cutoff, self.cutoff, 0)
         if self.PD_cutoff is not None: self.cutoff = np.where(PD_tot > self.PD_cutoff, self.cutoff, 0)
         self.space_explored = np.sum(self.cutoff)
@@ -977,6 +977,7 @@ class MFI1D:
                                 
         self.Force = np.divide(self.Force_num, self.PD, out=np.zeros_like(self.Force_num), where=self.PD > self.PD_limit)   # could be removed, but keep for safety.
         self.force_terms = np.array([self.PD, self.PD2, self.Force, self.ofv_num])
+        self.FES = lib1.intg_1D(self.Force, self.grid_dx) if self.base_forces is None else lib1.intg_1D(lib1.patch_forces(self.force_terms, self.base_forces)[2], self.grid_dx)
         
         # save results if applicable
         self.save_data(save_data_path=self.simulation_folder_path)

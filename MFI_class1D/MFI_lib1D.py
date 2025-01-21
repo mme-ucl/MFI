@@ -1670,7 +1670,7 @@ def get_mean_ste_of_n_error_prog(time, error_collection, error_collection_2=None
         plt.subplot(1,2,1)
         plt.plot(time, mean, linewidth=1, color="green", label=line_label)
         plt.fill_between(time, mean - ste, mean + ste, color="green", alpha=ste_alpha)
-        plt.ylim(min(mean)*0.9, max(mean)*1.1 )
+        plt.ylim(np.nanmin(mean)*0.9, np.nanmax(mean)*1.1 )
         if plot_log: plt.yscale("log")
         plt.title(plot_title[0])
         plt.xlabel(plot_xlabel[0])

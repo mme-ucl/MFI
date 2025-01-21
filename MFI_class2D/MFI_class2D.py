@@ -242,8 +242,8 @@ class MFI2D:
         # used to be if self.hills_file NOT is None. change back if resulting in errors
         # used to be if self.hills_file NOT is None. change back if resulting in errors
         # used to be if self.hills_file NOT is None. change back if resulting in errors
-        if self.hills_file is None and self.ID is not None: self.hills_file = self.hills_file + self.ID # used to be if self.hills_file NOT is None. change back if resulting in errors
-        if self.position_file is None and self.ID is not None: self.position_file = self.position_file + self.ID # used to be if self.position_file NOT is None. change back if resulting in errors
+        if (self.hills_file is None or self.hills_file == "HILLS") and self.ID is not None: self.hills_file = self.hills_file + self.ID # used to be if self.hills_file NOT is None. change back if resulting in errors
+        if (self.position_file is None or self.position_file == "position") and self.ID is not None: self.position_file = self.position_file + self.ID # used to be if self.position_file NOT is None. change back if resulting in errors
         # used to be if self.position_file NOT is None. change back if resulting in errors
         # used to be if self.position_file NOT is None. change back if resulting in errors
         # used to be if self.position_file NOT is None. change back if resulting in errors
@@ -557,7 +557,7 @@ class MFI2D:
             if self.base_forces is not None: [PD_tot, PD2_tot, Force_x_tot, Force_y_tot, ofv_num_x_tot, ofv_num_y_tot] = lib2.patch_forces(np.array([self.PD, self.PD2, self.Force_x, self.Force_y, self.ofv_num_x, self.ofv_num_y]), self.base_forces)
             else: PD_tot, PD2_tot, Force_x_tot, Force_y_tot, ofv_num_x_tot, ofv_num_y_tot = self.PD, self.PD2, self.Force_x, self.Force_y, self.ofv_num_x, self.ofv_num_y
         
-        if self.FES_cutoff is not None or self.save_maps is True: self.FES = lib2.FFT_intg_2D(Force_x_tot, Force_y_tot, self.grid_min, self.grid_max, self.periodic)        
+        if self.FES_cutoff is not None or self.save_maps is True or "AAD" in self.Avr_Error_info or "ABS_error" in self.Avr_Error_info: self.FES = lib2.FFT_intg_2D(Force_x_tot, Force_y_tot, self.grid_min, self.grid_max, self.periodic)        
         if self.FES_cutoff is not None: self.cutoff = np.where(self.FES < self.FES_cutoff, self.cutoff, 0)
         if self.PD_cutoff is not None: self.cutoff = np.where(PD_tot > self.PD_cutoff, self.cutoff, 0)
         self.space_explored = np.sum(self.cutoff)
@@ -1098,6 +1098,7 @@ class MFI2D:
                 
         self.Force_x = np.divide(self.Force_num_x, self.PD, out=np.zeros_like(self.Force_num_x), where=self.PD > self.PD_limit)
         self.Force_y = np.divide(self.Force_num_y, self.PD, out=np.zeros_like(self.Force_num_y), where=self.PD > self.PD_limit)
+        self.FES = lib2.FFT_intg_2D(self.Force_x, self.Force_y, self.grid_min, self.grid_max, self.periodic)
         self.force_terms = np.array([self.PD, self.PD2, self.Force_x, self.Force_y, self.ofv_num_x, self.ofv_num_y])
         
         self.save_data(save_data_path=self.simulation_folder_path)
