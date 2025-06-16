@@ -640,38 +640,39 @@ def plot_recap_2D(X, Y, FES, TOTAL_DENSITY, CONVMAP, CONV_history, CONV_history_
         error_log_scale (boolean, optional): Option to make error_conversion plot with a log scale. 1 for log scale. Defaults to 1.
 
     """
-    fig, axs = plt.subplots(1, 4, figsize=(16, 3))
-    cp = axs[0].contourf(X, Y, FES, levels=range(0, FES_lim, FES_step), cmap='coolwarm', antialiased=False, alpha=0.8);
-    cbar = plt.colorbar(cp, ax=axs[0])
-    cbar.set_label("Free Energy [kJ/mol]", fontsize=11)
-    axs[0].set_ylabel('CV2', fontsize=11)
-    axs[0].set_xlabel('CV1', fontsize=11)
-    axs[0].set_xlim(np.min(X),np.max(X))
-    axs[0].set_ylim(np.min(Y),np.max(Y))
-    axs[0].set_title('Free Energy Surface', fontsize=11)
+    fig, axs = plt.subplots(2,2, figsize=(8,6))
+    cp = axs[0, 0].contourf(X, Y, FES, levels=range(0, FES_lim, FES_step), cmap='coolwarm', antialiased=False, alpha=0.8);
+    cbar = plt.colorbar(cp, ax=axs[0, 0])
+    cbar.set_label("Free Energy [kJ/mol]")
+    axs[0, 0].set_ylabel('$\\xi_2$')
+    axs[0, 0].set_xlabel('$\\xi_1$')
+    axs[0, 0].set_xlim(np.min(X),np.max(X))
+    axs[0, 0].set_ylim(np.min(Y),np.max(Y))
+    axs[0, 0].set_title('a) Free Energy Surface')
 
-    cp = axs[1].contourf(X, Y, zero_to_nan(CONVMAP), levels=range(0, ofe_map_lim, ofe_step), cmap='coolwarm', antialiased=False, alpha=0.8);
-    cbar = plt.colorbar(cp, ax=axs[1])
-    cbar.set_label("Standard Deviation [kJ/mol]", fontsize=11) if use_weighted_st_dev==True else cbar.set_label("Standard Error [kJ/mol]", fontsize=11)
-    axs[1].set_xlabel('CV1', fontsize=11)
-    axs[1].set_xlim(np.min(X),np.max(X))
-    axs[1].set_ylim(np.min(Y),np.max(Y))
-    axs[1].set_title('Standard Deviation of the Mean Force', fontsize=11) if use_weighted_st_dev==True else axs[1].set_title('Standard Error of the Mean Force', fontsize=11)
+    cp = axs[0, 1].contourf(X, Y, zero_to_nan(CONVMAP), levels=range(0, ofe_map_lim, ofe_step), cmap='coolwarm', antialiased=False, alpha=0.8);
+    cbar = plt.colorbar(cp, ax=axs[0, 1])
+    cbar.set_label("Mean Force Error [kJ/mol]") if use_weighted_st_dev==True else cbar.set_label("Standard Error [kJ/mol]")
+    axs[0, 1].set_ylabel('$\\xi_2$')
+    axs[0, 1].set_xlabel('$\\xi_1$')
+    axs[0, 1].set_xlim(np.min(X),np.max(X))
+    axs[0, 1].set_ylim(np.min(Y),np.max(Y))
+    axs[0, 1].set_title('b) Local Error Map') if use_weighted_st_dev==True else axs[1].set_title('Standard Error of the Mean Force')
 
-    cp = axs[2].contourf(X, Y, (TOTAL_DENSITY), cmap='gray_r', antialiased=False, alpha=0.8);  #, locator=ticker.LogLocator()
-    cbar = plt.colorbar(cp, ax=axs[2])
-    cbar.set_label("Relative count [-]", fontsize=11)
-    axs[2].set_ylabel('CV2', fontsize=11)
-    axs[2].set_xlabel('CV1', fontsize=11)
-    axs[2].set_xlim(np.min(X),np.max(X))
-    axs[2].set_ylim(np.min(Y),np.max(Y))
-    axs[2].set_title('Total Biased Probability Density', fontsize=11)
+    cp = axs[1, 0].contourf(X, Y, (TOTAL_DENSITY), cmap='gray_r', antialiased=False, alpha=0.8);  #, locator=ticker.LogLocator()
+    cbar = plt.colorbar(cp, ax=axs[1, 0])
+    cbar.set_label("Relative count [-]")
+    axs[1, 0].set_ylabel('$\\xi_2$')
+    axs[1, 0].set_xlabel('$\\xi_1$')
+    axs[1, 0].set_xlim(np.min(X),np.max(X))
+    axs[1, 0].set_ylim(np.min(Y),np.max(Y))
+    axs[1, 0].set_title('c) Total Biased Probability Density')
 
-    axs[3].plot( CONV_history_time, CONV_history, label="global ofe");
-    axs[3].set_ylabel('Standard Deviation [kJ/mol]', fontsize=11)
-    axs[3].set_xlabel('Simulation time', fontsize=11)
-    axs[3].set_title('Global Convergence of Standard Deviation', fontsize=11)
-    if error_log_scale == 1: axs[3].set_yscale('log')
+    axs[1, 1].plot( CONV_history_time, CONV_history, label="global ofe");
+    axs[1, 1].set_ylabel('Mean Force Error [kJ/mol]')
+    axs[1, 1].set_xlabel('Simulation time')
+    axs[1, 1].set_title('d) Global Error Convergence')
+    if error_log_scale == 1: axs[1, 1].set_yscale('log')
     
     plt.tight_layout()
 

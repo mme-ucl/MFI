@@ -174,6 +174,7 @@ class Run_Simulation:
             
             # if there is a file with "bck.*.structure_new.gro" remove it
             if os.path.exists(f"bck.*.{new_structure_gro_file_path}"): os.system(f"rm bck.*.{new_structure_gro_file_path}")
+            if os.path.exists(f"bck.*.structure_new.gro"): os.system(f"rm bck.*.structure_new.gro")
 
             # if no structure is found, double the distance and try again
             attempts += 1
@@ -317,7 +318,7 @@ def wait_for_positions(new_positions, n_pos_analysed=0, position_path="position"
             else: time.sleep(sleep_between_checks)        
         else: 
             counter += 1
-            if counter > 10: raise Exception(f"Error counting lines in {position_path}: {result.stderr}")
+            if counter > 10: raise Exception(f"Error counting lines in {position_path}: {result.stderr} (after 10 attempts).")
             else: time.sleep(sleep_between_checks*5)
 
     if return_n_pos: return line_count - return_n_pos - lines_with_coments
@@ -326,7 +327,7 @@ def wait_for_positions(new_positions, n_pos_analysed=0, position_path="position"
 def get_plumed_grid_1D(X, pl_min=None, pl_max=None, print_info=False, periodic=False):
 
     x_min, x_max, nx = np.min(X), np.max(X), len(X)
-    dx = X[1] - X[0]
+    dx, lx = X[1] - X[0], x_max - x_min
     
     if periodic is True: 
         pl_x = X
@@ -335,8 +336,8 @@ def get_plumed_grid_1D(X, pl_min=None, pl_max=None, print_info=False, periodic=F
 
     else: 
             
-        if pl_min is None: pl_min = x_min - 1
-        if pl_max is None: pl_max = x_max + 1        
+        if pl_min is None: pl_min = x_min - lx/5
+        if pl_max is None: pl_max = x_max + lx/5        
         
         diff_x_low = x_min - pl_min
         diff_x_up = pl_max - x_max
@@ -393,7 +394,7 @@ def make_external_bias_1D(grid_mfi, FES=None, Bias=None, Bias_sf=1, gaus_filter_
     pl_nx = pl_nx - 1
     
     #Save to external_bias.dat file
-    external_bias_vector = np.array([pl_x, pl_Bias, pl_F_bias]).T if periodic is False else np.array([pl_x[:-1], pl_Bias[:-1], pl_F_bias[:-1]]).T  
+    external_bias_vector = np.array([pl_x, pl_Bias, pl_F_bias]).T if periodic == "false" else np.array([pl_x[:-1], pl_Bias[:-1], pl_F_bias[:-1]]).T  
     head_text = f"#! FIELDS {cv_name} external.bias der_{cv_name}\n#! SET min_{cv_name} {pl_min}\n#! SET max_{cv_name} {pl_max}\n#! SET nbins_{cv_name} {pl_nx}\n#! SET periodic_{cv_name} {periodic}"
     np.savetxt(f"external_bias{file_name_extension}.dat", external_bias_vector, fmt="%.8f", delimiter="   ", header=head_text, comments="")
 
@@ -518,7 +519,7 @@ for _read_simulation_data_ in [0]:
             with open(hills_path_cp, 'r') as file: hills = [line.split() for line in file if not line.startswith("#")]
 
             # check if the hills data is empty
-            assert len(hills) > 1, f"The hills data: {hills = } is empty ({len(hills) = }) (ec4)"
+            assert len(hills) > 1, f"The hills data: {hills = } is empty ({len(hills) = }) (ec4)\n{hills_path = }\n{hills_path_cp = }"
             
             # remove the last line if it is not complete
             if len(hills[-1]) < len(hills[-2]): hills = hills[:-1]  
@@ -649,11 +650,13 @@ for _read_simulation_data_ in [0]:
         filtered_lines = [line for line in external_bias.strip().split('\n') if not line.startswith("#")]
         data_array = np.array([list(map(float, line.split())) for line in filtered_lines if line.strip() != ""])
     
-        if periodic == "flase": return [data_array[:, i] for i in range(len(data_array[0]))]
-        elif periodic == "true": 
+
+        if periodic == "true": 
             # new_data_array is data array concatenated with the first line of data array
             new_data_array = np.concatenate((data_array, data_array[:1]), axis=0)
             return [new_data_array[:, i] for i in range(len(new_data_array[0]))]
+        else: 
+            return [data_array[:, i] for i in range(len(data_array[0]))]
 
     def get_file_path(file_name, file_type):
         if file_name != "": print(f"\n\n *** Can not find {file_type} file (path): \"{file_name}\" ***\nPlease enter the {file_type} name (path) or \'exit\' to sys.exit(): ")
@@ -782,7 +785,7 @@ def find_uw_force(uw_centre, uw_kappa, grid, min_grid, max_grid, grid_space, per
         array: upper wall force array
     """
     #First, find harmonic potential for non-periodic case
-    F_harmonic = np.where(grid > uw_centre, uw_kappa * (grid - uw_centre), 0)
+    F_harmonic = np.where(grid > uw_centre, 2 * uw_kappa * (grid - uw_centre), 0)
     #Second, if periodic, make harmonic potential periodic
     if periodic == 1:
         grid_length = max_grid - min_grid
@@ -796,6 +799,40 @@ def find_uw_force(uw_centre, uw_kappa, grid, min_grid, max_grid, grid_space, per
     
     return F_harmonic
 
+# def intg_1D(Force, dx, remove_zeros=True):
+#     """Integration of 1D gradient using finite difference method (simpson's method).
+
+#     Args:
+#         Force (array): Mean force
+#         dx (float): grid spacing (i.e. space between consecutive grid entries)
+
+#     Returns:
+#         array: Free energy surface
+#     """
+    
+#     if remove_zeros:
+#         first_non_zero = np.argmax(Force!=0) if Force[0] == 0 else 0
+#         last_non_zero = len(Force) - np.argmax(Force[::-1]!=0) - 1 if Force[-1] == 0 else len(Force) - 1
+#         non_zero_Force = Force[first_non_zero:last_non_zero+1]
+#         non_zero_fes = np.zeros_like(non_zero_Force)
+#     else: non_zero_Force, non_zero_fes = Force, np.zeros_like(Force)
+    
+#     for j in range(len(non_zero_Force)): 
+#         y = non_zero_Force[:j + 1]
+#         N = len(y)
+#         if N % 2 == 0: non_zero_fes[j] = dx/6 * (np.sum(y[: N-3: 2] + 4*y[1: N-3+1: 2] + y[2: N-3+2: 2]) + np.sum(y[1: N-2: 2] + 4*y[1+1: N-1: 2] + y[1+2: N: 2])) + dx/4 * ( y[1] + y[0] + y[-1] + y[-2])
+#         else: non_zero_fes[j] = dx / 3.0 * np.sum(y[: N-2: 2] + 4*y[1: N-1: 2] + y[2: N: 2])
+    
+#     if remove_zeros:
+#         fes = np.zeros_like(Force)    
+#         fes[first_non_zero:last_non_zero+1] = non_zero_fes
+#         if first_non_zero != 0: fes[:first_non_zero] = non_zero_fes[0]
+#         if last_non_zero != len(Force) - 1: fes[last_non_zero+1:] = non_zero_fes[-1]
+#     else: fes = non_zero_fes
+    
+#     return fes - min(fes)
+
+@njit
 def intg_1D(Force, dx, remove_zeros=True):
     """Integration of 1D gradient using finite difference method (simpson's method).
 
@@ -806,7 +843,6 @@ def intg_1D(Force, dx, remove_zeros=True):
     Returns:
         array: Free energy surface
     """
-    
     if remove_zeros:
         first_non_zero = np.argmax(Force!=0) if Force[0] == 0 else 0
         last_non_zero = len(Force) - np.argmax(Force[::-1]!=0) - 1 if Force[-1] == 0 else len(Force) - 1
@@ -814,11 +850,15 @@ def intg_1D(Force, dx, remove_zeros=True):
         non_zero_fes = np.zeros_like(non_zero_Force)
     else: non_zero_Force, non_zero_fes = Force, np.zeros_like(Force)
     
-    for j in range(len(non_zero_Force)): 
-        y = non_zero_Force[:j + 1]
-        N = len(y)
-        if N % 2 == 0: non_zero_fes[j] = dx/6 * (np.sum(y[: N-3: 2] + 4*y[1: N-3+1: 2] + y[2: N-3+2: 2]) + np.sum(y[1: N-2: 2] + 4*y[1+1: N-1: 2] + y[1+2: N: 2])) + dx/4 * ( y[1] + y[0] + y[-1] + y[-2])
-        else: non_zero_fes[j] = dx / 3.0 * np.sum(y[: N-2: 2] + 4*y[1: N-1: 2] + y[2: N: 2])
+    N = len(non_zero_Force)
+    # non_zero_fes[0] = 0.0
+    non_zero_fes[1] = 0.5 * dx * (non_zero_Force[0] + non_zero_Force[1])
+        
+    # For even indices compute the integral using Simpson's rule:
+    non_zero_fes[2: N: 2] = dx/3 * (non_zero_Force[0] + 4*np.cumsum(non_zero_Force[1: N-1: 2]) + 2*np.cumsum(non_zero_Force[2: N: 2]) - non_zero_Force[2: N: 2])
+    
+    # For odd indices, take the result from the previous even index and add the correction term: (source: L. V. Blake, (1971): "A Modified Simpson's Rule and Fortran Subroutine for Cumulative Numerical Integration of a Function Defined by Data Points", Naval Research Laboratory Memorandum Report 2231)
+    non_zero_fes[3: N: 2] = non_zero_fes[2: N-1: 2] + dx/12 * (5*non_zero_Force[3: N: 2] + 8*non_zero_Force[2: N-1: 2] - non_zero_Force[1: N-2: 2])
     
     if remove_zeros:
         fes = np.zeros_like(Force)    
@@ -827,7 +867,39 @@ def intg_1D(Force, dx, remove_zeros=True):
         if last_non_zero != len(Force) - 1: fes[last_non_zero+1:] = non_zero_fes[-1]
     else: fes = non_zero_fes
     
-    return fes - min(fes)
+    return fes - fes.min()
+
+def FFT_intg_1D(F, dx, periodic=False):
+    """Integration of 1D gradient using fast-fourier-transform.
+
+    Args:
+        Force (array): Mean force
+        dx (float): grid spacing (i.e. space between consecutive grid entries)
+
+    Returns:
+        array: Free energy surface
+    """
+
+    nbins = len(F)
+
+    #If system is non-periodic, make (anti-)symmetic copies so that the system appears symmetric.
+    if not periodic:
+        nbins = nbins*2        
+        F = np.concatenate((-F[::-1],F))
+
+    # Calculate frequency
+    freq = np.arange(0, nbins//2 + 1, dtype=np.int16) / (nbins * dx)
+    freq[0] = 1E-10
+        
+    # FFTransform and integration
+    fourier = np.fft.rfft(F) / (2 * np.pi * 1j * freq)
+    # Reverse FFT
+    fes = np.fft.irfft(fourier)
+    
+    #if non-periodic, cut FES back to original domain.
+    if not periodic: fes = fes[nbins//2:]
+
+    return fes - np.min(fes)
 
 def window_forces(grid, pos, pos_meta, sigma_meta2, height_meta, kT, const, bw2, PD_limit=1E-10):
     """Takes in two arrays of positions. The periodic_positions are collected from the COLVAR file during a period of constant bias and calculates the force component associated with the probability density. periodic_hills are also positions collected from the HILLS file and calculates the force component resulting from the metadynamics bias. In a periodic system, positions have periodic copies if applicable. 
@@ -1556,8 +1628,8 @@ def bootstrapping_progression(grid, force_array, time_array=None, n_bootstrap=10
     for n_sim in range(1,len(force_array)+1):
     
         if n_sim > 2: 
-            FES_0, FES_avr, sd_fes, sd_fes_prog = bootstrapping_error(grid, force_array[:n_sim], int(max(10,n_bootstrap*(n_sim/len(force_array)))), periodic, FES_cutoff, PD_cutoff, use_VNORM)
-            sd_fes_evo.append(sd_fes_prog)
+            FES_0, FES_avr, sd_fes, sd_fes_prog = bootstrapping_error(grid, force_array[:n_sim], int(max(10,n_bootstrap*(n_sim/len(force_array)))), periodic=periodic, FES_cutoff=FES_cutoff, PD_cutoff=PD_cutoff, use_VNORM=use_VNORM)
+            sd_fes_evo.append(sd_fes_prog[-1])
         else: sd_fes_evo.append(np.nan)
 
     if show_plot: plt.plot(sd_fes_evo); plt.xlabel("Number of forces_e"); plt.ylabel("Standard deviation of the FES [kJ/mol]"); plt.title("Bootstrapping progression"); plt.show()
@@ -1646,69 +1718,81 @@ def patch_and_error_prog_parallel_sim(grid, force_terms_collection, y=None, PD_c
             
     return ofe_prog, aad_prog
 
-def get_mean_ste_of_n_error_prog(time, error_collection, error_collection_2=None, return_results=True, save_data_path=None, plot=True, save_plot_path=None, plot_log=False, 
-                                 plot_title=["Error of Mean Force", "AAD of FES"], line_label="", plot_xlabel=["Time"], plot_ylabel=["Error [kJ/mol]","AAD [kJ/mol]"], ste_alpha=0.3):
+def get_mean_ste_of_n_error_prog(time, error_collection, error_collection_2=None, error_collection_3=None, return_results=True, save_data_path=None, plot=True, save_plot_path=None, plot_log=False, 
+                                    plot_title=["Error of Mean Force", "AAD of FES", "Avr. Bootstrap Error of FES"], line_label="", plot_xlabel=["Time"], plot_ylabel=["Error [kJ/mol]","AAD [kJ/mol]", "ABS [kJ/mol]"], ste_alpha=0.3):
     
     time = np.array(time, dtype=float)
     error_collection = np.array(error_collection, dtype=float)
     if error_collection_2 is not None: error_collection_2 = np.array(error_collection_2, dtype=float)
- 
-    mean = np.mean(error_collection, axis=0)
-    ste = np.std(error_collection, axis=0) / np.sqrt(len(error_collection))
+    if error_collection_3 is not None: error_collection_3 = np.array(error_collection_3, dtype=float)
+
+    mean = np.nanmean(error_collection, axis=0)
+    ste = np.nanstd(error_collection, axis=0) / np.sqrt(len(error_collection))
 
     if error_collection_2 is not None:
-        mean_2 = np.mean(error_collection_2, axis=0)
-        ste_2 = np.std(error_collection_2, axis=0) / np.sqrt(len(error_collection_2))
+        mean_2 = np.nanmean(error_collection_2, axis=0)
+        ste_2 = np.nanstd(error_collection_2, axis=0) / np.sqrt(len(error_collection_2))
+        
+    if error_collection_3 is not None:
+        # print(f"error_collection_3: {type(error_collection_3)=}\n, {error_collection_3.shape=}\n{error_collection_3}")
+        with np.errstate(invalid='ignore'): mean_3 = np.nanmean(error_collection_3, axis=0)
+        with np.errstate(invalid='ignore'): ste_3 = np.nanstd(error_collection_3, axis=0) / np.sqrt(len(error_collection_3))
         
     if save_data_path is not None:
-        if error_collection_2 is not None: save_pkl([time, mean, ste, mean_2, ste_2], save_data_path) 
+        if error_collection_3 is not None and error_collection_2 is not None: save_pkl([time, mean, ste, mean_2, ste_2, mean_3, ste_3], save_data_path)
+        elif error_collection_2 is not None: save_pkl([time, mean, ste, mean_2, ste_2], save_data_path) 
         else: save_pkl([time, mean, ste], save_data_path)
         
+    # the number of error collections determines the plot
+    n_plot = 1 if error_collection_2 is None else 2 if error_collection_3 is None else 3
+    # if plot_xlabel has len of 1 or is string, make it a list of n_plot elements
+    if isinstance(plot_xlabel, str): plot_xlabel = [plot_xlabel] * n_plot
+    elif len(plot_xlabel) == 1: plot_xlabel = plot_xlabel * n_plot      
+
+    plt.figure(figsize=(int(5*n_plot),4)) 
+                                        
+    plt.subplot(1,n_plot,1)
+    plt.plot(time, mean, linewidth=1, color="green", label=line_label)
+    plt.fill_between(time, mean - ste, mean + ste, color="green", alpha=ste_alpha)
+    plt.ylim(np.nanmin(mean)*0.9, np.nanmax(mean)*1.1 )
+    if plot_log: plt.yscale("log")
+    plt.title(plot_title[0]); plt.xlabel(plot_xlabel[0]); plt.ylabel(plot_ylabel[0])
         
-    if error_collection_2 is not None: 
-        plt.figure(figsize=(10,4))  
-        plt.subplot(1,2,1)
-        plt.plot(time, mean, linewidth=1, color="green", label=line_label)
-        plt.fill_between(time, mean - ste, mean + ste, color="green", alpha=ste_alpha)
-        plt.ylim(np.nanmin(mean)*0.9, np.nanmax(mean)*1.1 )
-        if plot_log: plt.yscale("log")
-        plt.title(plot_title[0])
-        plt.xlabel(plot_xlabel[0])
-        plt.ylabel(plot_ylabel[0])
-        
-        plt.subplot(1,2,2)
+    if n_plot > 1:
+        plt.subplot(1,n_plot,2)
         plt.plot(time, mean_2, linewidth=1, color="green", label=line_label)
         plt.fill_between(time, mean_2 - ste_2, mean_2 + ste_2, color="green", alpha=ste_alpha)
-        # plt.ylim(min(mean_2)*0.9, max(mean_2)*1.1 )
+        # plt.ylim(np.nanmin(mean_2)*0.9, np.nanmax(mean_2)*1.1 )
         if plot_log: plt.yscale("log")
-        plt.title(plot_title[-1]); plt.xlabel(plot_xlabel[-1]); plt.ylabel(plot_ylabel[-1])
-                    
-        if save_plot_path is not None: plt.savefig(save_plot_path)
-        if plot: 
-            plt.tight_layout()
-            plt.show()
-    
-    else: 
-        plt.figure(figsize=(5,4))
-        plt.plot(time, mean, linewidth=1, color="red", label=line_label)
-        plt.fill_between(time, mean - ste, mean + ste, color="red", alpha=0.3)
-        # plt.ylim(min(mean)*0.9, max(mean)*1.1 )
-        if plot_log: plt.yscale("log")
-        plt.title(plot_title[0]); plt.xlabel(plot_xlabel[0]); plt.ylabel(plot_ylabel[0])
-
-        if save_plot_path is not None: plt.savefig(save_plot_path)
-        if plot: plt.show()
+        plt.title(plot_title[1]); plt.xlabel(plot_xlabel[1]); plt.ylabel(plot_ylabel[1])
         
+    if n_plot > 2:
+        plt.subplot(1,n_plot,3)
+        plt.plot(time, mean_3, linewidth=1, color="green", label=line_label)
+        plt.fill_between(time, mean_3 - ste_3, mean_3 + ste_3, color="green", alpha=ste_alpha)
+        # plt.ylim(min(np.nanmean_2)*0.9, np.nanmax(mean_2)*1.1 )
+        if plot_log: plt.yscale("log")
+        plt.title(plot_title[2]); plt.xlabel(plot_xlabel[2]); plt.ylabel(plot_ylabel[2])
+                    
+    plt.tight_layout()
+    
+    if save_plot_path is not None: plt.savefig(save_plot_path)
+    if plot: plt.show()
+                
     if return_results: 
+        if error_collection_3 is not None and error_collection_2 is not None: return [time, mean, ste, mean_2, ste_2, mean_3, ste_3]
         if error_collection_2 is not None: return [time, mean, ste, mean_2, ste_2]
         else: return [time, mean, ste]
 
-def get_avr_error_prog(path_data=None, n_surf=4, total_campaigns=50, time_budget=100, include_aad=True, simulation_type="", return_avr_prog=False,
-                       make_plot=True, show_plot=True, plot_log=True, plot_title=["Error of Mean Force", "AAD of FES"], line_label="", plot_xlabel=["Time"], plot_ylabel=["Error [kJ/mol]","AAD [kJ/mol]"]):
+def get_avr_error_prog(path_data=None, n_surf=3, total_campaigns=50, time_budget=100, include_v=True, include_aad=True, include_abs=True, simulation_type="", error_ID_ext="", return_avr_prog=False, print_final_avr=False,
+                       make_plot=True, show_plot=True, plot_log=True, max_interp_time=None, plot_title=["Error of Mean Force", "AAD of FES", "Bootstraping Error of FES"], line_label="", plot_xlabel=["Time"], plot_ylabel=["Error [kJ/mol]","AAD of FES[kJ/mol]", "Error of FES[kJ/mol]"]):
     
     # initialize t min and max, and data lists
     interpolation_time_min, interpolation_time_max = 0, np.inf
-    t_data, err_data, err_interp, aad_data, aad_interp = [], [], [], [], []
+    t_data, err_data, err_interp = [], [], []
+    if include_v: v_data, v_interp = [], []
+    if include_aad: aad_data, aad_interp = [], []
+    if include_abs: abs_data, abs_interp = [], []
     
     if simulation_type == "SRTR": sim_folder_prefix = "SRTRcampaign"
     if simulation_type == "PRTR": sim_folder_prefix = "PRTRcampaign"
@@ -1717,35 +1801,95 @@ def get_avr_error_prog(path_data=None, n_surf=4, total_campaigns=50, time_budget
     # Load error "progression data
     for i in range(1,total_campaigns+1):
         camp_id = f"_{i}_{time_budget}ns"
-        if include_aad: [t_i,err_i, aad_i] = load_pkl(f"{path_data}S{n_surf}/{sim_folder_prefix}{camp_id}/error_progression{camp_id}.pkl")
-        else: [t_i,err_i] = load_pkl(f"{path_data}S{n_surf}/{sim_folder_prefix}{camp_id}/error_progression{camp_id}.pkl")
-        t_data.append(list(t_i)); err_data.append(list(err_i))
-        if include_aad: aad_data.append(list(aad_i))
+        data_load = load_pkl(f"{path_data}S{n_surf}/{sim_folder_prefix}{camp_id}/error_progression{camp_id}{error_ID_ext}.pkl")
+        index_count = 0
+        remove_duplicate = []
+        # take the time data
+        t_i = data_load[index_count]; 
+        # check if there are duplicate time values. If there are, find the index and remove the duplicate values everywhere
+        while len(t_i) != len(set(t_i)): 
+            for jj in range(len(t_i)): 
+                if t_i[jj] in t_i[jj+1:]: 
+                    remove_duplicate.append(jj)
+                    break
+            t_i = np.delete(t_i, remove_duplicate[-1])
+        index_count += 1
+        t_data.append(list(t_i)); 
+        # if include_v: take the explored volume data
+        if include_v: 
+            v_i = data_load[index_count]; 
+            index_count += 1
+        # take the error (of mean force) data
+        err_i = data_load[index_count]
+        if len(remove_duplicate) > 0: err_i = np.delete(err_i, remove_duplicate)
+        index_count += 1
+        err_data.append(list(err_i))
+        # if include_aad: take the average absolute deviation of FES data
+        if include_aad: 
+            aad_i = data_load[index_count]; 
+            if len(remove_duplicate) > 0: aad_i = np.delete(aad_i, remove_duplicate)
+            index_count += 1
+            aad_data.append(list(aad_i))
+        # if include_abs: take the average bootstrap error of FES data
+        if include_abs: 
+            abs_i = data_load[index_count]; 
+            if len(remove_duplicate) > 0: abs_i = np.delete(abs_i, remove_duplicate)
+            index_count += 1            
+            # count nan values. If there are nan values, replace them with the first non-nan value
+            n_nan = np.sum(np.isnan(abs_i))
+            if n_nan > 0: abs_i = remove_nan_from_array(abs_i)
+            abs_data.append(list(abs_i))
+            
+        # find the min and max time
         interpolation_time_min, interpolation_time_max = max(interpolation_time_min, min(t_i)), min(interpolation_time_max, max(t_i))
-    
+        if max_interp_time is not None: interpolation_time_max = min(interpolation_time_max, max_interp_time)
+
     # Interpolate the data
     time = np.linspace(interpolation_time_min, interpolation_time_max, 250)
     for i in range(total_campaigns):
         err_interp.append(interp1d(t_data[i], err_data[i], kind='cubic')(time))
         if include_aad: aad_interp.append(interp1d(t_data[i], aad_data[i], kind='cubic')(time))
+        if include_abs: abs_interp.append(interp1d(t_data[i], abs_data[i], kind='cubic')(time))
     
     # Get the mean and standard error of the error progressions    
-    if include_aad: [time, ofe_mean, ofe_ste, aad_mean, aad_ste] = get_mean_ste_of_n_error_prog(time, err_interp, aad_interp, plot=False, plot_log=plot_log, plot_title=plot_title, line_label=line_label, plot_xlabel=plot_xlabel, plot_ylabel=plot_ylabel)
-    else: [time, ofe_mean, ofe_ste] = get_mean_ste_of_n_error_prog(time, err_interp, plot=False, plot_log=plot_log, plot_title=plot_title, line_label=line_label, plot_xlabel=plot_xlabel, plot_ylabel=plot_ylabel)
-    print(f"t=[{interpolation_time_min:.2f},{interpolation_time_max:.2f}] | Final avr: AOFE={ofe_mean[-1]:.3f}", end="")
-    if include_aad: print(f", AAD={aad_mean[-1]:.3f}")
+    if not include_aad and not include_abs: [time, ofe_mean, ofe_ste] = get_mean_ste_of_n_error_prog(time, err_interp, plot=False, plot_log=plot_log, plot_title=plot_title, line_label=line_label, plot_xlabel=plot_xlabel, plot_ylabel=plot_ylabel)
+    elif include_aad and not include_abs: [time, ofe_mean, ofe_ste, aad_mean, aad_ste] = get_mean_ste_of_n_error_prog(time, err_interp, aad_interp, plot=False, plot_log=plot_log, plot_title=plot_title, line_label=line_label, plot_xlabel=plot_xlabel, plot_ylabel=plot_ylabel)
+    elif not include_aad and include_abs: [time, ofe_mean, ofe_ste, abs_mean, abs_ste] = get_mean_ste_of_n_error_prog(time, err_interp, abs_interp, plot=False, plot_log=plot_log, plot_title=plot_title, line_label=line_label, plot_xlabel=plot_xlabel, plot_ylabel=plot_ylabel)
+    else: [time, ofe_mean, ofe_ste, aad_mean, aad_ste, abs_mean, abs_ste] = get_mean_ste_of_n_error_prog(time, err_interp, aad_interp, abs_interp, plot=False, plot_log=plot_log, plot_title=plot_title, line_label=line_label, plot_xlabel=plot_xlabel, plot_ylabel=plot_ylabel)
+    
+    if print_final_avr:
+        print(f"t=[{interpolation_time_min:.2f},{interpolation_time_max:.2f}] | Final avr: AOFE={ofe_mean[-1]:.3f}", end="")
+        if include_aad: print(f", AAD={aad_mean[-1]:.3f}", end="")
+        if include_abs: print(f", ABS={abs_mean[-1]:.3f}", end="")
+        print("")
+    
 
     # Show the plot of the individual error progressions
     if make_plot:
         for i in range(len(err_interp)):         
-            if include_aad: plt.subplot(1,2,2); plt.plot(time, aad_interp[i], linewidth=0.5, alpha=0.2, color="black"); plt.subplot(1,2,1)
-            plt.plot(time, err_interp[i], linewidth=0.5, alpha=0.2, color="black")
+            if not include_aad and not include_abs: 
+                plt.plot(time, err_interp[i], linewidth=0.5, alpha=0.2, color="black")
+            if include_aad and not include_abs: 
+                plt.subplot(1,2,1); plt.plot(time, err_interp[i], linewidth=0.5, alpha=0.2, color="black")
+                plt.subplot(1,2,2); plt.plot(time, aad_interp[i], linewidth=0.5, alpha=0.2, color="black");
+            elif not include_aad and include_abs: 
+                plt.subplot(1,2,1); plt.plot(time, err_interp[i], linewidth=0.5, alpha=0.2, color="black")
+                plt.subplot(1,2,2); plt.plot(time, abs_interp[i], linewidth=0.5, alpha=0.2, color="black");
+            elif include_aad and include_abs: 
+                plt.subplot(1,3,1); plt.plot(time, err_interp[i], linewidth=0.5, alpha=0.2, color="black")
+                plt.subplot(1,3,2); plt.plot(time, aad_interp[i], linewidth=0.5, alpha=0.2, color="black"); 
+                plt.subplot(1,3,3); plt.plot(time, abs_interp[i], linewidth=0.5, alpha=0.2, color="black");
         plt.tight_layout()
         if show_plot: plt.show()
         
-    if return_avr_prog: return time, ofe_mean, ofe_ste, aad_mean, aad_ste
+    if return_avr_prog: 
+        if not include_aad and not include_abs: return time, ofe_mean, ofe_ste
+        elif include_aad and not include_abs: return time, ofe_mean, ofe_ste, aad_mean, aad_ste
+        elif not include_aad and include_abs: return time, ofe_mean, ofe_ste, abs_mean, abs_ste 
+        else: return time, ofe_mean, ofe_ste, aad_mean, aad_ste, abs_mean, abs_ste 
+        
 
-def analyse_independent_simulations_and_get_avr_error_prog(path_data=None, n_surf=4, 
+def analyse_independent_simulations_and_get_avr_error_prog(path_data=None, n_surf=3, 
                                                            total_campaigns=None, n_sim_per_camp=None, time_budget=100, 
                                                            include_aad=True, simulation_type="", return_avr_prog=False,
                                                             ):
@@ -1866,11 +2010,24 @@ for _functions_ in [1]:
         Returns:
             array: input array with zero-elements turned to np.nan
         """
+        input_array = np.array(input_array)
         output_array = np.zeros_like(input_array)
-        for ii in range(len(input_array)):
-            for jj in range(len(input_array[ii])):
-                if input_array[ii][jj] <= 0: output_array[ii][jj] = np.nan
-                else: output_array[ii][jj] = input_array[ii][jj]
+        
+        if len(input_array.shape) == 1:
+            for ii in range(len(input_array)):
+                if input_array[ii] <= 0: output_array[ii] = np.nan
+                else: output_array[ii] = input_array[ii]        
+        
+        elif len(input_array.shape) == 2:
+            for ii in range(len(input_array)):
+                for jj in range(len(input_array[ii])):
+                    if input_array[ii][jj] <= 0: output_array[ii][jj] = np.nan
+                    else: output_array[ii][jj] = input_array[ii][jj]
+                    
+        elif len(input_array.shape) > 2: 
+            print("The function zero_to_nan does not work for arrays with more than 2 dimensions.")
+            return input_array
+        
         return output_array
 
     @njit
@@ -2140,6 +2297,22 @@ for _functions_ in [1]:
 
         return height_list, position_list, sigma_list
 
+def remove_nan_from_array(array, fill_with_first_non_nan_value=True):
+    
+    n_nan = np.sum(np.isnan(array))
+
+    if n_nan == 0: return array
+
+    #fill_with_first_non_nan_value
+    if not fill_with_first_non_nan_value:
+        array = array[~np.isnan(array)]
+        return array
+    
+    # find index of all nan values
+    nan_indices = np.where(np.isnan(array))[0]
+    array[nan_indices] = np.nanmax(array)
+    return array
+
     ####  ---- Print progress  ----  ####
 
 for _print_progress_ in [0]:
@@ -2215,7 +2388,7 @@ def plot_FES_Bias_and_Traj(grid, fes, metad_bias=None, static_bias=None, positio
     if save_figure_path is not None: plt.savefig(save_figure_path, dpi=300, bbox_inches="tight", transparent=True)
     plt.show()	
 
-def plot_PRTR_d_error(mfi_PRTR, plot_aad=False):	
+def plot_PRTR_d_error(mfi_PRTR, plot_aad=False, symlog_threshold=-1):	
     
     if not plot_aad: title_list = ["dAofe", "dAofe/dt", "dtotAofe", "dtotAofe/dt"]
     else: title_list = ["dAAD", "dAAD/dt", "dtotAAD", "dtotAAD/dt"]
@@ -2239,7 +2412,13 @@ def plot_PRTR_d_error(mfi_PRTR, plot_aad=False):
                 t = [t[0] + (t[i] - t[0])*4 for i in range(len(t))]
                 error = mfi_PRTR.sim[sim].d_AAD[:, err_type] if plot_aad else mfi_PRTR.sim[sim].d_Aofe[:, err_type]
                 plt.plot(t , error, label=f"S {sim}", marker=".")
-    
+
+            if symlog_threshold == -1:
+                plt.yscale("symlog", linthresh=0.01)
+            
+            elif symlog_threshold is not None: 
+                plt.yscale("symlog", linthresh=0.01)
+                plt.axhline(0, color="grey", linestyle="--", alpha=0.5, linewidth=1)
             plt.legend(fontsize=8)
 
     plt.tight_layout(); plt.show()

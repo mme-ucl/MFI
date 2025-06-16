@@ -26,8 +26,23 @@ from pyMFI import MFI
 from pyMFI import MFI1D
 from pyMFI import run_plumed
 
-
 class TestMFI(unittest.TestCase):
+    
+    """
+    TestMFI is a unittest.TestCase class that contains various test methods
+    for validating the functionality of the MFI (Multidimensional Free Energy)
+    simulations and analyses in both 1D and 2D.
+
+    The tests include:
+    - Langevin simulations in 1D and 2D
+    - MFI calculations in 1D and 2D
+    - Patch simulations in 1D and 2D
+    - Bootstrapping methods in 1D and 2D
+    - Integration tests for both 1D and 2D analytical data
+
+    To run the tests, use the following command in the terminal:
+    python -m unittest /home/ucecabj/Desktop/MFI_git/tests_pyMFI/run_pyMFI_tests.py
+    """    
     
     print("\n\n")
         

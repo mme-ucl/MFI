@@ -243,6 +243,27 @@ def find_uw_force(uw_centre, uw_kappa, grid, min_grid, max_grid, grid_space, per
     
     return F_harmonic
 
+# @njit
+# def intg_1D(Force, dx):
+#     """Integration of 1D gradient using finite difference method (simpson's method).
+
+#     Args:
+#         Force (array): Mean force
+#         dx (float): grid spacing (i.e. space between consecutive grid entries)
+
+#     Returns:
+#         array: Free energy surface
+#     """
+#     fes = np.zeros_like(Force)
+    
+#     for j in range(len(Force)): 
+#         y = Force[:j + 1]
+#         N = len(y)
+#         if N % 2 == 0: fes[j] = dx/6 * (np.sum(y[: N-3: 2] + 4*y[1: N-3+1: 2] + y[2: N-3+2: 2]) + np.sum(y[1: N-2: 2] + 4*y[1+1: N-1: 2] + y[1+2: N: 2])) + dx/4 * ( y[1] + y[0] + y[-1] + y[-2])
+#         else: fes[j] = dx / 3.0 * np.sum(y[: N-2: 2] + 4*y[1: N-1: 2] + y[2: N: 2])
+#     fes = fes - min(fes)
+#     return fes
+
 @njit
 def intg_1D(Force, dx):
     """Integration of 1D gradient using finite difference method (simpson's method).
@@ -254,15 +275,49 @@ def intg_1D(Force, dx):
     Returns:
         array: Free energy surface
     """
+    N = len(Force)
     fes = np.zeros_like(Force)
+    fes[0] = 0.0
+    fes[1] = 0.5 * dx * (Force[0] + Force[1])
+        
+    # For even indices compute the integral using Simpson's rule:
+    fes[2: N: 2] = dx/3 * (Force[0] + 4*np.cumsum(Force[1: N-1: 2]) + 2*np.cumsum(Force[2: N: 2]) - Force[2: N: 2])
     
-    for j in range(len(Force)): 
-        y = Force[:j + 1]
-        N = len(y)
-        if N % 2 == 0: fes[j] = dx/6 * (np.sum(y[: N-3: 2] + 4*y[1: N-3+1: 2] + y[2: N-3+2: 2]) + np.sum(y[1: N-2: 2] + 4*y[1+1: N-1: 2] + y[1+2: N: 2])) + dx/4 * ( y[1] + y[0] + y[-1] + y[-2])
-        else: fes[j] = dx / 3.0 * np.sum(y[: N-2: 2] + 4*y[1: N-1: 2] + y[2: N: 2])
-    fes = fes - min(fes)
-    return fes
+    # For odd indices, take the result from the previous even index and add the correction term: (source: L. V. Blake, (1971): "A Modified Simpson's Rule and Fortran Subroutine for Cumulative Numerical Integration of a Function Defined by Data Points", Naval Research Laboratory Memorandum Report 2231)
+    fes[3: N: 2] = fes[2: N-1: 2] + dx/12 * (5*Force[3: N: 2] + 8*Force[2: N-1: 2] - Force[1: N-2: 2])
+    
+    return fes - fes.min()
+
+def FFT_intg_1D(F, dx, periodic=False):
+    """Integration of 1D gradient using Fast Fourier Transform.
+
+    Args:
+        Force (array): Mean force
+        dx (float): grid spacing (i.e. space between consecutive grid entries)
+
+    Returns:
+        array: Free energy surface
+    """
+    nbins = len(F)
+
+    #If system is non-periodic, make (anti-)symmetic copies so that the system appears symmetric.
+    if not periodic:
+        nbins = nbins*2        
+        F = np.concatenate((-F[::-1],F))
+
+    # Calculate frequency
+    freq = np.arange(0, nbins//2 + 1, dtype=np.int16) / (nbins * dx)
+    freq[0] = 1E-10
+        
+    # FFTransform and integration
+    fourier = np.fft.rfft(F) / (2 * np.pi * 1j * freq) 
+    # Reverse FFT
+    fes = np.fft.irfft(fourier)
+    
+    #if non-periodic, cut FES back to original domain.
+    if not periodic: fes = fes[nbins//2:]
+
+    return fes - np.min(fes)
    
 ### Algorithm to run 1D MFI
 # Run MFI algorithm with on the fly error calculation
@@ -844,7 +899,7 @@ def remove_flat_tail(x, FES, sd):
     return [x, FES, sd]
 
 def plot_recap(X, FES, Ftot_den, ofe, ofe_history, time_history, y_ref=None, FES_lim=40, ofe_lim = 10, error_log_scale = 1,
-               cv = "CV", time_axis_name="simulation time"):
+               cv = "$\\xi$", time_axis_name="simulation time"):
     """Plot result of 1D MFI algorithm. 1. FES, 2. varinace_map, 3. Cumulative biased probability density, 4. Convergece of variance.
 
     Args:
@@ -859,7 +914,7 @@ def plot_recap(X, FES, Ftot_den, ofe, ofe_history, time_history, y_ref=None, FES
         error_log_scale (boolean, optional): Option to make error_conversion plot with a log scale. 1 for log scale. Defaults to 1.
     """
     
-    fig, axs = plt.subplots(2, 2, figsize=(12, 8))
+    fig, axs = plt.subplots(2, 2, figsize=(8,6))
 
     #plot ref f
     if y_ref is not None: axs[0, 0].plot(X, y_ref, label="Reference", color="red", alpha=0.3);
@@ -868,7 +923,7 @@ def plot_recap(X, FES, Ftot_den, ofe, ofe_history, time_history, y_ref=None, FES
     axs[0, 0].set_ylim([0, FES_lim])
     axs[0, 0].set_ylabel('F(' + cv + ') [kJ/mol]')
     axs[0, 0].set_xlabel(cv)
-    axs[0, 0].set_title('Free Energy Surface')
+    axs[0, 0].set_title('a) Free Energy Surface')
     axs[0, 0].set_xlim(np.min(X),np.max(X))
     axs[0, 0].legend(fontsize=10)
 
@@ -876,25 +931,25 @@ def plot_recap(X, FES, Ftot_den, ofe, ofe_history, time_history, y_ref=None, FES
     axs[0, 1].plot(X, np.zeros(len(X)), color="grey", alpha=0.3);
     axs[0, 1].set_ylabel('Mean Force Error [kJ/(mol)]')
     axs[0, 1].set_xlabel(cv)
-    axs[0, 1].set_title('Local Error Map')
+    axs[0, 1].set_title('b) Local Error Map')
     # axs[0, 1].set_ylim(-0.1, ofe_lim)
     axs[0, 0].set_xlim(np.min(X),np.max(X))
 
     
 
     axs[1, 0].plot(X, Ftot_den)
-    axs[1, 0].set_ylabel('Count [relative probability]')
+    axs[1, 0].set_ylabel('Relative count [-y]')
     axs[1, 0].set_xlabel(cv)
-    axs[1, 0].set_title('Total Probability density')
+    axs[1, 0].set_title('c) Biased Probability Density')
     axs[0, 0].set_xlim(np.min(X),np.max(X))
     # axs[1, 0].set_yscale('log')
 
 
     axs[1, 1].plot(time_history, ofe_history);
     # axs[1, 1].plot([time/1000 for time in time_history], np.zeros(len(ofe_history)), color="grey", alpha=0.3);
-    axs[1, 1].set_ylabel('Average Mean Force Error [kJ/(mol)]')
+    axs[1, 1].set_ylabel('Mean Force Erro [kJ/(mol)]')
     axs[1, 1].set_xlabel(time_axis_name)
-    axs[1, 1].set_title('Progression of Average Mean Force Error')
+    axs[1, 1].set_title('d) Global Error Progression')
     if error_log_scale == 1: axs[1, 1].set_yscale('log')
     # axs[1, 1].set_ylim([-0.5, max(ofe_history)])
 
