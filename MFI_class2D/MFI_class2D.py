@@ -2827,7 +2827,7 @@ class MFI2D:
                         return True
                 
                 elif self.sim[0].calculate_FES_st_dev:
-                    if self.sim[0].Avr_Error_list[-1, self.sim[0].FES_st_dev_index] < self.kT*0.7: 
+                    if self.sim[0].Avr_Error_list[-1, self.sim[0].FES_st_dev_index] < self.sim[0].kT*0.7: 
                         self.sim[0].phase = "flat"
                         self.reason_for_termination = f"Metad phase completed (var_fes={self.sim[0].Avr_Error_list[-1, self.sim[0].FES_st_dev_index]:.4f})"
                         return True
@@ -2835,7 +2835,7 @@ class MFI2D:
                 elif self.sim[0].record_maps:
                     # flat / US phase will be start if var of the last 10 FES maps is small enough. If not, continue metad.    
                     st_dev = np.sum(np.sqrt(np.var(np.array(self.sim[0].Maps_list)[-30:,0], axis=0) * self.sim[0].Maps_list[-1][1])) / np.count_nonzero(self.sim[0].Maps_list[-1][1])
-                    if st_dev < self.kT*0.7: 
+                    if st_dev < self.sim[0].kT*0.7: 
                         self.sim[0].phase = "flat"
                         self.reason_for_termination = f"Metad phase completed (var_fes={st_dev:.4f})"
                         return True    
